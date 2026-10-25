@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Verify OT against face scan') }}</h1></div>
+<p class="lead">{{ _('Approved OT for the pay period, next to the scans. Lines where the scans cover the OT are ticked. HR verifies them in one go; verified lines go into the next Bplus batch.') }}</p>
+<form class="filters panel" method="get">
+  <label>{{ _('Pay cycle') }}<select name="cycle"><option value="OPERATOR_HALF" {% if cycle == 'OPERATOR_HALF' %}selected{% endif %}>{{ _('Operators, half-month') }}</option><option value="STAFF_MONTHLY" {% if cycle == 'STAFF_MONTHLY' %}selected{% endif %}>{{ _('Staff, monthly') }}</option></select></label>
+  <label>{{ _('Period containing') }}<input type="date" name="d0" value="{{ p0 }}"></label>
+  <button>{{ _('Show') }}</button>
+  <span class="note">{{ fmt_date(p0) }} – {{ fmt_date(p1) }}</span>
+</form>
+<form method="post" class="panel scroll">
+  <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="cycle" value="{{ cycle }}"><input type="hidden" name="d0" value="{{ p0 }}">
+  <table>
+    <tr><th><input type="checkbox" data-check-all=".vbox" aria-label="all"></th><th>{{ _('Date') }}</th><th>{{ _('Employee') }}</th><th>{{ _('OT') }}</th><th class="n">{{ _('Req. h') }}</th><th class="n">{{ _('Scan h') }}</th><th class="n">{{ _('Payable h') }}</th><th>{{ _('Checks') }}</th></tr>
+    {% for r in rows %}
+    {% set short = r.scan_minutes is none or r.scan_minutes + 10 < r.requested_minutes %}
+    <tr>
+      <td><input type="checkbox" class="vbox" name="ids" value="{{ r.id }}" {% if not short and approvable[r.id] %}checked{% endif %} {% if not approvable[r.id] %}disabled title="{{ _('You submitted this or it is not at the HR step') }}"{% endif %}></td>
+      <td>{{ fmt_date(r.work_date) }}</td>
+      <td><span class="mono">{{ r.employee_id }}</span> {{ r.employee.full_name_en }}</td>
+      <td><a href="/ot/{{ r.id }}">{{ fmt_time(r.ot_from) }}–{{ fmt_time(r.ot_to) }}</a></td>
+      <td class="n">{{ r.requested_hours }}</td>
+      <td class="n {% if short %}bad-t{% endif %}">{{ hours(r.scan_minutes) }}</td>
+      <td class="n">{{ hours(r.payable_minutes) }}</td>
+      <td>{% for f in (r.flags or []) if f.level != 'info' %}<div class="note {{ 'bad-t' if f.level == 'block' else 'warn-t' }}">{{ rt(f) }}</div>{% endfor %}</td>
+    </tr>
+    {% else %}<tr><td colspan="8" class="note">{{ _('Nothing waiting for HR in this period') }}</td></tr>{% endfor %}
+  </table>
+  <div class="bar"><button class="primary">{{ _('Verify ticked lines') }}</button><span class="note">{{ _('Short lines are paid only for the hours the scans cover.') }}</span></div>
+</form>
+{% endblock %}

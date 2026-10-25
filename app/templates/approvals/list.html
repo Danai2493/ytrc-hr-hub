@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead"><h1>{{ _('Approvals') }}</h1>
+  <div class="end">
+    <a class="btn {% if view == 'inbox' %}primary{% endif %}" href="?view=inbox">{{ _('Waiting for me') }}</a>
+    <a class="btn {% if view == 'mine' %}primary{% endif %}" href="?view=mine">{{ _('I submitted') }}</a>
+    {% if user.has('hr','hr_manager','gm','auditor') %}<a class="btn {% if view == 'all' %}primary{% endif %}" href="?view=all">{{ _('All') }}</a>{% endif %}
+  </div>
+</div>
+<p class="lead">{{ _('One approval engine for OT, data changes, transfers, promotions and exits. Each decision is logged with name and time, which replaces signatures on paper.') }}</p>
+<form method="post" action="/approvals/bulk" class="panel scroll">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <table>
+    <tr>{% if view == 'inbox' %}<th><input type="checkbox" data-check-all=".abox" aria-label="all"></th>{% endif %}<th>#</th><th>{{ _('Type') }}</th><th>{{ _('Request') }}</th><th>{{ _('Checks') }}</th><th>{{ _('Step') }}</th><th>{{ _('Submitted') }}</th><th>{{ _('Status') }}</th></tr>
+    {% for r in rows %}
+    {% set o = ot.get(r.id) %}
+    <tr>
+      {% if view == 'inbox' %}<td><input type="checkbox" class="abox" name="ids" value="{{ r.id }}"></td>{% endif %}
+      <td class="mono">{{ r.id }}</td><td><span class="tag">{{ r.request_type }}</span></td>
+      <td><a href="/approvals/{{ r.id }}">{{ r.title }}</a>{% if o and o.reason %}<div class="note">{{ o.reason }}</div>{% endif %}</td>
+      <td>{% if o %}{% for f in (o.flags or []) if f.level != 'info' %}<div class="note {{ 'bad-t' if f.level == 'block' else 'warn-t' }}">{{ rt(f) }}</div>{% endfor %}{% endif %}</td>
+      <td>{% if r.active_step and r.status == 'pending' %}{{ r.active_step.seq }}/{{ r.steps|length }} {{ _(r.active_step.name) }}{% endif %}</td>
+      <td class="note">{{ r.submitted_by }}<br>{{ fmt_dt(r.created_at) }}</td>
+      <td>{{ status_tag(r.status) }}</td>
+    </tr>
+    {% else %}<tr><td colspan="8" class="note">{{ _('Nothing here') }}</td></tr>{% endfor %}
+  </table>
+  {% if view == 'inbox' and rows %}
+  <div class="bar">
+    <label>{{ _('Comment (required to reject)') }}<input name="comment"></label>
+    <button class="primary" name="decision" value="approved">{{ _('Approve ticked') }}</button>
+    <button class="danger" name="decision" value="rejected">{{ _('Reject ticked') }}</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ _('User') }} {{ u.display_name if u else '' }}</h1>
+{% if temp_pw %}<div class="flash warn">{{ _('Temporary password') }}: <strong class="mono">{{ temp_pw }}</strong> · {{ _('Give it in person. It is shown only once.') }}</div>{% endif %}
+<form method="post" class="panel">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <div class="form">
+    <label>{{ _('Display name') }}<input name="display_name" value="{{ u.display_name if u else '' }}" required></label>
+    <label>{{ _('Google email') }}<input type="email" name="email" value="{{ u.email or '' if u else '' }}"></label>
+    <label>{{ _('App username (no Google account)') }}<input name="username" value="{{ u.username or '' if u else '' }}"></label>
+    <label>{{ _('New password') }}<input type="password" name="password" autocomplete="new-password" placeholder="{{ _('leave blank to keep') }}"></label>
+    <label>{{ _('Employee ID') }}<input name="employee_id" value="{{ u.employee_id or '' if u else '' }}" class="mono"></label>
+    <label><span><input type="checkbox" name="active" {% if not u or u.active %}checked{% endif %}> {{ _('Active') }}</span></label>
+  </div>
+  <h2>{{ _('Roles') }}</h2>
+  <div class="form">{% for r, d in roles.items() %}<label><span><input type="checkbox" name="roles" value="{{ r }}" {% if u and r in (u.roles or []) %}checked{% endif %} {% if r == 'admin' and not user.has('admin') %}disabled{% endif %}> <strong>{{ r }}</strong></span><span class="note">{{ _(d) }}</span></label>{% endfor %}</div>
+  <h2>{{ _('Extra Org Units (supervisors)') }}</h2>
+  <p class="note">{{ _('A supervisor sees and submits for the units ticked here and their sub-units.') }}</p>
+  <div class="form">{% set mine = u.scopes | map(attribute='org_unit_code') | list if u else [] %}{% for o in units %}<label><span><input type="checkbox" name="scopes" value="{{ o.code }}" {% if o.code in mine %}checked{% endif %}> {{ o.code }} · {{ o.name_en }}</span></label>{% endfor %}</div>
+  <div class="bar"><button class="primary">{{ _('Save') }}</button><a class="btn" href="/admin">{{ _('Cancel') }}</a></div>
+</form>
+{% if u %}
+<form method="post" action="/admin/user/{{ u.id }}/temp-password" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small">{{ _('Create a temporary password') }}</button></form>
+{% endif %}
+{% endblock %}

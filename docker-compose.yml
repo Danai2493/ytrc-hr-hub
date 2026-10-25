@@ -1,0 +1,34 @@
+# Everything on one server: the app and its PostgreSQL database.
+# Start:  cp .env.example .env  (fill it in)  then  docker compose up -d
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hrhub
+      POSTGRES_USER: hrhub
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hrhub"]
+      interval: 10s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://hrhub:${DB_PASSWORD}@db:5432/hrhub
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - files:/data/files
+
+volumes:
+  dbdata:
+  files:

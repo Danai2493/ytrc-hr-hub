@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Admin') }}</h1><div class="end"><a class="btn" href="/admin/audit">{{ _('Audit log') }}</a><a class="btn primary" href="/admin/user/new">{{ _('New user') }}</a></div></div>
+<section class="panel scroll">
+  <h2>{{ _('Users and roles') }}</h2>
+  <p class="note">{{ _('People with a company Google account get an employee account on first sign-in (if their work email is in the master). Department Heads get their role automatically. Give HR, GM and supervisor roles here.') }}</p>
+  <table>
+    <tr><th>{{ _('Name') }}</th><th>{{ _('Sign-in') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Roles') }}</th><th>{{ _('Extra units') }}</th><th>{{ _('Last sign-in') }}</th><th></th></tr>
+    {% for u in users %}
+    <tr class="{% if not u.active %}muted{% endif %}"><td>{{ u.display_name }}</td><td class="mono">{{ u.email or '' }}{% if u.username %} {{ u.username }}{% endif %}</td><td class="mono">{{ u.employee_id or '' }}</td>
+      <td>{% for r in u.roles or [] %}<span class="tag">{{ r }}</span> {% endfor %}</td><td class="note">{{ u.scopes | map(attribute='org_unit_code') | join(', ') }}</td><td class="note">{{ fmt_dt(u.last_login_at) }}</td>
+      <td><a class="btn small" href="/admin/user/{{ u.id }}">{{ _('Edit') }}</a></td></tr>
+    {% endfor %}
+  </table>
+</section>
+<div class="grid">
+  <section class="panel c6" id="settings">
+    <h2>{{ _('Rules and settings') }}</h2>
+    <form method="post" action="/admin/settings" class="form">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      {% for k, v, d in settings_rows %}
+      <label class="wide">{{ _(d) }} <span class="mono note">{{ k }}</span>
+        <input name="{{ k }}" value="{{ v | tojson if v is iterable and v is not string else (v if v is not none else '') }}" {% if not user.has('hr_manager') %}readonly{% endif %}></label>
+      {% endfor %}
+      {% if user.has('hr_manager') %}<div><button class="primary">{{ _('Save settings') }}</button></div>{% endif %}
+    </form>
+  </section>
+  <section class="panel c6" id="shifts">
+    <h2>{{ _('Shifts') }}</h2>
+    <table>{% for s in shifts %}<tr><td class="mono">{{ s.code }}</td><td>{{ s.name }}</td><td>{{ s.start.strftime('%H:%M') }}–{{ s.end.strftime('%H:%M') }}{% if s.is_night %} <span class="tag">{{ _('night') }}</span>{% endif %}</td><td class="note">{{ _('break') }} {{ s.break_minutes }}′</td></tr>{% endfor %}</table>
+    {% if user.has('hr_manager') %}
+    <form method="post" action="/admin/shift" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label>{{ _('Code') }}<input name="code" required></label><label>{{ _('Name') }}<input name="name" required></label>
+      <label>{{ _('Start') }}<input type="time" name="start" required></label><label>{{ _('End') }}<input type="time" name="end" required></label>
+      <label>{{ _('Break min') }}<input type="number" name="break_minutes" value="60"></label><div><button>{{ _('Save shift') }}</button></div></form>
+    {% endif %}
+    <h3>{{ _('Weekly rest days') }}</h3>
+    <p class="note">{% for c in calendars %}{{ c.code }}: {{ c.rest_weekdays }}{% if not loop.last %} · {% endif %}{% endfor %} ({{ _('0 = Monday, 6 = Sunday') }})</p>
+  </section>
+  <section class="panel c6" id="holidays">
+    <h2>{{ _('Holidays') }} {{ today.year }}</h2>
+    <form method="post" action="/admin/holiday" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label>{{ _('Calendar') }}<select name="calendar_code">{% for c in calendars %}<option>{{ c.code }}</option>{% endfor %}</select></label>
+      <label>{{ _('Date') }}<input type="date" name="day" required></label><label>{{ _('Name') }}<input name="name" required></label><div><button>{{ _('Add') }}</button></div></form>
+    <div class="scroll"><table>{% for h in holidays %}<tr><td>{{ fmt_date(h.day) }}</td><td><span class="tag">{{ h.calendar_code }}</span></td><td>{{ h.name }}</td>
+      <td>{% if user.has('hr_manager') %}<form method="post" action="/admin/holiday/{{ h.id }}/delete" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small danger" data-confirm="{{ _('Delete this holiday?') }}">×</button></form>{% endif %}</td></tr>{% endfor %}</table></div>
+  </section>
+  <section class="panel c6" id="budget">
+    <h2>{{ _('OT budget') }}</h2>
+    <form method="post" action="/admin/budget" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label>{{ _('Month') }}<input type="month" name="month" required></label>
+      <label>{{ _('Org Unit (blank = company)') }}<select name="org_unit_code"><option value=""></option>{% for u in units %}<option value="{{ u.code }}">{{ u.code }}</option>{% endfor %}</select></label>
+      <label>{{ _('Group') }}<select name="employee_group"><option value=""></option><option>Staff</option><option>Operator</option></select></label>
+      <label>{{ _('Hours') }}<input name="hours" inputmode="decimal"></label><label>{{ _('Amount THB') }}<input name="amount_thb" inputmode="decimal"></label><div><button>{{ _('Save') }}</button></div></form>
+    <table>{% for b in budgets %}<tr><td>{{ b.month.strftime('%m/%Y') }}</td><td>{{ b.org_unit_code or _('company') }}</td><td>{{ b.employee_group or '' }}</td><td class="n">{{ b.hours or '' }} h</td><td class="n">{{ '{:,.0f}'.format(b.amount_thb) if b.amount_thb else '' }}</td></tr>{% endfor %}</table>
+  </section>
+</div>
+{% endblock %}

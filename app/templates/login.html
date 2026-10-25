@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="login">
+  <div class="panel">
+    <div class="phead"><h1>YTRC HR Hub</h1>{% if settings.demo_mode %}<span class="stamp">{{ _('Demo, SAMPLE data only') }}</span>{% endif %}</div>
+    <p class="lead">{{ _('Sign in with your company Google account.') }}</p>
+    {% if google %}
+    <a class="btn primary gbtn" href="/auth/google">{{ _('Sign in with Google') }}</a>
+    {% else %}
+    <p class="note">{{ _('Google sign-in is not set up on this server yet (IT adds GOOGLE_CLIENT_ID).') }}</p>
+    {% endif %}
+    {% if local %}
+    <details {% if not google %}open{% endif %}>
+      <summary class="note">{{ _('No Google account? Sign in with an app login') }}</summary>
+      <form method="post" action="/login" class="form" style="margin-top:10px">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <label>{{ _('Username') }}<input name="username" autocomplete="username" required></label>
+        <label>{{ _('Password') }}<input name="password" type="password" autocomplete="current-password" required></label>
+        <div class="wide"><button class="primary">{{ _('Sign in') }}</button></div>
+      </form>
+    </details>
+    {% endif %}
+    <form method="post" action="/lang" class="bar">
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="next" value="/login">
+      {% for code, name in langs.items() %}<button name="lang" value="{{ code }}" class="small">{{ name }}</button>{% endfor %}
+    </form>
+  </div>
+  {% for f in flashes %}{% endfor %}
+  <p class="note">{{ _('This system holds personal data under the PDPA. Access is logged.') }}</p>
+</div>
+{% endblock %}

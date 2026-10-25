@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ _('Position') }} {% if pos %}<span class="mono">{{ pos.position_id }}</span>{% endif %}</h1>
+<form method="post" class="panel">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <div class="form">
+    <label>{{ _('Title') }}<input name="title" value="{{ pos.title if pos }}" required></label>
+    <label>{{ _('Org Unit') }}<select name="org_unit_code" required>{% for u in units %}<option value="{{ u.code }}" {% if (pos and pos.org_unit_code == u.code) or unit == u.code %}selected{% endif %}>{{ u.code }} · {{ u.name_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('Job') }}<select name="job_code"><option value=""></option>{% for j in jobs %}<option value="{{ j.code }}" {% if pos and pos.job_code == j.code %}selected{% endif %}>{{ j.title_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('Grade') }}<select name="grade_code"><option value=""></option>{% for g in grades %}<option value="{{ g.code }}" {% if pos and pos.grade_code == g.code %}selected{% endif %}>{{ g.code }}</option>{% endfor %}</select></label>
+    <label>{{ _('Seats') }}<input type="number" min="1" name="seats" value="{{ pos.seats if pos else 1 }}"></label>
+    <label>{{ _('Budget year') }}<input type="number" name="budget_year" value="{{ pos.budget_year if pos and pos.budget_year else today.year }}"></label>
+    <label>{{ _('Reports to') }}<select name="reports_to_position_id"><option value=""></option>{% for p in all_positions %}<option value="{{ p.position_id }}" {% if pos and pos.reports_to_position_id == p.position_id %}selected{% endif %}>{{ p.position_id }} · {{ p.title }}</option>{% endfor %}</select></label>
+    <label>{{ _('Minimum backups at U/O (critical)') }}<input type="number" min="0" name="min_backups_uo" value="{{ pos.min_backups_uo if pos else 0 }}"></label>
+    <label><span><input type="checkbox" name="budgeted" {% if not pos or pos.budgeted %}checked{% endif %}> {{ _('Budgeted') }}</span></label>
+    <label><span><input type="checkbox" name="critical" {% if pos and pos.critical %}checked{% endif %}> {{ _('Critical position') }}</span></label>
+    <label><span><input type="checkbox" name="frozen" {% if pos and pos.frozen %}checked{% endif %}> {{ _('Frozen (no hiring)') }}</span></label>
+    <label><span><input type="checkbox" name="active" {% if not pos or pos.active %}checked{% endif %}> {{ _('Active') }}</span></label>
+  </div>
+  <div class="bar"><button class="primary">{{ _('Save') }}</button><a class="btn" href="/org#positions">{{ _('Cancel') }}</a></div>
+</form>
+{% endblock %}

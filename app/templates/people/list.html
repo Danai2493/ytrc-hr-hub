@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead">
+  <h1>{{ _('People') }}</h1><span class="note">{{ rows|length }} {{ _('shown') }}</span>
+  <div class="end">
+    {% if user.has('hr','hr_manager') %}
+    <a class="btn primary" href="/people/new?group=Operator">{{ _('New operator') }}</a>
+    <a class="btn" href="/people/new?group=Staff">{{ _('New staff') }}</a>
+    <a class="btn" href="/people/export.csv">{{ _('Export CSV') }}</a>
+    {% endif %}
+  </div>
+</div>
+<form class="filters panel" method="get">
+  <label>{{ _('Search') }}<input name="q" value="{{ q }}" placeholder="YTOP951, name"></label>
+  <label>{{ _('Group') }}<select name="group"><option value="">{{ _('All') }}</option>{% for g in GROUPS %}<option {% if g == group %}selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+  <label>{{ _('Org Unit') }}<select name="unit"><option value="">{{ _('All') }}</option>{% for u in units %}<option value="{{ u.code }}" {% if u.code == unit %}selected{% endif %}>{{ '·' * (['division','department','section','team'].index(u.level)) }} {{ u.name_en }}</option>{% endfor %}</select></label>
+  <label>{{ _('Status') }}<select name="status"><option value="">{{ _('All') }}</option><option {% if status == 'Active' %}selected{% endif %}>Active</option><option {% if status == 'Resigned' %}selected{% endif %}>Resigned</option></select></label>
+  <button class="primary">{{ _('Filter') }}</button>
+</form>
+<div class="panel scroll">
+<table>
+  <tr><th>ID</th><th>{{ _('Name') }}</th><th>{{ _('Group') }}</th><th>{{ _('Org Unit') }}</th><th>{{ _('Position') }}</th><th>{{ _('Join date') }}</th><th>{{ _('Status') }}</th><th>{{ _('Issues') }}</th></tr>
+  {% for e in rows %}
+  <tr class="{% if e.status != 'Active' %}muted{% endif %}">
+    <td class="mono"><a href="/people/{{ e.employee_id }}">{{ e.employee_id }}</a></td>
+    <td>{{ e.full_name_en }}{% if e.full_name_th %}<div class="note">{{ e.full_name_th }}</div>{% endif %}</td>
+    <td>{{ _(e.employee_group) }}</td>
+    <td>{{ e.org_unit.name_en if e.org_unit }}{% if e.team %} · {{ e.team }}{% endif %}</td>
+    <td>{{ e.position.title if e.position else '' }}</td>
+    <td>{{ fmt_date(e.join_date) }}</td>
+    <td>{{ e.status }}{% if e.exit_date %} <span class="note">{{ fmt_date(e.exit_date) }}</span>{% endif %}</td>
+    <td>{% if issues.get(e.employee_id) %}<a class="tag warn" href="/health?employee={{ e.employee_id }}">{{ issues[e.employee_id] }}</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

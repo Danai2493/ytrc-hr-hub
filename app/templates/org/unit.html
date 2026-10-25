@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ _('Org Unit') }} {% if unit %}<span class="mono">{{ unit.code }}</span>{% endif %}</h1>
+<form method="post" class="panel">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <div class="form">
+    {% if not unit %}<label>{{ _('Code') }}<input name="code" required class="mono" placeholder="PRD-PCL"></label>{% endif %}
+    <label>{{ _('Name (EN)') }}<input name="name_en" value="{{ unit.name_en if unit }}" required></label>
+    <label>{{ _('Name (TH)') }}<input name="name_th" value="{{ unit.name_th or '' if unit }}"></label>
+    <label>{{ _('Level') }}<select name="level">{% for l in levels %}<option {% if unit and unit.level == l %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+    <label>{{ _('Parent') }}<select name="parent_code"><option value=""></option>{% for u in units %}<option value="{{ u.code }}" {% if unit and unit.parent_code == u.code %}selected{% endif %}>{{ u.code }} · {{ u.name_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('Department Head') }}<select name="head_employee_id"><option value=""></option>{% for e in heads %}<option value="{{ e.employee_id }}" {% if unit and unit.head_employee_id == e.employee_id %}selected{% endif %}>{{ e.employee_id }} · {{ e.full_name_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('Holiday calendar') }}<select name="calendar_code">{% for c in ['OFFICE','FACTORY'] %}<option {% if unit and unit.calendar_code == c %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+    <label>{{ _('Default shift') }}<select name="default_shift_code"><option value=""></option>{% for s in shifts %}<option value="{{ s.code }}" {% if unit and unit.default_shift_code == s.code %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></label>
+    <label><span><input type="checkbox" name="active" {% if not unit or unit.active %}checked{% endif %}> {{ _('Active') }}</span></label>
+  </div>
+  <div class="bar"><button class="primary">{{ _('Save') }}</button><a class="btn" href="/org">{{ _('Cancel') }}</a></div>
+</form>
+{% endblock %}

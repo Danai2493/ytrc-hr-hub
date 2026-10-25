@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead">
+  <h1><span class="mono">{{ emp.employee_id }}</span> · {{ emp.full_name_en }}</h1>
+  {% if emp.is_sample %}<span class="tag s">SAMPLE</span>{% endif %}
+  <span class="tag {{ 'ok' if emp.status == 'Active' else '' }}">{{ emp.status }}</span>
+  <div class="end">
+    {% if user.has('hr','hr_manager') %}<a class="btn" href="/people/{{ emp.employee_id }}/edit">{{ _('Correct data') }}</a>{% endif %}
+    {% if emp.status == 'Active' and user.has('hr','hr_manager','dept_head') %}
+    <a class="btn" href="/people/{{ emp.employee_id }}/event?type=transfer">{{ _('Transfer') }}</a>
+    <a class="btn" href="/people/{{ emp.employee_id }}/event?type=promotion">{{ _('Promotion') }}</a>
+    <a class="btn" href="/people/{{ emp.employee_id }}/event?type=exit">{{ _('Exit') }}</a>
+    {% endif %}
+  </div>
+</div>
+{% if soft or issues %}
+<ul class="find">
+  {% for s in soft %}<li class="flag">{{ _(s) }}</li>{% endfor %}
+  {% for i in issues %}<li class="{{ i.severity }}">{{ i.rule_code }}: {{ i.message }}{% if i.due_date %} · {{ _('due') }} {{ fmt_date(i.due_date) }}{% endif %}</li>{% endfor %}
+</ul>
+{% endif %}
+<div class="grid">
+  <section class="panel c6">
+    <h2>{{ _('Record') }}</h2>
+    <dl class="kv">
+      <dt>{{ _('Name (TH)') }}</dt><dd>{{ emp.full_name_th or '' }}</dd>
+      {% if emp.full_name_my %}<dt>{{ _('Name (Myanmar)') }}</dt><dd>{{ emp.full_name_my }}</dd>{% endif %}
+      <dt>{{ _('Group') }}</dt><dd>{{ _(emp.employee_group) }} · {{ emp.pay_type }}</dd>
+      <dt>{{ _('Nationality') }}</dt><dd>{{ emp.nationality }}</dd>
+      <dt>{{ _('Birth date') }}</dt><dd>{{ fmt_date(emp.birth_date) }} ({{ _('age') }} {{ emp.age_on(today) }})</dd>
+      <dt>{{ _('Join date') }}</dt><dd>{{ fmt_date(emp.join_date) }}</dd>
+      {% if emp.probation_end_date %}<dt>{{ _('Probation ends') }}</dt><dd>{{ fmt_date(emp.probation_end_date) }}</dd>{% endif %}
+      {% if emp.exit_date %}<dt>{{ _('Exit') }}</dt><dd>{{ fmt_date(emp.exit_date) }} · {{ emp.exit_reason_code or '' }}</dd>{% endif %}
+      <dt>{{ _('Org Unit') }}</dt><dd>{% for n in emp.org_unit.path() %}{{ n.name_en }}{% if not loop.last %} › {% endif %}{% endfor %}</dd>
+      <dt>{{ _('Position') }}</dt><dd>{% if emp.position %}<span class="mono">{{ emp.position_id }}</span> {{ emp.position.title }}{% else %}<span class="warn-t">{{ _('none') }}</span>{% endif %}</dd>
+      <dt>{{ _('Job / Grade') }}</dt><dd>{{ emp.job.title_en if emp.job else '' }} · {{ emp.grade_code or '' }}</dd>
+      <dt>{{ _('Shift / Team') }}</dt><dd>{{ emp.shift_code or (emp.org_unit.default_shift_code or '') }} · {{ emp.team or '' }} · {{ emp.calendar_code }}</dd>
+      <dt>{{ _('Work email') }}</dt><dd>{{ emp.work_email or '' }}</dd>
+      {% if emp.previous_employee_id %}<dt>{{ _('Previous ID') }}</dt><dd class="mono"><a href="/people/{{ emp.previous_employee_id }}">{{ emp.previous_employee_id }}</a></dd>{% endif %}
+    </dl>
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('History') }}</h2>
+    <p class="note">{{ _('Every change is a dated event, so any past month can be rebuilt.') }}</p>
+    <ul class="timeline">
+      {% for ev in emp.events|reverse %}
+      <li><strong>{{ fmt_date(ev.effective_date) }}</strong> · {{ _(ev.event_type.replace('_',' ')) }}{% if not ev.applied %} <span class="tag warn">{{ _('future') }}</span>{% endif %}
+        <div class="note">
+          {% if ev.from_org_unit and ev.from_org_unit != ev.to_org_unit %}{{ ev.from_org_unit }} → {{ ev.to_org_unit }} · {% elif ev.to_org_unit and ev.event_type in ('hire','rehire') %}{{ ev.to_org_unit }} · {% endif %}
+          {% if ev.from_grade != ev.to_grade and ev.to_grade %}{{ ev.from_grade or '' }} → {{ ev.to_grade }} · {% endif %}
+          {% if ev.changes %}{% for k, v in ev.changes.items() %}{{ k }}: {{ v[0] }} → {{ v[1] }}{% if not loop.last %}, {% endif %}{% endfor %} · {% endif %}
+          {% if ev.reason_code %}{{ ev.reason_code }} · {% endif %}{{ ev.note or '' }}
+          {% if ev.approval_id %}<a href="/approvals/{{ ev.approval_id }}">#{{ ev.approval_id }}</a>{% endif %}
+        </div>
+      </li>
+      {% else %}<li class="note">{{ _('No events yet') }}</li>{% endfor %}
+    </ul>
+  </section>
+  <section class="panel c7">
+    <div class="phead"><h2>{{ _('Recent OT') }}</h2><a class="end btn small" href="/ot?employee={{ emp.employee_id }}">{{ _('All') }}</a></div>
+    <div class="scroll"><table>
+      <tr><th>{{ _('Date') }}</th><th>{{ _('Time') }}</th><th class="n">{{ _('Req. h') }}</th><th class="n">{{ _('Scan h') }}</th><th>{{ _('Status') }}</th></tr>
+      {% for r in ot %}<tr><td>{{ fmt_date(r.work_date) }}</td><td>{{ fmt_time(r.ot_from) }}–{{ fmt_time(r.ot_to) }}</td><td class="n">{{ r.requested_hours }}</td><td class="n">{{ hours(r.scan_minutes) }}</td><td>{{ status_tag(r.status) }}</td></tr>{% else %}<tr><td colspan="5" class="note">{{ _('No OT') }}</td></tr>{% endfor %}
+    </table></div>
+  </section>
+  <section class="panel c5">
+    <h2>{{ _('Requests about this person') }}</h2>
+    <table>{% for r in reqs %}<tr><td><a href="/approvals/{{ r.id }}">{{ r.title }}</a></td><td>{{ status_tag(r.status) }}</td></tr>{% else %}<tr><td class="note">{{ _('None') }}</td></tr>{% endfor %}</table>
+  </section>
+  {% if user.has('hr','hr_manager') %}
+  <section class="panel c12">
+    <div class="phead"><h2>{{ _('Restricted data') }}</h2><span class="tag bad">{{ _('HR only, every view is logged') }}</span>
+      {% if not show_restricted %}<a class="end btn small" href="?restricted=1">{{ _('Show') }}</a>{% endif %}</div>
+    {% if show_restricted %}
+    {% set r = emp.restricted %}
+    <form method="post" action="/people/{{ emp.employee_id }}/restricted" class="form">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label>{{ _('ID card no.') }}<input name="id_card_no" value="{{ r.id_card_no if r else '' }}"></label>
+      <label>{{ _('Passport no.') }}<input name="passport_no" value="{{ r.passport_no if r else '' }}"></label>
+      <label>{{ _('Work permit no.') }}<input name="work_permit_no" value="{{ r.work_permit_no if r else '' }}"></label>
+      <label>{{ _('Work permit expiry') }}<input type="date" name="work_permit_expiry" value="{{ r.work_permit_expiry if r and r.work_permit_expiry else '' }}"></label>
+      <label>{{ _('Visa expiry') }}<input type="date" name="visa_expiry" value="{{ r.visa_expiry if r and r.visa_expiry else '' }}"></label>
+      <label>{{ _('Disability') }}<input name="disability" value="{{ r.disability if r else '' }}"></label>
+      <label>{{ _('Residence room') }}<input name="residence_room" value="{{ r.residence_room if r else '' }}"></label>
+      <div class="wide bar"><button class="primary">{{ _('Save') }}</button><a class="btn" href="/capture/new?type=WORK_PERMIT&employee={{ emp.employee_id }}">{{ _('Read a work permit photo with AI') }}</a></div>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

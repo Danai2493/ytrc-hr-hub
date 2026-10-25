@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+  <h1>{{ code }}</h1>
+  <p class="lead">{{ _(detail) if detail else _('Something went wrong') }}</p>
+  <p><a class="btn" href="/">{{ _('Back to Home') }}</a></p>
+</section>
+{% endblock %}

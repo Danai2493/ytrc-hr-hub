@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import hbar, columns %}
+{% block content %}
+{% include "dash/_tabs.html" %}
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Active headcount') }}</span><span class="v">{{ hc.total }}</span><span class="d">{% for g, n in hc.by_group.items() %}{{ _(g) }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</span></div>
+  <div class="kpi"><span class="k">{{ _('Joins, 12 months') }}</span><span class="v">{{ mv.joins|sum }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Exits, 12 months') }}</span><span class="v">{{ mv.exits|sum }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Turnover, 12 months') }}</span><span class="v">{{ mv.turnover|sum|round(1) }}%</span><span class="d">{{ _('sum of monthly rates') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Foreign workers') }}</span><span class="v">{{ hc.by_nationality.get('Myanmar', 0) + hc.by_nationality.get('Other', 0) }}</span></div>
+</div>
+<div class="grid">
+  <section class="panel c7"><h2>{{ _('Joins and exits per month') }}</h2>
+    {{ columns(mv.labels, [(_('Joins'), 'var(--s3)', mv.joins), (_('Exits'), 'var(--s2)', mv.exits)]) }}</section>
+  <section class="panel c5"><h2>{{ _('Monthly turnover %') }}</h2>
+    {{ columns(mv.labels, [(_('Turnover %'), 'var(--s4)', mv.turnover)], '%', 460) }}</section>
+  <section class="panel c6"><h2>{{ _('Headcount by department') }}</h2>{{ hbar(hc.by_dept, '', 'var(--s1)') }}</section>
+  <section class="panel c6"><h2>{{ _('Exit reasons, 12 months') }}</h2>
+    {% if reasons %}
+    {% set rows = [] %}{% for code, n in reasons %}{% set _x = rows.append((_(reason_names.get(code, code)), n)) %}{% endfor %}{{ hbar(rows, '', 'var(--s2)', 560, 220) }}
+    {% else %}<p class="note">{{ _('No exits recorded with a reason yet. Reason codes start with the first exit after go-live.') }}</p>{% endif %}
+    <p class="note">{{ _('Exit reason codes from the exit workflow feed this chart and, later, the attrition risk flags.') }}</p></section>
+</div>
+{% endblock %}

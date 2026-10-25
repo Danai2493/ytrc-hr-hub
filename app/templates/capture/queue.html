@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead"><h1>{{ _('Paper forms read by AI') }}</h1>
+  <div class="end"><a class="btn primary" href="/capture/new?type=OT_FORM">{{ _('Photo of OT form') }}</a><a class="btn" href="/capture/new?type=WORK_PERMIT">{{ _('Photo of work permit') }}</a></div>
+</div>
+<p class="lead">{{ _('Take a photo of a paper form. AI reads it, the same checks as the web form run on every line, and HR confirms. Unclear handwriting and discrepancies are highlighted; nothing is saved without a person.') }}</p>
+<p class="note">{{ _('AI provider') }}: <span class="mono">{{ provider }}</span></p>
+<div class="bar"><a class="btn {% if status == 'open' %}primary{% endif %}" href="?status=open">{{ _('To review') }}</a><a class="btn {% if status != 'open' %}primary{% endif %}" href="?status=all">{{ _('All') }}</a></div>
+<div class="panel scroll">
+<table>
+  <tr><th>#</th><th>{{ _('Form') }}</th><th>{{ _('Uploaded') }}</th><th>{{ _('Lines') }}</th><th>{{ _('Needs a look') }}</th><th>{{ _('Status') }}</th></tr>
+  {% for c in rows %}
+  <tr><td><a href="/capture/{{ c.id }}">#{{ c.id }}</a></td><td>{{ _(types[c.form_type]) }}{% if c.header and c.header.work_date %} · {{ c.header.work_date }}{% endif %}{% if c.header and c.header.department %} · {{ c.header.department }}{% endif %}</td>
+    <td class="note">{{ c.uploaded_by }} · {{ fmt_dt(c.created_at) }}</td>
+    <td>{{ c.lines|length if c.form_type == 'OT_FORM' else '' }}</td>
+    <td>{% set n = c.lines | selectattr('status', 'equalto', 'review') | list | length %}{% if n %}<span class="tag warn">{{ n }}</span>{% endif %}{% if c.header and c.header._issues %}<span class="tag warn">{{ c.header._issues|length }} {{ _('form') }}</span>{% endif %}</td>
+    <td>{{ status_tag(c.status) }}</td></tr>
+  {% else %}<tr><td colspan="6" class="note">{{ _('Queue is empty') }}</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

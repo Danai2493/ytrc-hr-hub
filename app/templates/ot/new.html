@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ _('New OT request') }}</h1>
+<p class="lead">{{ _('One date, one or more people, like the paper form FM-HRM-25. The checks run while you type: weekly 36h limit, under-18 rule, holiday calendar and rate. Blocked lines are not saved.') }}</p>
+<form method="post" class="panel" data-check="/ot/check" data-check-out="#checks">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <div class="form">
+    <label>{{ _('Work date') }}<input type="date" name="work_date" value="{{ default_date }}" required></label>
+    <label class="wide">{{ _('Reason') }}<input name="reason" required placeholder="{{ _('e.g. extra packing for shipment') }}"></label>
+  </div>
+  <datalist id="team">{% for e in team %}<option value="{{ e.employee_id }}">{{ e.full_name_en }} · {{ e.org_unit.name_en }}</option>{% endfor %}</datalist>
+  <div class="scroll"><table>
+    <thead><tr><th>{{ _('Employee ID') }}</th><th>{{ _('OT from') }}</th><th>{{ _('OT to') }}</th></tr></thead>
+    <tbody id="rows">
+      {% for i in range(3) %}
+      <tr><td><input name="employee_id" list="team" class="mono" placeholder="YTOP951" autocomplete="off"></td><td><input type="time" name="ot_from" value="17:00"></td><td><input type="time" name="ot_to" value="19:00"></td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="bar"><button type="button" data-add-row="#rows">+ {{ _('Add person') }}</button></div>
+  <div id="checks" class="panel" aria-live="polite"><p class="note">{{ _('Checks appear here.') }}</p></div>
+  {% if user.has('gm','hr_manager') %}
+  <label>{{ _('Weekly limit override (GM only, logged): reason') }}<input name="override_note"></label>
+  {% endif %}
+  <div class="bar"><button class="primary">{{ _('Send for approval') }}</button><a class="btn" href="/ot">{{ _('Cancel') }}</a></div>
+</form>
+{% endblock %}

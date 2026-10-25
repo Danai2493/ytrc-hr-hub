@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<h1>{{ _('Pay input for Bplus') }}</h1>
+<p class="lead">{{ _('The app sends checked OT hours per person and pay code. Bplus applies the rates and keeps salaries and bank data. Steps: build from verified OT, a second HR person checks, download the file, import it into Bplus, then mark it imported.') }}</p>
+<div class="grid">
+  <section class="panel c6">
+    <h2>{{ _('Build a batch') }}</h2>
+    {% for cycle, p0, p1 in suggestions %}
+    <form method="post" action="/pay/build" class="bar">
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="cycle" value="{{ cycle }}">
+      <label>{{ _(cycles[cycle]) }}<input type="date" name="start" value="{{ p0 }}"></label>
+      <button class="primary">{{ _('Build') }}</button><span class="note">{{ fmt_date(p0) }} – {{ fmt_date(p1) }}</span>
+    </form>
+    {% endfor %}
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('Totals back from Bplus') }}</h2>
+    <p class="note">{{ _('CSV with columns month (YYYY-MM), org_unit, total_pay_cost, ot_cost, headcount_paid, ot_hours. Totals by Org Unit only, never per person.') }}</p>
+    <form method="post" action="/pay/totals" enctype="multipart/form-data" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="file" name="file" accept=".csv" required><button>{{ _('Import') }}</button></form>
+    {% if recon %}
+    <h3>{{ _('Reconciliation') }} {{ recon_month.strftime('%m/%Y') }}</h3>
+    <table><tr><th>{{ _('Org Unit') }}</th><th class="n">{{ _('App OT h') }}</th><th class="n">{{ _('Bplus OT h') }}</th><th></th></tr>
+    {% for x in recon %}<tr><td>{{ x.org_unit }}</td><td class="n">{{ x.app }}</td><td class="n">{{ x.bplus if x.bplus is not none else '' }}</td><td>{% if x.ok %}<span class="tag ok">OK</span>{% else %}<span class="tag bad">{{ _('differs') }}</span>{% endif %}</td></tr>{% endfor %}</table>
+    {% endif %}
+  </section>
+</div>
+<section class="panel scroll">
+  <h2>{{ _('Batches') }}</h2>
+  <table>
+    <tr><th>#</th><th>{{ _('Cycle') }}</th><th>{{ _('Period') }}</th><th class="n">{{ _('People') }}</th><th class="n">{{ _('Hours') }}</th><th>{{ _('Flags') }}</th><th>{{ _('Status') }}</th><th>{{ _('By') }}</th></tr>
+    {% for b in batches %}
+    <tr><td><a href="/pay/{{ b.id }}">#{{ b.id }}</a> <span class="note">b{{ b.batch_no }}</span></td><td>{{ b.cycle }}</td><td>{{ fmt_date(b.period_start) }} – {{ fmt_date(b.period_end) }}</td>
+      <td class="n">{{ (b.totals or {}).get('people', 0) }}</td><td class="n">{{ (b.totals or {}).get('hours', 0) }}</td>
+      <td>{% set nflag = (b.flags or []) | selectattr('level', 'equalto', 'flag') | list | length %}{% if nflag %}<span class="tag warn">{{ nflag }}</span>{% endif %}</td>
+      <td>{{ status_tag(b.status) }}</td><td class="note">{{ b.created_by }}{% if b.checked_by %} / {{ b.checked_by }}{% endif %}</td></tr>
+    {% else %}<tr><td colspan="8" class="note">{{ _('No batches yet') }}</td></tr>{% endfor %}
+  </table>
+</section>
+{% endblock %}

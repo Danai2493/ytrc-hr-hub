@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% macro cf(conf, key) -%}{% if conf and conf.get(key, 1) < thr %}conf-low{% endif %}{%- endmacro %}
+{% block content %}
+<div class="phead"><h1>#{{ cap.id }} · {{ _(types[cap.form_type]) }}</h1>{{ status_tag(cap.status) }}
+  <span class="note">{{ _('read by') }} {{ cap.provider }} {{ cap.model or '' }} · {{ cap.uploaded_by }} · {{ fmt_dt(cap.created_at) }}</span>
+  {% if is_hr and cap.status not in ('approved','rejected') %}<div class="end">
+    <form method="post" action="/capture/{{ cap.id }}/retry" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small">{{ _('Read again') }}</button></form>
+  </div>{% endif %}
+</div>
+{% if cap.error %}<div class="flash bad">{{ cap.error }}</div>{% endif %}
+<div class="split">
+  <div class="photo"><img src="/capture/{{ cap.id }}/image" alt="{{ _('Photo of the form') }}"></div>
+  <div style="display:grid;gap:16px;align-content:start">
+  {% set h = cap.header or {} %}{% set hc = cap.header_confidence or {} %}
+  {% if cap.form_type == 'OT_FORM' %}
+    <section class="panel">
+      <h2>{{ _('Form') }}</h2>
+      {% if h._issues %}<ul class="find">{% for i in h._issues %}<li class="flag">{{ _(i) }}</li>{% endfor %}</ul>{% endif %}
+      <form method="post" action="/capture/{{ cap.id }}/header" class="form">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <label>{{ _('Work date') }}<input type="date" name="work_date" value="{{ h.work_date or '' }}" class="{{ cf(hc, 'work_date') }}" {% if not is_hr %}readonly{% endif %}></label>
+        <label>{{ _('Department on form') }}<input name="department" value="{{ h.department or '' }}" {% if not is_hr %}readonly{% endif %}></label>
+        <label><span><input type="checkbox" name="approved_by_signed" {% if h.approved_by_signed %}checked{% endif %}> {{ _('Approval box signed') }}</span></label>
+        {% if is_hr %}<div><button class="small">{{ _('Save and re-check') }}</button></div>{% endif %}
+      </form>
+      <p class="note">{{ _('Form code') }}: {{ h.form_code or '?' }} · {{ _('shift') }}: {{ h.shift or '?' }} · {{ _('requested by') }}: {{ h.requested_by or '?' }} · {{ _('photo') }}: {{ h.page_quality or '?' }}</p>
+    </section>
+    <section class="panel scroll">
+      <h2>{{ _('Lines') }}</h2>
+      <p class="note">{{ _('Yellow cells: AI is less than {p}% sure. Fix a value and press Save; the checks run again.', p=(thr*100)|int) }}</p>
+      <table>
+        <tr><th>#</th><th>{{ _('Employee ID') }}</th><th>{{ _('Name on form') }}</th><th>{{ _('From') }}</th><th>{{ _('To') }}</th><th>{{ _('Hours') }}</th><th>{{ _('Checks') }}</th><th></th></tr>
+        {% for ln in cap.lines %}{% set f = ln.fields %}{% set c = ln.confidence %}
+        <tr id="line-{{ ln.line_no }}" class="{% if ln.status in ('accepted','dropped') %}muted{% endif %}">
+          <td>{{ ln.line_no }}</td>
+          {% if is_hr and ln.status not in ('accepted','dropped') %}
+          <td><input form="lf{{ ln.id }}" name="employee_id" value="{{ f.employee_id or '' }}" class="mono {{ cf(c, 'employee_id') }}" size="8"></td>
+          <td>{{ f.name or '' }}</td>
+          <td><input form="lf{{ ln.id }}" name="ot_from" value="{{ f.ot_from or '' }}" size="5" class="w-time {{ cf(c, 'ot_from') }}"></td>
+          <td><input form="lf{{ ln.id }}" name="ot_to" value="{{ f.ot_to or '' }}" size="5" class="w-time {{ cf(c, 'ot_to') }}"></td>
+          <td><input form="lf{{ ln.id }}" name="hours" value="{{ f.hours if f.hours is not none else '' }}" size="4" class="w-num {{ cf(c, 'hours') }}"></td>
+          <td>{% for i in ln.issues or [] %}<div class="note {{ 'bad-t' if i.level == 'block' else ('warn-t' if i.level == 'flag' else '') }}">{{ rt(i) }}</div>{% else %}<span class="tag ok">OK</span>{% endfor %}
+            {% if f._minutes is defined %}<div class="note">{{ _('payable') }} {{ hours(f._minutes) }}h · {{ _(f._day_kind) }}</div>{% endif %}</td>
+          <td><button form="lf{{ ln.id }}" class="small">{{ _('Save') }}</button> <button form="lf{{ ln.id }}" class="small danger" name="drop" value="1" data-confirm="{{ _('Drop this line?') }}">{{ _('Drop') }}</button></td>
+          {% else %}
+          <td class="mono">{{ f.employee_id }}</td><td>{{ f.name or '' }}</td><td>{{ f.ot_from }}</td><td>{{ f.ot_to }}</td><td>{{ f.hours }}</td>
+          <td>{{ status_tag(ln.status) }}{% for i in ln.issues or [] %}<div class="note">{{ rt(i) }}</div>{% endfor %}</td><td>{% if ln.ot_request_id %}<a href="/ot/{{ ln.ot_request_id }}">OT</a>{% endif %}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </table>
+      {% for ln in cap.lines %}<form id="lf{{ ln.id }}" method="post" action="/capture/{{ cap.id }}/line/{{ ln.id }}"><input type="hidden" name="_csrf" value="{{ csrf }}"></form>{% endfor %}
+    </section>
+    {% if is_hr and cap.status not in ('approved','rejected') %}
+    <form method="post" action="/capture/{{ cap.id }}/accept" class="panel">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <h2>{{ _('Create OT requests') }}</h2>
+      <div class="bar">
+        {% for ln in cap.lines if ln.status in ('ok','review') %}
+        <label style="min-width:auto"><span><input type="checkbox" name="line_ids" value="{{ ln.id }}" {% if ln.status == 'ok' %}checked{% endif %} {% if (ln.issues or []) | selectattr('level','equalto','block') | list %}disabled{% endif %}> {{ _('line') }} {{ ln.line_no }} <span class="mono">{{ ln.fields.employee_id }}</span></span></label>
+        {% endfor %}
+      </div>
+      <label><span><input type="checkbox" name="paper_signed" {% if h.approved_by_signed %}checked{% endif %}> {{ _('The Department Head signed the paper form: record that as the first approval') }}</span></label>
+      <label>{{ _('Reason') }}<input name="reason" placeholder="{{ _('Paper form FM-HRM-25') }}"></label>
+      <div class="bar"><button class="primary">{{ _('Create OT requests for ticked lines') }}</button></div>
+    </form>
+    <form method="post" action="/capture/{{ cap.id }}/reject" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input name="note" placeholder="{{ _('Reason (e.g. wrong form, unreadable)') }}" required><button class="danger small">{{ _('Reject whole form') }}</button></form>
+    {% endif %}
+  {% else %}
+    <section class="panel">
+      <h2>{{ _('Work permit') }}</h2>
+      {% if h._issues %}<ul class="find">{% for i in h._issues %}<li class="flag">{{ _(i) }}</li>{% endfor %}</ul>{% endif %}
+      <form method="post" action="/capture/{{ cap.id }}/accept" class="form">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <label>{{ _('Employee ID') }}<input name="employee_id" value="{{ cap.employee_id or '' }}" class="mono" required></label>
+        <label>{{ _('Name on permit') }}<input value="{{ h.full_name or '' }}" readonly class="{{ cf(hc, 'full_name') }}"></label>
+        <label>{{ _('Work permit no.') }}<input name="work_permit_no" value="{{ h.work_permit_no or '' }}" class="{{ cf(hc, 'work_permit_no') }}" required></label>
+        <label>{{ _('Expiry date') }}<input type="date" name="expiry_date" value="{{ h.expiry_date or '' }}" class="{{ cf(hc, 'expiry_date') }}" required></label>
+        <label>{{ _('Passport no.') }}<input name="passport_no" value="{{ h.passport_no or '' }}" class="{{ cf(hc, 'passport_no') }}"></label>
+        <label>{{ _('Nationality') }}<input value="{{ h.nationality or '' }}" readonly></label>
+        {% if is_hr and cap.status not in ('approved','rejected') %}<div class="wide"><button class="primary">{{ _('Save to restricted record') }}</button></div>{% endif %}
+      </form>
+    </section>
+  {% endif %}
+  </div>
+</div>
+{% endblock %}

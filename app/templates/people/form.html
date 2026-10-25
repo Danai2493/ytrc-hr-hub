@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% macro sel(name, options, value, blank=True) -%}
+<select name="{{ name }}">{% if blank %}<option value=""></option>{% endif %}{% for o in options %}<option {% if o == value %}selected{% endif %}>{{ o }}</option>{% endfor %}</select>
+{%- endmacro %}
+{% block content %}
+<div class="phead"><h1>{% if emp %}{{ _('Correct data') }} · <span class="mono">{{ emp.employee_id }}</span>{% else %}{{ _('New employee') }}{% endif %}</h1></div>
+<p class="lead">{% if emp %}{{ _('This is for correcting facts (name, birth date, email...). A move to another unit, position or grade is a job event, so it keeps history.') }}{% else %}{{ _('A second HR person checks the new record before it is saved. The ID below is the next free number.') }}{% endif %}</p>
+{% if error %}<div class="flash bad">{{ error }}</div>{% endif %}
+<form method="post" class="panel">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <h2>{{ _('Identity') }}</h2>
+  <div class="form">
+    <label>{{ _('Employee ID') }}<input name="employee_id" value="{{ data.employee_id or '' }}" {% if emp %}readonly{% endif %} pattern="(YTR|YTOP)[0-9]{3}" required class="mono"></label>
+    <label>{{ _('Employee Group') }}{% if emp %}<input value="{{ data.employee_group }}" readonly>{% else %}{{ sel('employee_group', GROUPS, data.employee_group, False) }}{% endif %}</label>
+    <label>{{ _('Pay type') }}{{ sel('pay_type', PAY_TYPES, data.pay_type, False) }}</label>
+    <label>{{ _('Title') }}{{ sel('title', TITLES, data.title) }}</label>
+    <label>{{ _('Gender') }}{{ sel('gender', GENDERS, data.gender) }}</label>
+    <label>{{ _('Full name (EN)') }}<input name="full_name_en" value="{{ data.full_name_en or '' }}" required></label>
+    <label>{{ _('Full name (TH)') }}<input name="full_name_th" value="{{ data.full_name_th or '' }}"></label>
+    <label>{{ _('Full name (Myanmar)') }}<input name="full_name_my" value="{{ data.full_name_my or '' }}"></label>
+    <label>{{ _('Nickname') }}<input name="nickname" value="{{ data.nickname or '' }}"></label>
+    <label>{{ _('Nationality') }}{{ sel('nationality', NATIONALITIES, data.nationality, False) }}</label>
+    <label>{{ _('Birth date') }}<input type="date" name="birth_date" value="{{ data.birth_date or '' }}" required></label>
+    <label>{{ _('Work email (for Google sign-in)') }}<input type="email" name="work_email" value="{{ data.work_email or '' }}"></label>
+  </div>
+  <h2>{{ _('Job') }}</h2>
+  <div class="form">
+    <label>{{ _('Join date') }}<input type="date" name="join_date" value="{{ data.join_date or '' }}" required></label>
+    <label>{{ _('Probation ends') }}<input type="date" name="probation_end_date" value="{{ data.probation_end_date or '' }}"></label>
+    <label>{{ _('Contract ends') }}<input type="date" name="contract_end_date" value="{{ data.contract_end_date or '' }}"></label>
+    {% if emp %}
+    <label>{{ _('Org Unit') }}<input value="{{ emp.org_unit.name_en }}" readonly></label>
+    <label>{{ _('Position') }}<input value="{{ emp.position.title if emp.position else '' }}" readonly></label>
+    {% else %}
+    <label>{{ _('Org Unit') }}<select name="org_unit_code" required><option value=""></option>{% for u in units %}<option value="{{ u.code }}" {% if u.code == data.org_unit_code %}selected{% endif %}>{{ u.code }} · {{ u.name_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('Position') }}<select name="position_id"><option value=""></option>{% for p in positions %}<option value="{{ p.position_id }}" {% if p.position_id == data.position_id %}selected{% endif %}>{{ p.position_id }} · {{ p.title }} ({{ p.org_unit_code }}, {{ p.filled }}/{{ p.seats }})</option>{% endfor %}</select></label>
+    <label>{{ _('Job') }}<select name="job_code"><option value=""></option>{% for j in jobs %}<option value="{{ j.code }}" {% if j.code == data.job_code %}selected{% endif %}>{{ j.title_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('Grade') }}<select name="grade_code"><option value=""></option>{% for g in grades %}<option value="{{ g.code }}" {% if g.code == data.grade_code %}selected{% endif %}>{{ g.code }}</option>{% endfor %}</select></label>
+    {% endif %}
+    <label>{{ _('Team') }}{{ sel('team', TEAMS, data.team) }}</label>
+    <label>{{ _('Shift') }}<select name="shift_code"><option value="">{{ _('Org Unit default') }}</option>{% for s in shifts %}<option value="{{ s.code }}" {% if s.code == data.shift_code %}selected{% endif %}>{{ s.code }} · {{ s.name }}</option>{% endfor %}</select></label>
+    <label>{{ _('Holiday calendar override') }}<select name="calendar_override"><option value="">{{ _('Org Unit default') }}</option>{% for c in ['OFFICE','FACTORY'] %}<option {% if c == data.calendar_override %}selected{% endif %}>{{ c }}</option>{% endfor %}</select></label>
+    <label>{{ _('Previous Employee ID') }}<input name="previous_employee_id" value="{{ data.previous_employee_id or '' }}" class="mono"></label>
+    <label class="wide">{{ _('Remark') }}<textarea name="remark">{{ data.remark or '' }}</textarea></label>
+    {% if emp %}<label class="wide">{{ _('Reason for the correction (source document)') }}<input name="note" required></label>{% endif %}
+  </div>
+  {% if not emp %}
+  <h2>{{ _('Restricted (HR only)') }}</h2>
+  <div class="form">
+    <label>{{ _('ID card no.') }}<input name="id_card_no"></label>
+    <label>{{ _('Passport no.') }}<input name="passport_no"></label>
+    <label>{{ _('Work permit no.') }}<input name="work_permit_no"></label>
+    <label>{{ _('Work permit expiry') }}<input type="date" name="work_permit_expiry"></label>
+  </div>
+  {% endif %}
+  <div class="bar"><button class="primary">{{ _('Send for HR check') }}</button><a class="btn" href="{{ '/people/' ~ emp.employee_id if emp else '/people' }}">{{ _('Cancel') }}</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import hbar, columns %}
+{% block content %}
+{% include "dash/_tabs.html" %}
+<form class="filters panel no-print" method="get">
+  <label>{{ _('From') }}<input type="date" name="d0" value="{{ d0 }}"></label><label>{{ _('To') }}<input type="date" name="d1" value="{{ d1 }}"></label><button class="primary">{{ _('Show') }}</button>
+</form>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Absence rate') }}</span><span class="v">{{ ab.rate }}%</span><span class="d">{{ ab.absent }} / {{ ab.workdays }} {{ _('person-days') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Late arrivals') }}</span><span class="v">{{ ab.late }}</span></div>
+</div>
+<p class="note">{{ _('Until leave moves into the app (Phase 2), a day with no scan and no leave in the app counts as absent, so the rate here is an upper bound.') }}</p>
+<div class="grid">
+  <section class="panel c6"><h2>{{ _('Absence by weekday') }}</h2>{{ columns([_('Mon'), _('Tue'), _('Wed'), _('Thu'), _('Fri'), _('Sat'), _('Sun')], [(_('Absent days'), 'var(--s2)', ab.by_dow)], '', 520) }}
+    <p class="note">{{ _('A peak on Mondays or after pay day is a pattern worth a conversation.') }}</p></section>
+  <section class="panel c6"><h2>{{ _('Most absent days') }}</h2>
+    <table>{% for eid, n in ab.frequent %}<tr><td><a class="mono" href="/people/{{ eid }}">{{ eid }}</a></td><td class="n">{{ n }}</td></tr>{% else %}<tr><td class="note">{{ _('None') }}</td></tr>{% endfor %}</table></section>
+</div>
+{% endblock %}

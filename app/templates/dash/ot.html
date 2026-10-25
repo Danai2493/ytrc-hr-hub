@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import hbar, columns %}
+{% block content %}
+{% include "dash/_tabs.html" %}
+<form class="filters panel no-print" method="get">
+  <label>{{ _('From') }}<input type="date" name="d0" value="{{ d0 }}"></label><label>{{ _('To') }}<input type="date" name="d1" value="{{ d1 }}"></label><button class="primary">{{ _('Show') }}</button>
+</form>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('OT hours') }}</span><span class="v">{{ s.total_hours }}</span><span class="d">{{ fmt_date(d0) }} – {{ fmt_date(d1) }}</span></div>
+  <div class="kpi"><span class="k">{{ _('People with OT') }}</span><span class="v">{{ s.people }}</span><span class="d">{{ s.requests }} {{ _('requests') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Over 36h in a week') }}</span><span class="v {% if s.over_limit %}bad-t{% endif %}">{{ s.over_limit|length }}</span><span class="d">{{ _('person-weeks') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Not covered by scan') }}</span><span class="v {% if s.scan_short %}warn-t{% endif %}">{{ s.scan_short|length }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Entered after the date') }}</span><span class="v">{{ s.late_entry_pct }}%</span><span class="d">{{ _('not pre-approved') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Holiday OT x3') }}</span><span class="v">{{ s.by_code.get('OT30', 0) }}</span><span class="d">{{ _('hours') }}</span></div>
+</div>
+<div class="grid">
+  <section class="panel c7"><h2>{{ _('OT hours per month') }}</h2>
+    {{ columns(months.labels, [(_('Staff & managers'), 'var(--s1)', months.staff), (_('Operators'), 'var(--s2)', months.operators)], 'h', 640, 230, months.budget, _('Budget')) }}
+    {% if not months.budget %}<p class="note">{{ _('No OT budget entered yet (Admin › OT budget).') }}</p>{% endif %}</section>
+  <section class="panel c5"><h2>{{ _('OT hours per week') }}</h2>{{ columns(weeks.labels, [(_('OT hours'), 'var(--s1)', weeks['values'])], 'h', 460) }}</section>
+  <section class="panel c6"><h2>{{ _('By department') }}</h2>{{ hbar(s.by_dept, 'h', 'var(--s1)') }}</section>
+  <section class="panel c6"><h2>{{ _('Top 10 people') }}</h2>{{ hbar(s.top_people, 'h', 'var(--s2)', 560, 220) }}</section>
+  <section class="panel c6"><h2>{{ _('By pay code') }}</h2>
+    <table>{% for k, v in s.by_code.items() %}<tr><td><span class="tag">{{ k }}</span> {{ PAY_CODES[k] }}</td><td class="n">{{ v }}</td></tr>{% endfor %}</table></section>
+  <section class="panel c6"><h2>{{ _('Over the weekly limit') }}</h2>
+    <table><tr><th>{{ _('Employee') }}</th><th>{{ _('Week from') }}</th><th class="n">{{ _('Hours') }}</th></tr>
+    {% for eid, w, h in s.over_limit %}<tr><td><a class="mono" href="/people/{{ eid }}">{{ eid }}</a></td><td>{{ fmt_date(w) }}</td><td class="n bad-t">{{ h|round(1) }}</td></tr>{% else %}<tr><td colspan="3" class="note">{{ _('None') }}</td></tr>{% endfor %}</table></section>
+</div>
+{% endblock %}

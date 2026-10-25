@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% macro node(u) %}
+<li>
+  <strong>{{ u.name_en }}</strong> <span class="mono note">{{ u.code }}</span>
+  {% if u.name_th %}<span class="note">{{ u.name_th }}</span>{% endif %}
+  · <span class="note">{{ _('Head') }}:</span> {% if u.head %}<a href="/people/{{ u.head_employee_id }}">{{ u.head_employee_id }} {{ u.head.full_name_en }}</a>{% elif u.level == 'department' %}<span class="tag bad">{{ _('none') }}</span>{% else %}<span class="note">{{ _('from parent') }}</span>{% endif %}
+  · <span class="tag">{{ counts.get(u.code, 0) }} {{ _('people') }}</span> <span class="tag">{{ u.calendar_code }}</span>{% if u.default_shift_code %} <span class="tag">{{ u.default_shift_code }}</span>{% endif %}
+  {% if not u.active %}<span class="tag">{{ _('inactive') }}</span>{% endif %}
+  {% if user.has('hr_manager') %}<a class="btn small" href="/org/unit/{{ u.code }}">{{ _('Edit') }}</a>{% endif %}
+  {% if u.children %}<ul>{% for c in u.children|sort(attribute='sort_order') %}{{ node(c) }}{% endfor %}</ul>{% endif %}
+</li>
+{% endmacro %}
+{% block content %}
+<div class="phead"><h1>{{ _('Org & positions') }}</h1>
+  <div class="end">{% if user.has('hr_manager') %}<a class="btn" href="/org/unit/new">{{ _('New Org Unit') }}</a>{% endif %}{% if user.has('hr','hr_manager') %}<a class="btn primary" href="/org/position/new">{{ _('New Position') }}</a>{% endif %}</div>
+</div>
+<p class="lead">{{ _('Org chart SP-HRM-01. Approvals look up the Department Head here, walking up the tree when a unit has no head. Position control: every person sits on a budgeted seat.') }}</p>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Budgeted seats') }}</span><span class="v">{{ seats }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Filled') }}</span><span class="v">{{ filled }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Vacant') }}</span><span class="v">{{ seats - filled }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Critical positions') }}</span><span class="v">{{ positions | selectattr('critical') | list | length }}</span></div>
+</div>
+<section class="panel tree"><h2>{{ _('Org chart') }}</h2><ul>{% for r in roots %}{{ node(r) }}{% endfor %}</ul></section>
+<section class="panel scroll" id="positions">
+  <h2>{{ _('Positions') }}</h2>
+  <table>
+    <tr><th>ID</th><th>{{ _('Title') }}</th><th>{{ _('Org Unit') }}</th><th>{{ _('Grade') }}</th><th class="n">{{ _('Seats') }}</th><th class="n">{{ _('Filled') }}</th><th>{{ _('Status') }}</th><th>{{ _('Critical') }}</th><th></th></tr>
+    {% for p in positions %}
+    <tr><td class="mono">{{ p.position_id }}</td><td>{{ p.title }}</td><td>{{ p.org_unit.name_en }}</td><td>{{ p.grade_code or '' }}</td><td class="n">{{ p.seats }}</td><td class="n">{{ p.filled }}</td>
+      <td><span class="tag {{ {'filled':'ok','vacant':'warn','over':'bad','frozen':''}[p.status] }}">{{ _(p.status) }}</span>{% if not p.budgeted %} <span class="tag">{{ _('not budgeted') }}</span>{% endif %}</td>
+      <td>{% if p.critical %}<span class="tag bad">{{ _('critical') }}</span> <span class="note">{{ _('min backups') }} {{ p.min_backups_uo }}</span>{% endif %}</td>
+      <td>{% if user.has('hr','hr_manager') %}<a class="btn small" href="/org/position/{{ p.position_id }}">{{ _('Edit') }}</a>{% endif %}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

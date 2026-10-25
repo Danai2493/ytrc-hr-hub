@@ -1,0 +1,8 @@
+<div class="phead"><h1>{{ _('Dashboards') }}</h1>
+  <div class="end no-print">
+    <a class="btn {% if tab == 'people' %}primary{% endif %}" href="/dash">{{ _('People & turnover') }}</a>
+    <a class="btn {% if tab == 'ot' %}primary{% endif %}" href="/dash/ot">{{ _('OT') }}</a>
+    <a class="btn {% if tab == 'attendance' %}primary{% endif %}" href="/dash/attendance">{{ _('Absence') }}</a>
+    <a class="btn {% if tab == 'kpi' %}primary{% endif %}" href="/dash/kpi">{{ _('Monthly HR KPI pack') }}</a>
+  </div>
+</div>

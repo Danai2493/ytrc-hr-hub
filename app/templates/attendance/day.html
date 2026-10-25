@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Attendance') }} · {{ fmt_date(day) }}</h1></div>
+<div class="grid">
+  {% if user.has('hr','hr_manager') %}
+  <section class="panel c6">
+    <h2>{{ _('Import face scan file') }}</h2>
+    <p class="note">{{ _('The timelog_*.txt export from the face scan machine. Importing the same file twice is safe: scans already in the system are skipped.') }}</p>
+    <form method="post" action="/attendance/import" enctype="multipart/form-data" class="bar">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <input type="file" name="file" accept=".txt,.csv,.dat" required>
+      <button class="primary">{{ _('Import') }}</button>
+    </form>
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('Recent imports') }}</h2>
+    <table>{% for i in imports %}<tr><td>{{ fmt_dt(i.created_at) }}<div class="note" style="word-break:break-all">{{ i.filename }}</div></td><td class="n">{{ i.lines_new }}/{{ i.lines_total }}</td><td class="note">{{ fmt_date(i.date_from) }}–<br>{{ fmt_date(i.date_to) }}</td><td>{% if i.unknown_users %}<span class="tag warn" title="{{ i.unknown_users | join(', ') }}">{{ i.unknown_users|length }} {{ _('unknown') }}</span>{% endif %}</td></tr>{% else %}<tr><td class="note">{{ _('None yet') }}</td></tr>{% endfor %}</table>
+  </section>
+  {% endif %}
+</div>
+<form class="filters panel" method="get">
+  <label>{{ _('Date') }}<input type="date" name="d" value="{{ day }}"></label>
+  <label>{{ _('Org Unit') }}<select name="unit"><option value="">{{ _('All') }}</option>{% for u in units %}<option value="{{ u.code }}" {% if u.code == unit %}selected{% endif %}>{{ u.name_en }}</option>{% endfor %}</select></label>
+  <label>{{ _('Show') }}<select name="only"><option value="">{{ _('Everyone') }}</option><option value="absent" {% if only == 'absent' %}selected{% endif %}>{{ _('Absent') }}</option><option value="late" {% if only == 'late' %}selected{% endif %}>{{ _('Late') }}</option><option value="ot" {% if only == 'ot' %}selected{% endif %}>{{ _('Stayed > 30 min after shift') }}</option></select></label>
+  <button class="primary">{{ _('Show') }}</button>
+</form>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Worked') }}</span><span class="v">{{ summary.worked }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Absent, no leave') }}</span><span class="v">{{ summary.absent }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Late') }}</span><span class="v">{{ summary.late }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Stayed after shift') }}</span><span class="v">{{ summary.ot }}</span></div>
+</div>
+<div class="panel scroll">
+<table>
+  <tr><th>{{ _('Employee') }}</th><th>{{ _('Org Unit') }}</th><th>{{ _('Shift') }}</th><th>{{ _('Day') }}</th><th>{{ _('In') }}</th><th>{{ _('Out') }}</th><th class="n">{{ _('Late min') }}</th><th class="n">{{ _('After shift h') }}</th></tr>
+  {% for a in rows %}
+  <tr><td><a class="mono" href="/people/{{ a.employee_id }}">{{ a.employee_id }}</a> {{ a.employee.full_name_en }}</td><td>{{ a.employee.org_unit.name_en }}</td><td>{{ a.shift_code }}</td>
+    <td><span class="tag {{ {'1':'ok','a':'bad','h':''}.get(a.day_code, '') }}">{{ _(DAY_CODES.get(a.day_code, a.day_code)) }}</span>{% if a.is_rest_day and a.day_code == '1' %} <span class="tag warn">{{ _('rest day') }}</span>{% endif %}</td>
+    <td>{{ fmt_time(a.first_in) }}</td><td>{{ fmt_time(a.last_out) }}</td><td class="n">{{ a.late_minutes or '' }}</td><td class="n">{{ hours(a.scan_ot_minutes) if a.scan_ot_minutes else '' }}</td></tr>
+  {% else %}<tr><td colspan="8" class="note">{{ _('No attendance for this date') }}</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

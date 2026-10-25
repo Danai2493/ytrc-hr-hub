@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ _('Audit log') }}</h1>
+<p class="lead">{{ _('Who did what and when: sign-ins, every change, approvals, exports and every view of restricted data (PDPA).') }}</p>
+<form class="filters panel" method="get">
+  <label>{{ _('Search') }}<input name="q" value="{{ q }}"></label>
+  <label>{{ _('Action') }}<select name="action"><option value="">{{ _('All') }}</option>{% for a in ['login','login_failed','login_denied','create','update','approved','rejected','submit','export','view_restricted','update_restricted','import','upload','accept'] %}<option {% if a == action %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></label>
+  <button class="primary">{{ _('Filter') }}</button>
+</form>
+<div class="panel scroll"><table>
+  <tr><th>{{ _('Time') }}</th><th>{{ _('User') }}</th><th>{{ _('Action') }}</th><th>{{ _('Record') }}</th><th>{{ _('Summary') }}</th><th>IP</th></tr>
+  {% for l in rows %}<tr><td class="note">{{ fmt_dt(l.at) }}</td><td>{{ l.user_label }}</td><td><span class="tag {{ 'bad' if l.action in ('login_failed','login_denied','view_restricted') else '' }}">{{ l.action }}</span></td><td class="mono">{{ l.entity or '' }} {{ l.entity_id or '' }}</td><td>{{ l.summary }}</td><td class="note">{{ l.ip or '' }}</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

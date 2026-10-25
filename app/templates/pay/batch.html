@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead"><h1>{{ _('Batch') }} #{{ b.id }} · {{ _(cycles[b.cycle]) }}</h1>{{ status_tag(b.status) }}
+  <div class="end">
+    {% if b.status in ('draft','checked') %}<form method="post" action="/pay/{{ b.id }}/rebuild" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button>{{ _('Rebuild') }}</button></form>{% endif %}
+    {% if b.status != 'draft' %}<a class="btn" href="/pay/{{ b.id }}/export.csv">{{ _('Download Bplus file') }}</a>{% endif %}
+  </div>
+</div>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Period') }}</span><span class="v" style="font-size:18px">{{ fmt_date(b.period_start) }} – {{ fmt_date(b.period_end) }}</span></div>
+  <div class="kpi"><span class="k">{{ _('People') }}</span><span class="v">{{ (b.totals or {}).get('people', 0) }}</span></div>
+  <div class="kpi"><span class="k">{{ _('OT hours') }}</span><span class="v">{{ (b.totals or {}).get('hours', 0) }}</span><span class="d">{% for k, v in ((b.totals or {}).get('by_code') or {}).items() %}{{ k }} {{ v }}{% if not loop.last %} · {% endif %}{% endfor %}</span></div>
+</div>
+{% if b.flags %}
+<section class="panel"><h2>{{ _('Check before sending') }}</h2><ul class="find">{% for f in b.flags %}<li class="{{ f.level }}">{{ f.msg }}</li>{% endfor %}</ul></section>
+{% endif %}
+<section class="panel">
+  <h2>{{ _('Next step') }}</h2>
+  <form method="post" action="/pay/{{ b.id }}/status" class="bar">
+    <input type="hidden" name="_csrf" value="{{ csrf }}">
+    {% if b.status == 'draft' %}<button class="primary" name="status" value="checked">{{ _('I checked it (second HR person)') }}</button>
+    {% elif b.status == 'checked' %}<button class="primary" name="status" value="sent">{{ _('Mark as sent to Bplus') }}</button>
+    {% elif b.status == 'sent' %}<label>{{ _('Bplus import note') }}<input name="note" placeholder="{{ _('e.g. imported, 0 errors') }}"></label><button class="primary" name="status" value="imported">{{ _('Mark as imported in Bplus') }}</button>
+    {% else %}<span class="note">{{ _('Done.') }} {{ b.bplus_status_note or '' }}</span>{% endif %}
+  </form>
+  <p class="note">{{ _('Created by') }} {{ b.created_by }}{% if b.checked_by %} · {{ _('checked by') }} {{ b.checked_by }}{% endif %}{% if b.sent_at %} · {{ _('sent') }} {{ fmt_dt(b.sent_at) }}{% endif %}</p>
+</section>
+<section class="panel scroll">
+  <h2>{{ _('Lines') }}</h2>
+  <table>
+    <tr><th>{{ _('Employee') }}</th><th>{{ _('Org Unit') }}</th><th>{{ _('Pay code') }}</th><th class="n">{{ _('Hours') }}</th><th>{{ _('From OT requests') }}</th></tr>
+    {% for ln in b.lines %}<tr><td><span class="mono">{{ ln.employee_id }}</span> {{ ln.employee.full_name_en }}</td><td>{{ ln.org_unit_code }}</td><td><span class="tag">{{ ln.pay_code }}</span> <span class="note">{{ PAY_CODES[ln.pay_code] }}</span></td><td class="n">{{ '%.2f' % ln.quantity }}</td><td class="note mono">{{ (ln.source_refs or []) | join(', ') | truncate(80) }}</td></tr>{% else %}<tr><td colspan="5" class="note">{{ _('No verified OT in this period yet') }}</td></tr>{% endfor %}
+  </table>
+</section>
+{% endblock %}

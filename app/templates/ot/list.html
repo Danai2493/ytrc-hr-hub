@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead"><h1>{{ _('OT requests') }}</h1>
+  <div class="end"><a class="btn primary" href="/ot/new">{{ _('New OT request') }}</a>{% if user.has('hr','hr_manager') %}<a class="btn" href="/ot/verify">{{ _('Verify against face scan') }}</a><a class="btn" href="/capture/new?type=OT_FORM">{{ _('Photo of paper form') }}</a>{% endif %}</div>
+</div>
+<form class="filters panel" method="get">
+  <label>{{ _('From') }}<input type="date" name="d0" value="{{ d0 }}"></label>
+  <label>{{ _('To') }}<input type="date" name="d1" value="{{ d1 }}"></label>
+  <label>{{ _('Employee') }}<input name="employee" value="{{ employee }}" placeholder="YTOP951"></label>
+  <label>{{ _('Status') }}<select name="status"><option value="">{{ _('All') }}</option>{% for s in ['pending','approved','verified','paid','rejected','cancelled'] %}<option {% if s == status %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+  <button class="primary">{{ _('Filter') }}</button>
+</form>
+<div class="panel scroll">
+<table>
+  <tr><th>{{ _('Ref') }}</th><th>{{ _('Date') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Time') }}</th><th>{{ _('Pay codes') }}</th><th class="n">{{ _('Req. h') }}</th><th class="n">{{ _('Scan h') }}</th><th>{{ _('Source') }}</th><th>{{ _('Status') }}</th><th>{{ _('Checks') }}</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td class="mono"><a href="/ot/{{ r.id }}">{{ r.ref }}</a></td>
+    <td>{{ fmt_date(r.work_date) }}{% if r.day_kind == 'holiday' %} <span class="tag warn">{{ _('holiday') }}</span>{% endif %}</td>
+    <td><a href="/people/{{ r.employee_id }}" class="mono">{{ r.employee_id }}</a> {{ r.employee.full_name_en }}</td>
+    <td>{{ fmt_time(r.ot_from) }}–{{ fmt_time(r.ot_to) }}</td>
+    <td class="mono">{% for k, v in (r.split or {}).get('req', {}).items() %}{{ k }} {{ hours(v) }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+    <td class="n">{{ r.requested_hours }}</td>
+    <td class="n {% if r.scan_minutes is not none and r.scan_minutes + 10 < r.requested_minutes %}bad-t{% endif %}">{{ hours(r.scan_minutes) }}</td>
+    <td>{{ _(r.source) }}</td>
+    <td>{{ status_tag(r.status) }}</td>
+    <td>{% for f in (r.flags or []) if f.level != 'info' %}<span class="tag {{ 'bad' if f.level == 'block' else 'warn' }}" title="{{ rt(f) }}">{{ f.code }}</span> {% endfor %}</td>
+  </tr>
+  {% else %}<tr><td colspan="10" class="note">{{ _('No OT requests in this range') }}</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

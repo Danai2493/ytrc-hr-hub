@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag, findings %}
+{% block content %}
+<div class="phead"><h1>#{{ r.id }} · {{ r.title }}</h1>{{ status_tag(r.status) }}</div>
+<div class="grid">
+  <section class="panel c7">
+    <h2>{{ _('What is requested') }}</h2>
+    {% if ot %}
+      <dl class="kv"><dt>{{ _('OT') }}</dt><dd><a href="/ot/{{ ot.id }}">{{ ot.ref }}</a> · {{ fmt_date(ot.work_date) }} {{ fmt_time(ot.ot_from) }}–{{ fmt_time(ot.ot_to) }} · {{ ot.requested_hours }}h · {{ _(ot.day_kind) }}</dd>
+        <dt>{{ _('Pay codes') }}</dt><dd>{% for k, v in (ot.split or {}).get('req', {}).items() %}{{ PAY_CODES[k] }} {{ hours(v) }}h<br>{% endfor %}</dd>
+        <dt>{{ _('Reason') }}</dt><dd>{{ ot.reason }}</dd><dt>{{ _('Face scan') }}</dt><dd>{{ hours(ot.scan_minutes) }}h {{ _('covered') }}</dd></dl>
+      {{ findings(ot.flags or [], rt) }}
+    {% elif r.payload %}
+      {% set p = r.payload %}
+      {% if p.action == 'update' %}
+        <table><tr><th>{{ _('Field') }}</th><th>{{ _('Now') }}</th><th>{{ _('New') }}</th></tr>
+        {% for k, v in p.changes.items() %}<tr><td>{{ k }}</td><td>{{ v[0] if v[0] is not none else '' }}</td><td><strong>{{ v[1] if v[1] is not none else '' }}</strong></td></tr>{% endfor %}</table>
+        {% if p.note %}<p class="note">{{ _('Reason') }}: {{ p.note }}</p>{% endif %}
+      {% elif p.action == 'create' %}
+        <dl class="kv">{% for k, v in p.data.items() if v %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+        {% if p.restricted and p.restricted.values() | select | list %}<p class="note">{{ _('Restricted fields are included and hidden here.') }}</p>{% endif %}
+      {% elif p.action == 'event' %}
+        <dl class="kv">{% for k, v in p.items() if v and k != 'action' %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+      {% endif %}
+    {% endif %}
+    {% if emp %}<p class="note">{{ _('About') }} <a href="/people/{{ emp.employee_id }}">{{ emp.employee_id }} {{ emp.full_name_en }}</a> · {{ emp.org_unit.name_en }}</p>{% endif %}
+    {% if can %}
+    <form method="post" action="/approvals/{{ r.id }}/decide" class="panel">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label>{{ _('Comment (required to reject)') }}<textarea name="comment"></textarea></label>
+      <div class="bar"><button class="primary" name="decision" value="approved">{{ _('Approve') }}</button><button class="danger" name="decision" value="rejected">{{ _('Reject') }}</button></div>
+    </form>
+    {% endif %}
+    {% if can_cancel %}
+    <form method="post" action="/approvals/{{ r.id }}/cancel" class="bar">
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input name="reason" placeholder="{{ _('Reason for cancelling') }}" required><button class="danger small">{{ _('Cancel request') }}</button>
+    </form>
+    {% endif %}
+  </section>
+  <section class="panel c5">
+    <h2>{{ _('Approval steps') }}</h2>
+    <ol class="timeline">
+      <li><strong>{{ _('Submitted') }}</strong> · {{ r.submitted_by }}<div class="note">{{ fmt_dt(r.created_at) }}</div></li>
+      {% for s in r.steps %}
+      <li style="{% if s.seq == r.current_step and r.status == 'pending' %}border-color:var(--warn){% elif s.decision == 'rejected' %}border-color:var(--bad){% elif not s.decision %}border-color:var(--line){% endif %}">
+        <strong>{{ s.seq }}. {{ _(s.name) }}</strong> {% if s.decision %}{{ status_tag(s.decision) }}{% endif %}
+        <div class="note">{% if s.approver_employee_id %}{{ s.approver_employee_id }} {{ names.get(s.approver_employee_id, '') }}{% else %}{{ _('role') }}: {{ s.approver_role }}{% endif %}</div>
+        {% if s.decided_by %}<div class="note">{{ s.decided_by }} · {{ fmt_dt(s.decided_at) }}{% if s.comment %} · “{{ s.comment }}”{% endif %}</div>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    <h3>{{ _('Log') }}</h3>
+    <table>{% for l in log %}<tr><td class="note">{{ fmt_dt(l.at) }}</td><td>{{ l.user_label }}</td><td>{{ l.action }}</td></tr>{% endfor %}</table>
+  </section>
+</div>
+{% endblock %}

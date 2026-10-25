@@ -1,0 +1,10 @@
+{
+"_note": "English labels for internal codes (approval step names). Other English text is its own key.",
+"dept_head": "Department Head",
+"hr_verify": "HR verifies against face scan",
+"hr_check": "HR check",
+"gm": "GM",
+"gm_override": "GM weekly-limit override",
+"receiving_head": "Receiving Department Head",
+"hr": "HR"
+}

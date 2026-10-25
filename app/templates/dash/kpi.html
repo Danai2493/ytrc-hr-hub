@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import hbar, columns %}
+{% block content %}
+{% include "dash/_tabs.html" %}
+<form class="filters panel no-print" method="get">
+  <label>{{ _('Month') }}<input type="month" name="month" value="{{ m0.strftime('%Y-%m') }}"></label><button class="primary">{{ _('Show') }}</button>
+  <button type="button" onclick="window.print()">{{ _('Print / PDF') }}</button>
+</form>
+<section class="panel">
+  <div class="phead"><h2>{{ _('Monthly HR KPI pack') }} · {{ m0.strftime('%m/%Y') }}</h2><span class="note">{{ _('Generated from live data') }} {{ fmt_date(today) }}</span></div>
+  <table>
+    <tr><th>{{ _('KPI') }}</th><th class="n">{{ _('This month') }}</th><th>{{ _('Note') }}</th></tr>
+    <tr><td>{{ _('Headcount at month end') }}</td><td class="n">{{ hc.total }}</td><td class="note">{% for g, n in hc.by_group.items() %}{{ _(g) }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
+    <tr><td>{{ _('Joins') }}</td><td class="n">{{ mv.joins[-1] }}</td><td></td></tr>
+    <tr><td>{{ _('Exits') }}</td><td class="n">{{ mv.exits[-1] }}</td><td class="note">{% for code, n in reasons %}{{ _(reason_names.get(code, code)) }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
+    <tr><td>{{ _('Turnover rate') }}</td><td class="n">{{ mv.turnover[-1] }}%</td><td class="note">{{ _('12-month sum') }}: {{ mv.turnover|sum|round(1) }}%</td></tr>
+    <tr><td>{{ _('OT hours') }}</td><td class="n">{{ ot.total_hours }}</td><td class="note">{% for d, h in ot.by_dept[:4] %}{{ d }} {{ h }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
+    <tr><td>{{ _('Person-weeks over 36h OT') }}</td><td class="n {% if ot.over_limit %}bad-t{% endif %}">{{ ot.over_limit|length }}</td><td class="note">{{ _('legal limit') }}</td></tr>
+    <tr><td>{{ _('OT not covered by face scan') }}</td><td class="n">{{ ot.scan_short|length }}</td><td></td></tr>
+    <tr><td>{{ _('OT entered after the work date') }}</td><td class="n">{{ ot.late_entry_pct }}%</td><td class="note">{{ _('target: under 10%') }}</td></tr>
+    <tr><td>{{ _('Absence rate') }}</td><td class="n">{{ ab.rate }}%</td><td class="note">{{ ab.absent }} {{ _('person-days') }}</td></tr>
+    <tr><td>{{ _('Open data issues') }}</td><td class="n">{{ issues_open }}</td><td class="note">{{ issues_overdue }} {{ _('past due date') }}</td></tr>
+  </table>
+</section>
+<div class="grid">
+  <section class="panel c6"><h3>{{ _('Headcount, 12 months') }}</h3>{{ columns(mv.labels, [(_('Headcount'), 'var(--s3)', mv.headcount)], '', 520, 200) }}</section>
+  <section class="panel c6"><h3>{{ _('OT by department') }}</h3>{{ hbar(ot.by_dept, 'h') }}</section>
+</div>
+{% endblock %}

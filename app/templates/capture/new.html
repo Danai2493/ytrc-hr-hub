@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ _('Photo of a paper form') }}</h1>
+<form method="post" enctype="multipart/form-data" class="panel">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <div class="form">
+    <label>{{ _('Form') }}<select name="form_type">{% for k, v in types.items() %}<option value="{{ k }}" {% if k == ftype %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+    {% if ftype == 'WORK_PERMIT' %}<label>{{ _('Employee ID (if known)') }}<input name="employee" value="{{ employee }}" class="mono"></label>{% endif %}
+    <label class="wide">{{ _('Photo') }}<input type="file" name="file" accept="image/*" capture="environment" required></label>
+  </div>
+  <ul class="note">
+    <li>{{ _('Lay the form flat, fill the frame, avoid shadows and glare.') }}</li>
+    <li>{{ _('One page per photo. The photo is stored on the company server and linked to the OT lines it creates.') }}</li>
+    {% if provider not in ('mock', 'none') %}<li>{{ _('The photo is sent to the AI provider for reading.') }} ({{ provider }})</li>{% endif %}
+  </ul>
+  <div class="bar"><button class="primary">{{ _('Read with AI') }}</button><a class="btn" href="/capture">{{ _('Cancel') }}</a></div>
+</form>
+{% endblock %}

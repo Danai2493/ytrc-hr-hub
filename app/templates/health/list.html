@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead"><h1>{{ _('Data health') }}</h1>
+  <div class="end">{% if user.has('hr','hr_manager') %}<form method="post" action="/health/run" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="primary">{{ _('Run checks now') }}</button></form>{% endif %}</div>
+</div>
+<p class="lead">{{ _('Rules that replace manual checking. Each issue has an owner and a due date, closes itself once the data is fixed, and the monthly HR pack shows how many are open.') }}</p>
+<div class="kpis">
+  {% for code, (sev, owner, label) in rules.items() if counts.get(code) %}
+  <a class="kpi" href="?rule={{ code }}"><span class="k">{{ _(label) }}</span><span class="v {{ 'bad-t' if sev == 'block' else '' }}">{{ counts[code] }}</span><span class="d">{{ code }} · {{ _(owner) }}</span></a>
+  {% endfor %}
+</div>
+<form class="filters panel" method="get">
+  <label>{{ _('Rule') }}<select name="rule"><option value="">{{ _('All') }}</option>{% for code, r in rules.items() %}<option value="{{ code }}" {% if code == rule %}selected{% endif %}>{{ code }} · {{ _(r[2]) }}</option>{% endfor %}</select></label>
+  <label>{{ _('Status') }}<select name="status">{% for s in ['open','fixed','ignored',''] %}<option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ s or _('All') }}</option>{% endfor %}</select></label>
+  <label>{{ _('Employee') }}<input name="employee" value="{{ employee }}"></label>
+  <button class="primary">{{ _('Filter') }}</button>
+</form>
+<div class="panel scroll">
+<table>
+  <tr><th>{{ _('Rule') }}</th><th>{{ _('Record') }}</th><th>{{ _('Issue') }}</th><th>{{ _('Owner') }}</th><th>{{ _('Due') }}</th><th>{{ _('Status') }}</th><th></th></tr>
+  {% for i in rows %}
+  <tr><td>{{ status_tag(i.severity) }} <span class="mono">{{ i.rule_code }}</span></td>
+    <td>{% if i.employee_id %}<a class="mono" href="/people/{{ i.employee_id }}">{{ i.employee_id }}</a>{% elif i.entity == 'ot_request' %}<span class="mono">{{ i.entity_id }}</span>{% else %}<span class="mono">{{ i.entity_id }}</span>{% endif %}</td>
+    <td>{{ i.message }}{% if i.resolution_note %}<div class="note">{{ i.resolution_note }}</div>{% endif %}</td>
+    <td>{{ _(i.owner_role or '') }}{% if i.org_unit_code %} · {{ i.org_unit_code }}{% endif %}</td>
+    <td class="{% if i.status == 'open' and i.due_date and i.due_date < today %}bad-t{% endif %}">{{ fmt_date(i.due_date) }}</td>
+    <td>{{ status_tag(i.status) }}</td>
+    <td>{% if i.status == 'open' %}<form method="post" action="/health/{{ i.id }}" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input name="note" placeholder="{{ _('why') }}" size="10"><button class="small" name="action" value="ignore">{{ _('Ignore') }}</button></form>{% elif i.status == 'ignored' %}<form method="post" action="/health/{{ i.id }}"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small" name="action" value="reopen">{{ _('Reopen') }}</button></form>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="7" class="note">{{ _('No issues. Run the checks to refresh.') }}</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

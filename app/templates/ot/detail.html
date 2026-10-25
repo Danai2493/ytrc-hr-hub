@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag, findings %}
+{% block content %}
+<div class="phead"><h1>{{ r.ref }}</h1>{{ status_tag(r.status) }}{% if r.source == 'paper' %}<span class="tag">{{ _('from paper form') }}</span>{% endif %}</div>
+<div class="grid">
+  <section class="panel c6">
+    <dl class="kv">
+      <dt>{{ _('Employee') }}</dt><dd><a href="/people/{{ r.employee_id }}" class="mono">{{ r.employee_id }}</a> {{ r.employee.full_name_en }}</dd>
+      <dt>{{ _('Work date') }}</dt><dd>{{ fmt_date(r.work_date) }} · {{ _(r.day_kind) }}</dd>
+      <dt>{{ _('OT') }}</dt><dd>{{ fmt_dt(r.ot_from) }} – {{ fmt_time(r.ot_to) }}</dd>
+      <dt>{{ _('Requested') }}</dt><dd>{% for k, v in (r.split or {}).get('req', {}).items() %}{{ PAY_CODES[k] }}: {{ hours(v) }}h<br>{% endfor %}</dd>
+      <dt>{{ _('Payable after scan') }}</dt><dd>{% if r.split and r.split.get('pay') is not none %}{% for k, v in r.split['pay'].items() %}{{ PAY_CODES[k] }}: {{ hours(v) }}h<br>{% else %}0{% endfor %}{% else %}{{ _('waiting for face scan') }}{% endif %}</dd>
+      <dt>{{ _('Reason') }}</dt><dd>{{ r.reason or '' }}</dd>
+      {% if r.override_note %}<dt>{{ _('Limit override') }}</dt><dd class="warn-t">{{ r.override_note }}</dd>{% endif %}
+      <dt>{{ _('Submitted by') }}</dt><dd>{{ r.submitted_by }} · {{ fmt_dt(r.created_at) }}</dd>
+      {% if r.pay_batch_id %}<dt>{{ _('Pay batch') }}</dt><dd><a href="/pay/{{ r.pay_batch_id }}">#{{ r.pay_batch_id }}</a></dd>{% endif %}
+    </dl>
+    {{ findings(r.flags or [], rt) }}
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('Face scan') }}</h2>
+    {% if att %}
+    <dl class="kv"><dt>{{ _('Shift') }}</dt><dd>{{ att.shift_code }}{% if att.is_rest_day %} · {{ _('rest day / holiday') }}{% endif %}</dd>
+      <dt>{{ _('First in') }}</dt><dd>{{ fmt_dt(att.first_in) }}</dd><dt>{{ _('Last out') }}</dt><dd>{{ fmt_dt(att.last_out) }}</dd>
+      <dt>{{ _('Scans') }}</dt><dd>{{ att.scan_count }}</dd><dt>{{ _('Scan OT after shift') }}</dt><dd>{{ hours(att.scan_ot_minutes) }}h</dd></dl>
+    {% else %}<p class="note">{{ _('No face scan imported for this date yet.') }}</p>{% endif %}
+    {% if appr %}
+    <h2>{{ _('Approval') }}</h2>
+    <ol>{% for s in appr.steps %}<li>{{ _(s.name) }}: {% if s.decision %}{{ status_tag(s.decision) }} {{ s.decided_by }} · {{ fmt_dt(s.decided_at) }}{% if s.comment %} · {{ s.comment }}{% endif %}{% else %}<span class="note">{{ s.approver_employee_id or s.approver_role }}</span>{% endif %}</li>{% endfor %}</ol>
+    {% if can %}<a class="btn primary" href="/approvals/{{ appr.id }}">{{ _('Decide') }}</a>{% endif %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

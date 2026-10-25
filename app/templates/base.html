@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ _('YTRC HR Hub') }}{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Myanmar:wght@400;500&display=swap">
+<link rel="stylesheet" href="/static/app.css">
+<meta name="csrf" content="{{ csrf }}">
+</head>
+<body>
+{% if user %}
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <a class="home" href="/">YTRC HR Hub</a>
+      <span class="sub">{{ _('People, time and pay input in one place') }}</span>
+      {% if settings.demo_mode %}<span class="stamp">{{ _('Demo, SAMPLE data only') }}</span>{% endif %}
+      <div class="right">
+        <form class="inline" method="post" action="/lang">
+          <input type="hidden" name="_csrf" value="{{ csrf }}">
+          <input type="hidden" name="next" value="{{ path }}">
+          <select name="lang" aria-label="Language" onchange="this.form.submit()">
+            {% for code, name in langs.items() %}<option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>{% endfor %}
+          </select>
+        </form>
+        <span class="note">{{ user.display_name }}{% if user.employee_id %} · <span class="mono">{{ user.employee_id }}</span>{% endif %}</span>
+        <form class="inline" method="post" action="/logout"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small">{{ _('Sign out') }}</button></form>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Main">
+      {% for href, label in nav %}
+      <a href="{{ href }}" class="{% if (href == '/' and path == '/') or (href != '/' and path.startswith(href)) %}on{% endif %}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+  </div>
+</header>
+{% endif %}
+<main class="wrap">
+  {% for f in flashes %}<div class="flash {{ f.kind }}" role="status">{{ f.msg }}</div>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+{% if user %}
+<footer class="wrap">YTRC HR Hub · {{ _('Salaries and bank data stay in Bplus.') }} · {{ _('Every change is logged.') }}</footer>
+{% endif %}
+<script src="/static/app.js"></script>
+</body>
+</html>
