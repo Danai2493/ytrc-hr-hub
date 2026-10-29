@@ -21,7 +21,7 @@ into the same data model and approval engine.
 | Paper forms (AI) | Photograph a paper OT form or work permit. AI reads it, every line goes through the same checks as the web form, HR fixes the unclear cells and accepts. |
 | Data health | 17 rules (ID format, missing fields, juvenile workers, permits expiring, OT without request, unknown scan IDs...). Issues have owners and close themselves when fixed. |
 | Dashboards | People and turnover, OT, attendance, monthly HR KPI pack (print to PDF). No Power BI needed. |
-| Admin | Users and roles, settings for the rules, shifts, holidays, OT budget, audit log. |
+| Admin | Users and roles, settings for the rules, shifts, holidays (upload the yearly company calendar workbook: Office rests Sunday, Factory rests Friday), OT budget, audit log. |
 
 ## Run the demo on a laptop
 

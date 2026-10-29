@@ -3,7 +3,9 @@ shifts (announcement YTRC2026/003), calendars, grades, pay settings.
 Department Heads are left empty here; HR sets them in Org & positions."""
 from __future__ import annotations
 
+import json
 from datetime import date, time
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -35,13 +37,13 @@ ORG = [
     ("MTN", "Maintenance", "department", "FAC", "FACTORY", "MTN-D"),
     ("SAF", "Safety", "department", "FAC", "OFFICE", "OFFICE"),
     ("ENV", "Environmental", "department", "FAC", "OFFICE", "OFFICE"),
-    ("RMR", "R/M Receiving", "department", "FAC", "FACTORY", "PRD-D"),
-    ("RRC", "RRC (confirm place on org chart)", "department", "FAC", "OFFICE", "RRC-D"),
+    # RRC is R/M Receiving (Danai, 2026-10-29). It follows the Office calendar.
+    ("RMR", "R/M Receiving (RRC)", "department", "FAC", "OFFICE", "RRC-D"),
 ]
 
 TH_NAMES = {
     "PRD": "ฝ่ายผลิต", "QA": "ประกันคุณภาพ", "LAB": "ห้องปฏิบัติการ", "HR": "ทรัพยากรบุคคล", "GA": "ธุรการ",
-    "AF": "บัญชีและการเงิน", "MTN": "ซ่อมบำรุง", "SAF": "ความปลอดภัย", "ENV": "สิ่งแวดล้อม", "IT": "เทคโนโลยีสารสนเทศ",
+    "AF": "บัญชีและการเงิน", "MTN": "ซ่อมบำรุง", "RMR": "รับวัตถุดิบ (RRC)", "SAF": "ความปลอดภัย", "ENV": "สิ่งแวดล้อม", "IT": "เทคโนโลยีสารสนเทศ",
     "PRD-PCL": "ล้างวัตถุดิบ", "PRD-MIX": "ผสม", "PRD-DRY": "อบและบรรจุ", "PRD-TRL": "ล้างรถเข็นและงานทั่วไป", "PRD-WH": "คลังสินค้าและตรวจซ้ำ",
 }
 
@@ -52,8 +54,8 @@ SHIFTS = [
     ("PRD-N", "Factory night 22:00-07:00", time(22), time(7), 60),
     ("DRY-D", "Dryer & Packing day 07:00-15:00", time(7), time(15), 0),
     ("DRY-N", "Dryer & Packing night 23:00-07:00", time(23), time(7), 0),
-    ("RRC-D", "RRC day 08:00-17:00", time(8), time(17), 60),
-    ("RRC-N", "RRC night 22:00-07:00", time(22), time(7), 60),
+    ("RRC-D", "R/M Receiving (RRC) day 08:00-17:00", time(8), time(17), 60),
+    ("RRC-N", "R/M Receiving (RRC) night 22:00-07:00", time(22), time(7), 60),
     ("MTN-D", "Maintenance day 08:00-17:00", time(8), time(17), 60),
     ("MTN-N", "Maintenance night 22:00-07:00", time(22), time(7), 60),
     ("MTN-FRI", "Maintenance / Support Friday 07:00-16:00", time(7), time(16), 60),
@@ -77,26 +79,22 @@ JOBS = [
     ("OPR-DRY", "Operator, Drying & Packing", "พนักงานอบและบรรจุ", "Production", "Operator"),
     ("OPR-TRL", "Operator, Trolley & General", "พนักงานทั่วไป", "Production", "Operator"),
     ("OPR-WH", "Operator, Warehouse", "พนักงานคลังสินค้า", "Production", "Operator"),
-    ("OPR-RRC", "Operator, RRC", "พนักงาน RRC", "Production", "Operator"),
+    ("OPR-RRC", "Operator, R/M Receiving (RRC)", "พนักงานรับวัตถุดิบ (RRC)", "Production", "Operator"),
 ]
 
-# Thai public holidays 2026, used as a starting point on both calendars.
-# The company Office and Factory calendars differ: HR replaces these in Admin.
-HOLIDAYS_2026 = [
-    (date(2026, 1, 1), "New Year's Day"), (date(2026, 3, 3), "Makha Bucha"), (date(2026, 4, 6), "Chakri Day"),
-    (date(2026, 4, 13), "Songkran"), (date(2026, 4, 14), "Songkran"), (date(2026, 4, 15), "Songkran"),
-    (date(2026, 5, 1), "Labour Day"), (date(2026, 5, 4), "Coronation Day"), (date(2026, 6, 1), "Visakha Bucha (substitute)"),
-    (date(2026, 6, 3), "Queen Suthida's Birthday"), (date(2026, 7, 28), "King's Birthday"), (date(2026, 7, 29), "Asarnha Bucha"),
-    (date(2026, 8, 12), "Mother's Day"), (date(2026, 10, 13), "King Bhumibol Memorial Day"), (date(2026, 10, 23), "Chulalongkorn Day"),
-    (date(2026, 12, 7), "Father's Day (substitute)"), (date(2026, 12, 10), "Constitution Day"), (date(2026, 12, 31), "New Year's Eve"),
-]
+# Company holiday calendars from HR's calendar workbooks (Draf Calendar 2026 and
+# 2027 .xlsx), read by services.calendar_import. Later years: Admin > Holidays >
+# upload the workbook.
+COMPANY_CALENDAR = Path(__file__).with_name("company_calendar.json")
+# Weekly rest days, Monday = 0: Office rests on Sunday, Factory on Friday.
+CALENDARS = (("OFFICE", "Office calendar", "6"), ("FACTORY", "Factory calendar", "4"))
 
 
 def seed_reference(db: Session) -> None:
     for code, name, start, end, brk in SHIFTS:
         if not db.get(Shift, code):
             db.add(Shift(code=code, name=name, start=start, end=end, break_minutes=brk))
-    for code, name, rest in (("OFFICE", "Office calendar", "5,6"), ("FACTORY", "Factory calendar", "6")):
+    for code, name, rest in CALENDARS:
         if not db.get(Calendar, code):
             db.add(Calendar(code=code, name=name, rest_weekdays=rest))
     db.flush()
@@ -114,7 +112,8 @@ def seed_reference(db: Session) -> None:
 
     for cal in ("OFFICE", "FACTORY"):
         have = set(db.scalars(select(Holiday.day).where(Holiday.calendar_code == cal)).all())
-        for d, name in HOLIDAYS_2026:
-            if d not in have:
-                db.add(Holiday(calendar_code=cal, day=d, name=name))
+        for year in json.loads(COMPANY_CALENDAR.read_text(encoding="utf-8")).values():
+            for d, name in year["holidays"].get(cal, []):
+                if date.fromisoformat(d) not in have:
+                    db.add(Holiday(calendar_code=cal, day=date.fromisoformat(d), name=name))
     db.flush()

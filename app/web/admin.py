@@ -4,8 +4,8 @@ import json
 import secrets
 from datetime import date, time
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -152,6 +152,39 @@ def holiday_add(request: Request, calendar_code: str = Form(...), day: str = For
         db.add(Holiday(calendar_code=calendar_code, day=d, name=name))
         audit(db, user, "create", "holiday", f"{calendar_code}:{d}", name)
         db.commit()
+    return redirect("/admin#holidays")
+
+
+@router.post("/calendar/preview", dependencies=[Depends(check_csrf)])
+async def calendar_preview(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db), user=Depends(require("hr_manager", "hr"))):
+    """Step 1: read the company calendar workbook and show what will change."""
+    from ..services.calendar_import import CalendarFileError, parse_workbook
+
+    try:
+        parsed = parse_workbook(await file.read())
+    except CalendarFileError as exc:
+        flash(request, str(exc), "bad")
+        return redirect("/admin#holidays")
+    current = {c.code: c.rest_weekdays for c in db.scalars(select(Calendar)).all()}
+    existing = {
+        code: db.scalar(select(func.count()).select_from(Holiday).where(Holiday.calendar_code == code, Holiday.day >= date(parsed.year, 1, 1), Holiday.day <= date(parsed.year, 12, 31))) or 0
+        for code in parsed.holidays
+    }
+    return render(request, "admin/calendar_preview.html", {
+        "p": parsed, "filename": file.filename, "data": json.dumps(parsed.to_json(), ensure_ascii=False),
+        "current": current, "existing": existing, "weekday_names": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    })
+
+
+@router.post("/calendar/apply", dependencies=[Depends(check_csrf)])
+def calendar_apply(request: Request, data: str = Form(...), db: Session = Depends(get_db), user=Depends(require("hr_manager", "hr"))):
+    """Step 2: replace that year's holidays on both calendars."""
+    from ..services.calendar_import import ParsedCalendar, apply
+
+    parsed = ParsedCalendar.from_json(json.loads(data))
+    counts = apply(db, parsed, user)
+    db.commit()
+    flash(request, f"{parsed.year} calendars loaded: " + ", ".join(f"{k} {v} holidays" for k, v in counts.items()))
     return redirect("/admin#holidays")
 
 

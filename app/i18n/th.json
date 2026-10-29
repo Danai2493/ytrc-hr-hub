@@ -585,5 +585,14 @@
 "workday": "วันทำงาน",
 "{hours}h is over the daily limit of {limit}h": "{hours} ชม. เกินเพดานรายวัน {limit} ชม.",
 "{hours}h of OT in one day: please check": "OT {hours} ชม. ในวันเดียว: โปรดตรวจสอบ",
-"{minutes} minutes fall inside normal shift hours and are not OT": "{minutes} นาทีอยู่ในเวลากะปกติ ไม่นับเป็น OT"
+"{minutes} minutes fall inside normal shift hours and are not OT": "{minutes} นาทีอยู่ในเวลากะปกติ ไม่นับเป็น OT",
+"Company calendar": "ปฏิทินบริษัท",
+"Yellow days in the grid are holidays, orange days are weekly rest days. Check the lists, then load them.": "วันสีเหลืองในตารางคือวันหยุดประเพณี สีส้มคือวันหยุดประจำสัปดาห์ ตรวจรายการแล้วกดนำเข้า",
+"holidays": "วันหยุด",
+"changes": "เปลี่ยน",
+"Holidays now in the system for this year": "วันหยุดปีนี้ที่มีในระบบตอนนี้",
+"Load these calendars": "นำเข้าปฏิทินนี้",
+"This replaces the holidays of this year on both calendars. Every change is logged.": "จะแทนที่วันหยุดของปีนี้ในทั้งสองปฏิทิน ทุกการเปลี่ยนแปลงถูกบันทึก",
+"Company calendar workbook (.xlsx), Office and Factory grids": "ไฟล์ปฏิทินบริษัท (.xlsx) ตาราง Office และ Factory",
+"Read the file": "อ่านไฟล์"
 }

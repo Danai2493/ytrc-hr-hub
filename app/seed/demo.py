@@ -42,14 +42,14 @@ STAFF = [
     ("YTR809", "Ton Sample (SAMPLE)", "Manager", "MTN", "MGR-DEPT", "MG", ["MTN"], ["dept_head"], "mtn.head"),
     ("YTR810", "Ploy Sample (SAMPLE)", "Manager", "AF", "MGR-DEPT", "MG", ["AF"], ["dept_head"], None),
     ("YTR811", "Arm Sample (SAMPLE)", "Staff", "GA", "MGR-DEPT", "Ass MG", ["GA", "CSR"], ["dept_head"], None),
-    ("YTR812", "Bee Sample (SAMPLE)", "Manager", "RMR", "MGR-DEPT", "MG", ["RMR", "RRC"], ["dept_head"], "rmr.head"),
+    ("YTR812", "Bee Sample (SAMPLE)", "Manager", "RMR", "MGR-DEPT", "MG", ["RMR"], ["dept_head"], "rmr.head"),
     ("YTR813", "Gift Sample (SAMPLE)", "Staff", "QA", "QA-INSP", "Staff 1", [], [], None),
     ("YTR814", "Jan Sample (SAMPLE)", "Staff", "LAB", "LAB-TECH", "Technician", [], [], None),
     ("YTR815", "Oat Sample (SAMPLE)", "Staff", "MTN", "MTN-TECH", "Technician 2", [], [], None),
     ("YTR816", "May Sample (SAMPLE)", "Staff", "SAF", "SAF-OFF", "Staff 2", [], [], None),
 ]
 
-OP_UNITS = [("PRD-DRY", "OPR-DRY", 12), ("PRD-PCL", "OPR-PCL", 10), ("PRD-MIX", "OPR-MIX", 6), ("PRD-WH", "OPR-WH", 5), ("PRD-TRL", "OPR-TRL", 3), ("RRC", "OPR-RRC", 4)]
+OP_UNITS = [("PRD-DRY", "OPR-DRY", 12), ("PRD-PCL", "OPR-PCL", 10), ("PRD-MIX", "OPR-MIX", 6), ("PRD-WH", "OPR-WH", 5), ("PRD-TRL", "OPR-TRL", 3), ("RMR", "OPR-RRC", 4)]
 MY_FIRST = ["Aung", "Mya", "Kyaw", "Thida", "Zaw", "Nilar", "Htet", "Su", "Min", "Ei"]
 TH_FIRST = ["Somchai", "Somsak", "Malee", "Wichai", "Suda", "Anan", "Kanya", "Prasit", "Ratana", "Boon"]
 

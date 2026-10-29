@@ -1,0 +1,362 @@
+{
+ "2026": {
+  "year": 2026,
+  "rest": {
+   "OFFICE": [
+    6
+   ],
+   "FACTORY": [
+    4
+   ]
+  },
+  "holidays": {
+   "OFFICE": [
+    [
+     "2026-01-01",
+     "New Year's Day"
+    ],
+    [
+     "2026-01-02",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2026-01-03",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2026-04-13",
+     "Songkran"
+    ],
+    [
+     "2026-04-14",
+     "Songkran"
+    ],
+    [
+     "2026-04-15",
+     "Songkran"
+    ],
+    [
+     "2026-04-16",
+     "Songkran(Observed)"
+    ],
+    [
+     "2026-04-17",
+     "Myanmar (New Year's Day)"
+    ],
+    [
+     "2026-04-30",
+     "Labor Day (Observed)"
+    ],
+    [
+     "2026-05-01",
+     "Labor Day"
+    ],
+    [
+     "2026-07-28",
+     "King Vajiralongkorn's Birthday"
+    ],
+    [
+     "2026-07-29",
+     "Asarnha Bucha Day"
+    ],
+    [
+     "2026-07-30",
+     "The Buddhist Lent Day / Myanmar Festival"
+    ],
+    [
+     "2026-08-12",
+     "Mother's Day"
+    ],
+    [
+     "2026-10-10",
+     "Thai Festival at the End of 10th Lunar Month (Observed)"
+    ],
+    [
+     "2026-10-26",
+     "The End of Buddhist Lent Day"
+    ],
+    [
+     "2026-10-27",
+     "Chak Pra Festival"
+    ],
+    [
+     "2026-12-05",
+     "Father's Day"
+    ],
+    [
+     "2026-12-30",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2026-12-31",
+     "New Year's Eve"
+    ]
+   ],
+   "FACTORY": [
+    [
+     "2026-01-01",
+     "New Year's Day"
+    ],
+    [
+     "2026-01-03",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2026-01-04",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2026-04-13",
+     "Songkran"
+    ],
+    [
+     "2026-04-14",
+     "Songkran"
+    ],
+    [
+     "2026-04-15",
+     "Songkran"
+    ],
+    [
+     "2026-04-16",
+     "Songkran(Observed)"
+    ],
+    [
+     "2026-04-30",
+     "Labor Day (Observed)"
+    ],
+    [
+     "2026-07-28",
+     "King Vajiralongkorn's Birthday"
+    ],
+    [
+     "2026-07-29",
+     "Asarnha Bucha Day"
+    ],
+    [
+     "2026-07-30",
+     "The Buddhist Lent Day / Myanmar Festival"
+    ],
+    [
+     "2026-08-12",
+     "Mother's Day"
+    ],
+    [
+     "2026-08-13",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2026-10-11",
+     "Thai Festival at the End of 10th Lunar Month"
+    ],
+    [
+     "2026-10-25",
+     "Myanmar Festival"
+    ],
+    [
+     "2026-10-26",
+     "The End of Buddhist Lent Day"
+    ],
+    [
+     "2026-10-27",
+     "Chak Pra Festival"
+    ],
+    [
+     "2026-12-05",
+     "Father's Day"
+    ],
+    [
+     "2026-12-30",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2026-12-31",
+     "New Year's Eve"
+    ]
+   ]
+  },
+  "warnings": []
+ },
+ "2027": {
+  "year": 2027,
+  "rest": {
+   "OFFICE": [
+    6
+   ],
+   "FACTORY": [
+    4
+   ]
+  },
+  "holidays": {
+   "OFFICE": [
+    [
+     "2027-01-01",
+     "New Year's Day"
+    ],
+    [
+     "2027-01-02",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-04-13",
+     "Songkran Festival"
+    ],
+    [
+     "2027-04-14",
+     "Songkran Festival"
+    ],
+    [
+     "2027-04-15",
+     "Songkran Festival"
+    ],
+    [
+     "2027-04-16",
+     "Songkran Festival"
+    ],
+    [
+     "2027-04-17",
+     "Myanmar (New Year's Day)"
+    ],
+    [
+     "2027-04-30",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-05-01",
+     "Labour Day"
+    ],
+    [
+     "2027-07-19",
+     "Buddhist Lent Day"
+    ],
+    [
+     "2027-07-20",
+     "Myanmar Festival"
+    ],
+    [
+     "2027-08-12",
+     "Mother Day"
+    ],
+    [
+     "2027-08-13",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-09-30",
+     "Thai Festival at the End of 10th Lunar Month"
+    ],
+    [
+     "2027-10-14",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-10-15",
+     "The End of Buddhist Lent Day"
+    ],
+    [
+     "2027-10-16",
+     "Chak Pra Festival"
+    ],
+    [
+     "2027-12-04",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-12-29",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-12-30",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-12-31",
+     "New Year's Eve"
+    ]
+   ],
+   "FACTORY": [
+    [
+     "2027-01-02",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-01-03",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-04-13",
+     "Songkran Festival"
+    ],
+    [
+     "2027-04-14",
+     "Songkran Festival"
+    ],
+    [
+     "2027-04-15",
+     "Songkran Festival"
+    ],
+    [
+     "2027-04-17",
+     "Myanmar (New Year's Day)"
+    ],
+    [
+     "2027-04-18",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-05-01",
+     "Labour Day"
+    ],
+    [
+     "2027-05-02",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-07-19",
+     "Buddhist Lent Day"
+    ],
+    [
+     "2027-07-20",
+     "Myanmar Festival"
+    ],
+    [
+     "2027-08-12",
+     "Mother Day"
+    ],
+    [
+     "2027-09-30",
+     "Thai Festival at the End of 10th Lunar Month"
+    ],
+    [
+     "2027-10-14",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-10-16",
+     "Chak Pra Festival"
+    ],
+    [
+     "2027-10-17",
+     "Myanmar Festival"
+    ],
+    [
+     "2027-12-04",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-12-05",
+     "Father Day"
+    ],
+    [
+     "2027-12-29",
+     "Company Holiday (for continue holiday)"
+    ],
+    [
+     "2027-12-30",
+     "Company Holiday (for continue holiday)"
+    ]
+   ]
+  },
+  "warnings": []
+ }
+}

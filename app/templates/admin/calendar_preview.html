@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Company calendar') }} {{ p.year }}</h1></div>
+<p class="note">{{ filename }} · {{ _('Yellow days in the grid are holidays, orange days are weekly rest days. Check the lists, then load them.') }}</p>
+{% if p.warnings %}<div class="panel">{% for w in p.warnings %}<div class="flash warn">{{ w }}</div>{% endfor %}</div>{% endif %}
+<div class="grid">
+{% for code, hol in p.holidays.items() %}
+  <section class="panel c6">
+    <h2>{{ code }} · {{ hol|length }} {{ _('holidays') }}</h2>
+    <p class="note">{{ _('Weekly rest days') }}: {% for w in p.rest.get(code, []) %}{{ _(weekday_names[w]) }}{% if not loop.last %}, {% endif %}{% endfor %}
+      {% if current.get(code) != (p.rest.get(code, [])|join(',')) %}<span class="tag warn">{{ _('changes') }}</span>{% endif %}
+      · {{ _('Holidays now in the system for this year') }}: {{ existing.get(code, 0) }}</p>
+    <table>{% for d, name in hol %}<tr><td>{{ fmt_date(d) }}</td><td class="note">{{ _(d.strftime('%a')) }}</td><td>{{ name }}</td></tr>{% endfor %}</table>
+  </section>
+{% endfor %}
+</div>
+<form method="post" action="/admin/calendar/apply" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="data" value="{{ data }}">
+  <button class="primary">{{ _('Load these calendars') }}</button> <a class="btn" href="/admin#holidays">{{ _('Cancel') }}</a>
+  <span class="note">{{ _('This replaces the holidays of this year on both calendars. Every change is logged.') }}</span></form>
+{% endblock %}

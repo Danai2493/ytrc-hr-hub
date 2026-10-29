@@ -61,13 +61,16 @@ def test_ot_inside_shift_is_not_ot(db):
 
 
 def test_holiday_split_monthly_vs_daily(db):
+    from app.models import Calendar
+
     emp = db.get(Employee, "YTR813")
-    sunday = next_weekday(date.today() + timedelta(days=7), 6)
-    f, t = combine_ot_times(sunday, time(7), time(18), shift_for(db, emp, sunday))
-    kind, split, _ = classify(db, emp, sunday, f, t)
+    rest = min(db.get(Calendar, emp.calendar_code).rest_days)  # Factory rests on Friday
+    rest_day = next_weekday(date.today() + timedelta(days=7), rest)
+    f, t = combine_ot_times(rest_day, time(7), time(18), shift_for(db, emp, rest_day))
+    kind, split, _ = classify(db, emp, rest_day, f, t)
     assert kind == "holiday" and split == {"HOL10": 480, "OT30": 120}
     emp.pay_type = "Daily"
-    _, split, _ = classify(db, emp, sunday, f, t)
+    _, split, _ = classify(db, emp, rest_day, f, t)
     assert split == {"HOL20": 480, "OT30": 120}
 
 
