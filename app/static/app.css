@@ -146,3 +146,15 @@ label.half{grid-column:span 2}
 .scorecard td{vertical-align:top}
 .scorecard .q{font-size:13px;color:var(--ink-2)}
 @media (max-width:640px){label.half{grid-column:1/-1}}
+/* performance */
+ol.steps{display:flex;gap:6px;list-style:none;padding:0;margin:0 0 14px;flex-wrap:wrap}
+ol.steps li{flex:1;min-width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:5px;font-size:13px;color:var(--ink-3);background:var(--panel)}
+ol.steps li.done{color:var(--ok);border-color:var(--ok)}
+ol.steps li.now{color:var(--accent-ink);background:var(--accent);border-color:var(--accent);font-weight:600}
+table.kpitab input,table.kpitab select{min-width:60px}
+table.kpitab td{vertical-align:top}
+.big-rating{font-family:var(--f-display);font-size:44px;font-weight:700;line-height:1}
+.dist{display:flex;gap:4px;align-items:end;height:120px}
+.dist div{flex:1;background:var(--s1);border-radius:3px 3px 0 0;position:relative;min-height:2px}
+.dist div span{position:absolute;top:-18px;left:0;right:0;text-align:center;font-size:12px}
+.dist div i{position:absolute;left:0;right:0;border-top:2px dashed var(--ink-3)}

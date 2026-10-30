@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "perform/_tabs.html" %}
+<h2>{{ c.name }} · {{ _('Company and unit goals') }}</h2>
+<p class="lead">{{ _('Company goals come first, then each unit sets its own and links them up. Personal KPIs link to unit goals, and operators are scored on their unit goals.') }}</p>
+{% for level, label in [('company', 'Company goals'), ('unit', 'Unit goals')] %}
+<section class="panel scroll"><h2>{{ _(label) }}</h2>
+  <table><tr>{% if level == 'unit' %}<th>{{ _('Unit') }}</th>{% endif %}<th>{{ _('Goal') }}</th><th>{{ _('KPI') }}</th><th class="n">{{ _('Weight') }}</th><th class="n">{{ _('Baseline') }}</th><th class="n">{{ _('Target') }}</th><th class="n">{{ _('Actual') }}</th><th class="n">%</th><th>{{ _('Score') }}</th></tr>
+  {% for g in goals if g.level == level %}{% set pct, sc = score[g.id] %}
+  <tr>{% if level == 'unit' %}<td>{{ units[g.org_unit_code].name_en if g.org_unit_code in units else g.org_unit_code }}</td>{% endif %}
+    <td>{{ g.title }}{% if g.parent %}<div class="note">↑ {{ g.parent.title }}</div>{% endif %}</td>
+    <td class="note">{{ g.kpi_code or '' }}{% if g.kpi %} · {{ g.kpi.unit }} · {{ _(directions[g.kpi.direction]) }}{% endif %}</td>
+    <td class="n">{{ g.weight or '' }}</td><td class="n">{{ '%g' % g.baseline if g.baseline is not none else '' }}</td><td class="n">{{ '%g' % g.target }}</td>
+    <td class="n">{% if editable[g.id] and c.status != 'closed' %}<form method="post" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="goal_id" value="{{ g.id }}">
+      <input type="hidden" name="title" value="{{ g.title }}"><input type="hidden" name="kpi_code" value="{{ g.kpi_code or '' }}"><input type="hidden" name="target" value="{{ g.target }}"><input type="hidden" name="weight" value="{{ g.weight }}">
+      <input type="hidden" name="baseline" value="{{ g.baseline if g.baseline is not none else '' }}"><input type="hidden" name="parent_id" value="{{ g.parent_id or '' }}">
+      <input name="actual" value="{{ '%g' % g.actual if g.actual is not none else '' }}" class="w-num" style="width:80px"><button class="small">✓</button></form>{% else %}{{ '%g' % g.actual if g.actual is not none else '' }}{% endif %}
+      {% if g.actual_on %}<div class="note">{{ fmt_date(g.actual_on) }}</div>{% endif %}</td>
+    <td class="n">{{ pct|round|int if pct is not none else '' }}</td>
+    <td>{% if sc %}<span class="tag {{ 'ok' if sc >= 4 else ('warn' if sc == 3 else 'bad') }}">{{ sc }}</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="9" class="note">{{ _('None yet') }}</td></tr>{% endfor %}</table>
+</section>
+{% endfor %}
+{% if (company_ok or can_units) and c.status != 'closed' %}
+<section class="panel"><h2>{{ _('Add a goal') }}</h2>
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+    <label>{{ _('Level') }}<select name="level">{% if company_ok %}<option value="company">{{ _('Company') }}</option>{% endif %}{% if can_units %}<option value="unit" selected>{{ _('Unit') }}</option>{% endif %}</select></label>
+    <label>{{ _('Unit') }}<select name="org_unit_code"><option value=""></option>{% for u in can_units %}<option value="{{ u.code }}">{{ u.name_en }}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('KPI from the library') }}<select name="kpi_code"><option value=""></option>{% for k in kpis %}<option value="{{ k.code }}">{{ k.code }} · {{ k.name_th if lang == 'th' and k.name_th else k.name_en }} ({{ k.unit }})</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Goal (leave empty to use the KPI name)') }}<input name="title"></label>
+    <label>{{ _('Baseline (last year)') }}<input name="baseline" class="w-num"></label><label>{{ _('Target') }}<input name="target" class="w-num" required></label>
+    <label>{{ _('Weight') }}<input name="weight" class="w-num"></label>
+    <label class="wide">{{ _('Supports company goal') }}<select name="parent_id"><option value=""></option>{% for g in goals if g.level == 'company' %}<option value="{{ g.id }}">{{ g.title }}</option>{% endfor %}</select></label>
+    <div class="bar wide"><button class="primary">{{ _('Save goal') }}</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

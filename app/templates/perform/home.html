@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag, hbar %}
+{% block content %}
+{% include "perform/_tabs.html" %}
+{% if c %}
+<div class="phead"><h2>{{ c.name }}</h2>{{ status_tag(c.status) }}<span class="note">{{ fmt_date(c.period_start) }} – {{ fmt_date(c.period_end) }} · {{ _('goals due') }} {{ fmt_date(c.goals_due) }}{% if c.midyear_on %} · {{ _('mid-year') }} {{ fmt_date(c.midyear_on) }}{% endif %} · {{ _('reviews due') }} {{ fmt_date(c.review_due) }}</span>
+  {% if cycles|length > 1 %}<form class="end"><select name="cycle" onchange="this.form.submit()">{% for x in cycles %}<option value="{{ x.id }}" {% if x.id == c.id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></form>{% endif %}</div>
+<ol class="steps">{% for s, label in [('goals', 'Set goals'), ('midyear', 'Mid-year check-in'), ('review', 'Self and supervisor review'), ('calibration', 'Calibration'), ('closed', 'Results released')] %}
+  <li class="{% if s == c.status %}now{% elif loop.index0 < ['goals', 'midyear', 'review', 'calibration', 'closed'].index(c.status) %}done{% endif %}">{{ _(label) }}</li>{% endfor %}</ol>
+{% if mine %}
+<section class="panel"><h2>{{ _('My appraisal') }}</h2>
+  <p>{{ _(statuses[mine.status]) }} · {{ _(forms[mine.form]) }}{% if mine.status == 'released' %} · {{ _('Rating') }} <strong>{{ letter(mine.final_rating) }}</strong> {{ _(ratings[mine.final_rating][1]) if mine.final_rating else '' }}{% endif %}
+  <a class="btn small primary" href="/perform/a/{{ mine.id }}">{{ _('Open') }}</a></p>
+</section>
+{% endif %}
+{% if todo %}
+<section class="panel"><h2>{{ _('Waiting for me') }}</h2>
+  <table>{% for a in todo %}<tr><td><span class="mono">{{ a.employee_id }}</span> {{ a.employee.full_name_en }}</td><td>{{ _(statuses[a.status]) }}</td><td><a class="btn small primary" href="/perform/a/{{ a.id }}">{{ _('Open') }}</a></td></tr>{% endfor %}</table>
+</section>
+{% endif %}
+{% if team %}
+<div class="kpis">
+  {% for s, label in statuses.items() %}{% if st.by_status.get(s) %}<div class="kpi"><span class="k">{{ _(label) }}</span><span class="v">{{ st.by_status[s] }}</span></div>{% endif %}{% endfor %}
+</div>
+<section class="panel scroll"><h2>{{ _('Appraisals') }} <span class="note">{{ team|length }}</span></h2>
+  <table><tr><th>{{ _('Employee') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Form') }}</th><th>{{ _('Supervisor') }}</th><th>{{ _('Status') }}</th><th class="n">{{ _('Score') }}</th><th>{{ _('Rating') }}</th></tr>
+  {% for a in team %}<tr><td><a href="/perform/a/{{ a.id }}"><span class="mono">{{ a.employee_id }}</span> {{ a.employee.full_name_en }}</a></td><td>{{ units[a.org_unit_code].name_en if a.org_unit_code in units else a.org_unit_code }}</td>
+    <td class="note">{{ _('KPI') if a.form == 'staff' else _('Operator') }}</td><td class="note">{{ people[a.reviewer_employee_id].full_name_en if a.reviewer_employee_id in people else (a.reviewer_employee_id or '-') }}</td>
+    <td>{{ _(statuses[a.status]) }}</td><td class="n">{{ '%.2f' % a.overall if a.overall else '' }}</td><td><strong>{{ letter(a.final_rating or a.proposed_rating) if (a.final_rating or a.proposed_rating) else '' }}</strong></td></tr>{% endfor %}</table>
+</section>
+{% endif %}
+{% if is_hr and c.status != 'closed' and user.has('hr_manager') %}
+<section class="panel"><h2>{{ _('Move the year forward') }}</h2>
+  <form method="post" action="/perform/cycles/{{ c.id }}/status" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}">
+    {% set nxt = {'goals': 'midyear', 'midyear': 'review', 'review': 'calibration', 'calibration': 'closed'}[c.status] %}
+    <button class="primary" name="status" value="{{ nxt }}" data-confirm="{{ _('Move everyone to the next step?') }}">{{ _({'midyear': 'Open the mid-year check-in', 'review': 'Open self and supervisor reviews', 'calibration': 'Start calibration', 'closed': 'Release results to employees'}[nxt]) }}</button>
+  </form>
+</section>
+{% elif c.status == 'closed' and user.has('hr_manager') %}<p><a class="btn" href="/perform/cycles/{{ c.id }}/export.csv">{{ _('Ratings for the pay review (CSV, no salaries)') }}</a></p>{% endif %}
+{% else %}<p class="lead">{{ _('No performance year yet.') }}</p>{% endif %}
+{% if user.has('hr_manager') %}
+<details class="panel" {% if not c %}open{% endif %}><summary>{{ _('Open a new performance year') }}</summary>
+  <form method="post" action="/perform/cycles" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+    <label>{{ _('Name') }}<input name="name" value="{{ defaults.name }}"></label>
+    <label>{{ _('From') }}<input type="date" name="start" value="{{ defaults.start }}"></label><label>{{ _('To') }}<input type="date" name="end" value="{{ defaults.end }}"></label>
+    <label>{{ _('Goals due') }}<input type="date" name="goals_due" value="{{ defaults.goals_due }}"></label><label>{{ _('Mid-year check-in') }}<input type="date" name="midyear" value="{{ defaults.midyear }}"></label>
+    <label>{{ _('Reviews due') }}<input type="date" name="review_due" value="{{ defaults.review_due }}"></label>
+    <label class="wide">{{ _('Who is appraised') }}<span>{% for g in groups %}<label style="display:inline;min-width:auto"><input type="checkbox" name="groups" value="{{ g }}" {% if g != 'Japanese Management' %}checked{% endif %}> {{ _(g) }}</label> {% endfor %}</span></label>
+    <div class="bar wide"><button class="primary">{{ _('Open the year') }}</button></div>
+  </form>
+  <p class="note">{{ _('Staff and managers agree 3 to 7 KPIs with their supervisor. Operators get a simpler form: unit goals, attendance, skills and behaviour, with the facts filled in by the app. People who join in the last 3 months of the year are not rated.') }}</p>
+</details>
+{% endif %}
+{% endblock %}

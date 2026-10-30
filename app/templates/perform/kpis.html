@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+{% set c = none %}
+{% include "perform/_tabs.html" %}
+<p class="lead">{{ _('The KPI library: one definition for each measure, used by company, unit and personal goals. A draft for the Department Heads to correct.') }}</p>
+<section class="panel scroll"><table><tr><th>{{ _('Code') }}</th><th>{{ _('KPI') }}</th><th>{{ _('Area') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Direction') }}</th><th>{{ _('How it is measured') }}</th><th>{{ _('Data') }}</th></tr>
+{% for k in rows %}<tr><td class="mono">{{ k.code }}</td><td>{{ k.name_th if lang == 'th' and k.name_th else k.name_en }}</td><td>{{ _(k.perspective or '') }}</td><td>{{ k.unit }}</td><td>{{ _(directions[k.direction]) }}</td><td class="note">{{ k.how_measured or '' }}</td><td class="note">{{ _(sources.get(k.data_source, k.data_source)) }}</td></tr>{% endfor %}</table></section>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "perform/_tabs.html" %}
+{% set edit_mid = a.form == 'staff' and c.status in ('midyear', 'review') and a.status == 'goals_agreed' and (own or is_rev or is_hr) %}
+{% set edit_self = own and c.status in ('review', 'calibration') and a.status in ('goals_agreed', 'self') %}
+{% set edit_mgr = not own and (is_rev or user.has('hr_manager')) and c.status in ('review', 'calibration') and a.status in ('goals_agreed', 'self', 'manager') %}
+<div class="phead"><h2><span class="mono">{{ a.employee_id }}</span> {{ a.employee.full_name_en }}</h2><span class="tag">{{ _(statuses[a.status]) }}</span>
+  <span class="note">{{ c.name }} · {{ _(forms[a.form]) }} · {{ _('supervisor') }} {{ people[a.reviewer_employee_id].full_name_en if a.reviewer_employee_id in people else '-' }}{% if a.endorser_employee_id %} · {{ _('endorses') }} {{ people[a.endorser_employee_id].full_name_en if a.endorser_employee_id in people else a.endorser_employee_id }}{% endif %}</span></div>
+<ol class="steps">{% for s in ['goals', 'goals_agreed', 'self', 'manager', 'endorse', 'calibration', 'released'] if not (s == 'endorse' and not a.endorser_employee_id) and not (s == 'goals' and a.form == 'operator') %}
+  {% set order = ['goals', 'goals_agreed', 'self', 'manager', 'endorse', 'calibration', 'released'] %}
+  <li class="{% if s == a.status %}now{% elif order.index(s) < order.index(a.status) %}done{% endif %}">{{ _(statuses[s]) }}</li>{% endfor %}</ol>
+
+{% if a.status == 'released' and show_rating %}
+<section class="panel"><div class="bar" style="align-items:center;gap:18px"><div class="big-rating">{{ letter(a.final_rating) }}</div>
+  <div><strong>{{ _(ratings[a.final_rating][1]) }}</strong><div class="note">{{ _('Overall score') }} {{ '%.2f' % a.overall if a.overall else '-' }}{% if a.kpi_score %} · KPI {{ '%.2f' % a.kpi_score }}{% endif %}{% if a.comp_score %} · {{ _('Behaviour') }} {{ '%.2f' % a.comp_score }}{% endif %}</div>
+  {% if plan %}<a class="btn small" href="/growth/plan/{{ plan.id }}">{{ plan.title }}</a>{% endif %}</div></div>
+  {% if own and not a.ack_at %}
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="ack">
+    <label class="wide">{{ _('Your comment (optional)') }}<textarea name="ack_note" rows="2"></textarea></label>
+    <div class="bar wide"><button class="primary" name="agree" value="1">{{ _('I have read it and agree') }}</button><button name="agree" value="0">{{ _('I have read it and do not agree') }}</button></div>
+    <p class="note wide">{{ _('If you do not agree, HR will talk with you and your supervisor.') }}</p></form>
+  {% elif a.ack_at %}<p class="note">{{ _('Read by the employee') }} {{ fmt_dt(a.ack_at) }} · {{ _('agrees') if a.ack_agree else _('does not agree') }}{% if a.ack_note %}: {{ a.ack_note }}{% endif %}</p>{% endif %}
+</section>
+{% endif %}
+
+<form method="post" class="grid">
+<input type="hidden" name="_csrf" value="{{ csrf }}">
+{% if a.form == 'staff' %}
+<section class="panel c12 scroll">
+  <h2>{{ _('KPIs') }}</h2>
+  {% if can_goals %}
+  <p class="note">{{ _('3 to 7 KPIs, weights add up to 100. Link each to a unit goal where you can. Attendance is not a KPI here: the app scores it separately for operators.') }}</p>
+  <table class="kpitab"><tr><th>{{ _('KPI') }}</th><th>{{ _('Library') }}</th><th>{{ _('Unit goal') }}</th><th>{{ _('How measured') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Direction') }}</th><th>{{ _('Target') }}</th><th>{{ _('Weight') }}</th></tr>
+  {% for n in range(7) %}{% set it = a['items'][n] if n < a['items']|length else {} %}
+  <tr><td><input type="hidden" name="id{{ n }}" value="{{ it.get('id') or '' }}"><input name="t{{ n }}" value="{{ it.get('title') or '' }}" style="min-width:220px"></td>
+    <td><select name="k{{ n }}"><option value=""></option>{% for k in kpis %}<option value="{{ k.code }}" {% if it.get('kpi_code') == k.code %}selected{% endif %}>{{ k.code }}</option>{% endfor %}</select></td>
+    <td><select name="g{{ n }}"><option value=""></option>{% for g in goals %}<option value="{{ g.id }}" {% if it.get('goal_id') == g.id %}selected{% endif %}>{{ g.title[:40] }}</option>{% endfor %}</select></td>
+    <td><input name="m{{ n }}" value="{{ it.get('measure') or '' }}"></td><td><input name="u{{ n }}" value="{{ it.get('unit') or '' }}" style="width:70px"></td>
+    <td><select name="d{{ n }}">{% for k, v in directions.items() %}<option value="{{ k }}" {% if it.get('direction') == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></td>
+    <td><input name="tg{{ n }}" value="{{ '%g' % it.get('target') if it.get('target') is not none and it.get('target') != '' else '' }}" style="width:80px"></td><td><input name="w{{ n }}" value="{{ it.get('weight') or '' }}" style="width:60px"></td></tr>
+  {% endfor %}</table>
+  {% if checks %}<ul class="find">{% for f in checks %}<li class="{{ f.level }}">{{ rt(f) }}</li>{% endfor %}</ul>{% endif %}
+  {% if a.status == 'goals_agreed' %}<label>{{ _('Why the agreed goals change') }}<input name="change_note"></label>{% endif %}
+  <div class="bar"><button name="do" value="goals">{{ _('Save goals') }}</button>
+    <button name="do" value="ai_suggest" {% if a['items'] %}data-confirm="{{ _('Replace the draft with AI suggestions?') }}"{% endif %}>{{ _('AI: suggest KPIs from the job and unit goals') }}</button>
+    {% if a['items'] %}<button name="do" value="ai_check">{{ _('AI: check the KPIs are measurable') }}</button>{% endif %}
+    {% if not own and (is_rev or is_hr) and a.status == 'goals' %}<button class="primary" name="do" value="agree">{{ _('Agree the goals (supervisor)') }}</button>{% endif %}</div>
+  {% if a.facts.get('ai_review') %}<ul class="find">{% for r in a.facts.ai_review %}<li class="{{ 'ok' if r.ok else 'flag' }}"><strong>{{ r.title }}</strong>: {{ r.comment }}</li>{% endfor %}</ul>{% endif %}
+  {% else %}
+  <table class="kpitab"><tr><th>{{ _('KPI') }}</th><th class="n">{{ _('Target') }}</th><th class="n">{{ _('Weight') }}</th><th>{{ _('Mid-year') }}</th><th class="n">{{ _('Actual') }}</th><th>{{ _('Self') }}</th><th>{{ _('From the numbers') }}</th>{% if not own or a.status == 'released' %}<th>{{ _('Supervisor') }}</th>{% endif %}</tr>
+  {% for it in a['items'] %}
+  <tr><td><strong>{{ it.get('title') }}</strong><div class="note">{{ it.get('measure') or '' }}{% if it.get('unit') %} · {{ it.get('unit') }}{% endif %} · {{ _(directions[it.get('direction') or 'up']) }}{% if it.get('goal_id') %} · ↑ {% for g in goals if g.id == it.get('goal_id') %}{{ g.title }}{% endfor %}{% endif %}</div></td>
+    <td class="n">{{ '%g' % it.get('target') if it.get('target') is not none else '' }}</td><td class="n">{{ it.get('weight') }}%</td>
+    <td>{% if edit_mid %}<input name="mid_{{ it.get('id') }}" value="{{ it.get('mid') or '' }}" placeholder="{{ _('progress so far') }}">{% else %}<span class="note">{{ it.get('mid') or '' }}</span>{% endif %}</td>
+    <td class="n">{% if edit_self or edit_mgr %}<input name="a_{{ it.get('id') }}" value="{{ '%g' % it.get('actual') if it.get('actual') is not none else '' }}" style="width:80px">{% else %}{{ '%g' % it.get('actual') if it.get('actual') is not none else '' }}{% endif %}</td>
+    <td>{% if edit_self %}<select name="s_{{ it.get('id') }}"><option value=""></option>{% for v in range(1, 6) %}<option {% if it.get('self') == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select><input name="c_{{ it.get('id') }}" value="{{ it.get('self_comment') or '' }}" placeholder="{{ _('what you did') }}">
+      {% else %}{{ it.get('self') or '' }}{% if it.get('self_comment') %}<div class="note">{{ it.get('self_comment') }}</div>{% endif %}{% endif %}</td>
+    <td>{% if auto[it.get('id')] %}<span class="tag">{{ auto[it.get('id')] }}</span>{% endif %}</td>
+    {% if not own or a.status == 'released' %}<td>{% if edit_mgr %}<select name="r_{{ it.get('id') }}"><option value=""></option>{% for v in range(1, 6) %}<option {% if it.get('mgr') == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select><input name="rc_{{ it.get('id') }}" value="{{ it.get('mgr_comment') or '' }}" placeholder="{{ _('evidence') }}">
+      {% else %}{{ it.get('mgr') or '' }}{% if it.get('mgr_comment') %}<div class="note">{{ it.get('mgr_comment') }}</div>{% endif %}{% endif %}</td>{% endif %}</tr>
+  {% else %}<tr><td colspan="8" class="note">{{ _('No KPIs yet') }}</td></tr>{% endfor %}</table>
+  <p class="note">{{ _('Score from the numbers: 120% of target or better = 5, 105% = 4, 95% = 3, 80% = 2, below = 1. The supervisor can differ and writes why.') }}</p>
+  {% if edit_mid %}<label>{{ _('Mid-year check-in notes') }}<textarea name="midyear_note" rows="2">{{ a.midyear_note or '' }}</textarea></label><div class="bar"><button name="do" value="midyear">{{ _('Save mid-year check-in') }}</button></div>
+  {% elif a.midyear_note %}<p class="note">{{ _('Mid-year') }} ({{ fmt_dt(a.midyear_at) }}): {{ a.midyear_note }}</p>{% endif %}
+  {% endif %}
+</section>
+{% else %}
+<section class="panel c12 scroll"><h2>{{ _('Operator form') }}</h2>
+  <p class="note">{{ _('The app suggests each score from the facts. The supervisor can change it and writes why.') }}</p>
+  <table><tr><th>{{ _('Part') }}</th><th class="n">{{ _('Weight') }}</th><th>{{ _('Facts') }}</th><th>{{ _('Suggested') }}</th>{% if not own or a.status == 'released' %}<th>{{ _('Score') }}</th><th>{{ _('Note') }}</th>{% endif %}</tr>
+  {% set f = a.facts or {} %}{% set w = c.weights.get('operator', {}) %}
+  {% for k, label in parts.items() %}{% set p = a.parts.get(k, {}) %}
+  <tr><td><strong>{{ _(label) }}</strong></td><td class="n">{{ w.get(k, '') }}%</td>
+    <td class="note">{% if k == 'team' %}{% for g in goals %}{{ g.title }}: {{ '%g' % g.actual if g.actual is not none else '-' }} / {{ '%g' % g.target }}{% set gs = goal_score[g.id] %}{% if gs[1] %} ({{ gs[1] }}){% endif %}<br>{% else %}{{ _('No unit goals') }}{% endfor %}
+      {% elif k == 'attendance' %}{{ _('Absent') }} {{ f.get('absent', '-') }} · {{ _('unpaid leave') }} {{ f.get('unpaid', '-') }} · {{ _('late') }} {{ f.get('late', '-') }} · {{ _('attendance') }} {{ f.get('attendance_pct', '-') }}%
+      {% elif k == 'skills' %}{{ f.get('skills_met', '-') }} / {{ f.get('skills_required', '-') }} {{ _('required skills at level') }} · {{ f.get('training_hours', 0) }} {{ _('training hours') }}{% if f.get('skills_gaps') %}<br>{{ _('Gaps') }}: {{ f.skills_gaps|join(', ') }}{% endif %}
+      {% else %}{{ _('Average of the supervisor’s behaviour scores below') }}{% endif %}</td>
+    <td>{% if suggested.get(k) %}<span class="tag">{{ suggested[k] }}</span>{% endif %}</td>
+    {% if not own or a.status == 'released' %}<td>{% if edit_mgr %}<select name="p_{{ k }}"><option value=""></option>{% for v in range(1, 6) %}<option {% if p.get('score') == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select>{% else %}{{ p.get('score') or '' }}{% endif %}</td>
+    <td>{% if edit_mgr %}<input name="pn_{{ k }}" value="{{ p.get('note') or '' }}">{% else %}<span class="note">{{ p.get('note') or '' }}</span>{% endif %}</td>{% endif %}</tr>
+  {% endfor %}</table>
+</section>
+{% endif %}
+
+{% if a.status not in ('goals',) %}
+<section class="panel c7"><h2>{{ _('Behaviour (Growth Compass competencies)') }}</h2>
+  <table><tr><th>{{ _('Competency') }}</th><th>{{ _('Self') }}</th>{% if not own or a.status == 'released' %}<th>{{ _('Supervisor') }}</th><th>{{ _('Example') }}</th>{% endif %}</tr>
+  {% for code, v in a.competencies.items() %}
+  <tr><td>{{ nm(code) }}<div class="note">{{ (comps[code].definition_th if lang == 'th' else comps[code].definition_en) if code in comps else '' }}</div></td>
+    <td>{% if edit_self %}<select name="cs_{{ code }}"><option value=""></option>{% for x in range(1, 6) %}<option {% if v.get('self') == x %}selected{% endif %}>{{ x }}</option>{% endfor %}</select>{% else %}{{ v.get('self') or '' }}{% endif %}</td>
+    {% if not own or a.status == 'released' %}<td>{% if edit_mgr %}<select name="cm_{{ code }}"><option value=""></option>{% for x in range(1, 6) %}<option {% if v.get('mgr') == x %}selected{% endif %}>{{ x }}</option>{% endfor %}</select>{% else %}{{ v.get('mgr') or '' }}{% endif %}</td>
+    <td>{% if edit_mgr %}<input name="cn_{{ code }}" value="{{ v.get('note') or '' }}">{% else %}<span class="note">{{ v.get('note') or '' }}</span>{% endif %}</td>{% endif %}</tr>
+  {% endfor %}</table>
+  <p class="note">{{ _('1 rarely, 3 usually, 5 always and helps others do it too.') }}</p>
+</section>
+<section class="panel c5"><h2>{{ _('Facts from the app') }}</h2>
+  {% set f = a.facts or {} %}
+  {% if f.get('planned_days') is not none %}<dl class="kv">
+    <dt>{{ _('Period') }}</dt><dd>{{ f.get('from') }} – {{ f.get('to') }}</dd>
+    <dt>{{ _('Attendance') }}</dt><dd>{{ f.get('attendance_pct', '-') }}% · {{ _('absent') }} {{ f.get('absent') }} · {{ _('late') }} {{ f.get('late') }} · {{ _('sick') }} {{ f.get('sick') }}</dd>
+    <dt>{{ _('Skills') }}</dt><dd>{{ f.get('skills_met') }} / {{ f.get('skills_required') }} {{ _('at the level the job needs') }}</dd>
+    <dt>{{ _('Training') }}</dt><dd>{{ f.get('training_hours') }} {{ _('hours') }}</dd></dl>
+  {% else %}<p class="note">{{ _('Filled in when the reviews open.') }}</p>{% endif %}
+  <h2>{{ _('Notes') }}</h2>
+  {% if edit_self %}<label>{{ _('My achievements and what I need') }}<textarea name="self_note" rows="3">{{ a.self_note or '' }}</textarea></label>{% elif a.self_note %}<p><strong>{{ _('Employee') }}:</strong> {{ a.self_note }}</p>{% endif %}
+  {% if edit_mgr %}<label>{{ _('Supervisor summary') }}<textarea name="mgr_note" rows="3">{{ a.mgr_note or '' }}</textarea></label>{% elif a.mgr_note and (not own or a.status == 'released') %}<p><strong>{{ _('Supervisor') }}:</strong> {{ a.mgr_note }}</p>{% endif %}
+  {% if a.endorse_note and (not own or a.status == 'released') %}<p><strong>{{ _('Department Head') }}:</strong> {{ a.endorse_note }}</p>{% endif %}
+  {% if not own and a.overall %}<p>{{ _('Overall score') }} <strong>{{ '%.2f' % a.overall }}</strong> · {{ _('proposed') }} <strong>{{ letter(a.proposed_rating) }}</strong>{% if a.final_rating %} · {{ _('final') }} <strong>{{ letter(a.final_rating) }}</strong>{% endif %}</p>{% endif %}
+</section>
+{% endif %}
+<div class="bar c12">
+  {% if edit_self %}<button name="do" value="self_save">{{ _('Save') }}</button><button class="primary" name="do" value="self_send">{{ _('Send my self review') }}</button>{% endif %}
+  {% if edit_mgr %}{% if a.status == 'goals_agreed' or a.status == 'self' %}<input name="reason" placeholder="{{ _('e.g. no login, talked it through in the meeting') }}" style="max-width:300px"><button name="do" value="skip_self">{{ _('Self review done in the meeting') }}</button>{% endif %}
+    <button name="do" value="mgr_save">{{ _('Save review') }}</button>{% if a.status == 'manager' %}<button class="primary" name="do" value="mgr_send">{{ _('Send review') }}</button>{% endif %}{% endif %}
+</div>
+</form>
+
+{% if a.status == 'endorse' and not own and (is_end or user.has('hr_manager')) %}
+<section class="panel"><h2>{{ _('Department Head endorsement') }}</h2>
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="endorse">
+    <label>{{ _('Rating') }}<select name="rating">{% for r in [5, 4, 3, 2, 1] %}<option value="{{ r }}" {% if r == a.proposed_rating %}selected{% endif %}>{{ letter(r) }} · {{ _(ratings[r][1]) }}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Note (required if you change the rating)') }}<textarea name="endorse_note" rows="2"></textarea></label>
+    <div class="bar wide"><button class="primary">{{ _('Endorse') }}</button></div></form>
+</section>
+{% endif %}
+{% if goals %}<section class="panel"><h2>{{ _('Unit goals') }}</h2><table>{% for g in goals %}{% set gs = goal_score[g.id] %}<tr><td>{{ g.title }}</td><td class="n">{{ '%g' % g.target }}</td><td class="n">{{ '%g' % g.actual if g.actual is not none else '-' }}</td><td>{% if gs[1] %}<span class="tag">{{ gs[1] }}</span>{% endif %}</td></tr>{% endfor %}</table></section>{% endif %}
+{% endblock %}

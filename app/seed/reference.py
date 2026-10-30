@@ -126,3 +126,6 @@ def seed_reference(db: Session) -> None:
     from .competency import seed_competency
 
     seed_competency(db)
+    from .kpi import seed_kpis
+
+    seed_kpis(db)

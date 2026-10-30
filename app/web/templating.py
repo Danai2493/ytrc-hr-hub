@@ -27,6 +27,7 @@ NAV = [
     ("/recruit", "Recruitment", ("hr", "hr_manager", "gm", "dept_head", "supervisor")),
     ("/newstaff", "New employees", ("hr", "hr_manager", "dept_head", "supervisor", "admin")),
     ("/skills", "Skills & training", ("hr", "hr_manager", "gm", "dept_head", "supervisor")),
+    ("/perform", "Performance", None),
     ("/growth", "Growth", None),
     ("/exit", "Exit", ("hr", "hr_manager", "dept_head", "admin")),
     ("/capture", "Paper forms (AI)", ("hr", "hr_manager", "supervisor")),

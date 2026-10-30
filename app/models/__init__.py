@@ -29,6 +29,7 @@ from .develop import (
     TrainingRecord,
 )
 from .hrdev import ExitCase, LeaveRequest, LeaveType
+from .perform import Appraisal, Goal, KpiDefinition, PerformanceCycle
 from .recruit import Application, Candidate, Interview, Requisition
 from .system import (
     ApprovalRequest,
@@ -56,6 +57,7 @@ from .time import (
 
 __all__ = [
     "Application",
+    "Appraisal",
     "ApprovalRequest",
     "ApprovalStep",
     "Assessment",
@@ -76,12 +78,14 @@ __all__ = [
     "EmploymentEvent",
     "ExitCase",
     "FormCapture",
+    "Goal",
     "Grade",
     "GrowthPath",
     "Holiday",
     "Interview",
     "Job",
     "JobSkill",
+    "KpiDefinition",
     "LeaveRequest",
     "LeaveType",
     "OTBudget",
@@ -91,6 +95,7 @@ __all__ = [
     "PayBatch",
     "PayBatchLine",
     "PayTotal",
+    "PerformanceCycle",
     "Position",
     "ProbationReview",
     "Requisition",

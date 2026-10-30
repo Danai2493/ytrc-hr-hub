@@ -12,6 +12,14 @@ DIR = Path(__file__).parent / "i18n"
 
 # Messages for rule findings (timecalc.Finding codes and capture issue codes).
 RULE_TEXT = {
+    "kpi_none": "Add at least one KPI",
+    "kpi_weights": "Weights add up to {total}, they must add up to 100",
+    "kpi_count": "{n} KPIs: 3 to 7 works best",
+    "kpi_no_target": "{title}: needs a number target",
+    "kpi_weight_range": "{title}: weight {w}%, keep each between 5 and 40",
+    "kpi_no_link": "No KPI is linked to a unit goal",
+    "kpi_duplicate": "Same KPI twice: {title}",
+    "cal_far": "{letter}: {got}% of people, the guide is about {guide}%. Talk it through; it is not a quota",
     "req_no_position": "No position chosen: the request counts as outside the budget",
     "req_frozen": "Position {pos} is frozen",
     "req_over_budget": "Asks for {n} but only {free} budgeted seat(s) are free: the GM approves",

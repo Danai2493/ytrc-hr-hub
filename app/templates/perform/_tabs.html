@@ -1,0 +1,3 @@
+<div class="phead"><h1>{{ _('Performance') }}</h1>
+  <div class="end no-print"><a class="btn" href="/perform{% if c %}?cycle={{ c.id }}{% endif %}">{{ _('Appraisals') }}</a>{% if c %}<a class="btn" href="/perform/cycles/{{ c.id }}/goals">{{ _('Company and unit goals') }}</a>{% if user.has('hr', 'hr_manager', 'gm', 'dept_head') %}<a class="btn" href="/perform/cycles/{{ c.id }}/calibration">{{ _('Calibration') }}</a>{% endif %}{% endif %}<a class="btn" href="/perform/kpis">{{ _('KPI library') }}</a></div>
+</div>

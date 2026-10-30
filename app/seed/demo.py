@@ -4,6 +4,7 @@ that holds real data."""
 from __future__ import annotations
 
 import random
+import uuid
 from datetime import date, datetime, time, timedelta
 
 from sqlalchemy import select
@@ -155,6 +156,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_skills(db, rnd, today, users)
     _demo_growth(db, rnd, today, users)
     _demo_recruit(db, rnd, today, users)
+    _demo_perform(db, rnd, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -571,6 +573,141 @@ def _demo_recruit(db: Session, rnd: random.Random, today: date, users: dict) -> 
     # an old candidate past the PDPA retention period
     old = recruit.save_candidate(db, hr, {"full_name_en": "Old Applicant (SAMPLE)", "nationality": "Thai", "source": "walk_in", "phone": "0899777777"}, consent="paper")
     old.retain_until = today - timedelta(days=20)
+    db.flush()
+
+
+def _demo_perform(db: Session, rnd: random.Random, today: date, users: dict) -> None:
+    """Last year closed with ratings; this year in review with goals, actuals and appraisals at every step."""
+    from ..models import Appraisal, Goal
+    from ..services import perform as P
+
+    hrm = users["hr.manager"]
+    groups = ["Operator", "Staff", "Manager", "Japanese Management"]
+    y = today.year
+
+    def item(title, kpi, unit, direction, target, weight, actual=None, goal=None, measure=None):
+        return {"id": uuid.uuid4().hex[:8], "title": title, "kpi_code": kpi, "goal_id": goal, "measure": measure, "unit": unit,
+                "direction": direction, "target": target, "weight": weight, "actual": actual}
+
+    def staff_items(a, goals, close=0.0):
+        """Four KPIs; close > 0 fills actuals near the target."""
+        out = []
+        g = goals[0] if goals else None
+        base = [("Own share of the unit goal" if g else "Main job output vs plan", g.kpi_code if g else "KPI-GEN-02", "%", "up", 100, 40, g.id if g else None),
+                ("Improvement ideas put in place", "KPI-GEN-01", "ideas", "up", 4, 20, None),
+                ("Project milestones on time", "KPI-GEN-02", "%", "up", 90, 20, None),
+                ("Reports and records on time", None, "%", "up", 95, 20, None)]
+        for t, k, u, d, tg, w, gid in base:
+            act = round(tg * (close + rnd.uniform(-0.15, 0.2)), 1) if close else None
+            out.append(item(t, k, u, d, tg, w, act, gid, "Monthly record kept by the owner"))
+        return out
+
+    # ---- last year: closed ----
+    old, _ = P.open_cycle(db, hrm, f"{y - 1} performance year", date(y - 1, 1, 1), date(y - 1, 12, 31), date(y - 1, 2, 15), date(y - 1, 7, 15),
+                          date(y, 1, 20), groups)
+    for k, title, unit, target, actual in (("KPI-PRD-01", "Output vs plan", None, 100, 98.2), ("KPI-SAF-01", "Lost-time injuries", None, 0, 2),
+                                           ("KPI-QA-01", "STR 20 lots passing first test", None, 97, 97.8)):
+        db.add(Goal(cycle_id=old.id, level="company", kpi_code=k, title=title, target=target, actual=actual, actual_on=date(y - 1, 12, 31), weight=30, owner="GM"))
+    pick = [5] * 2 + [4] * 6 + [3] * 18 + [2] * 3 + [1]
+    for a in db.scalars(select(Appraisal).where(Appraisal.cycle_id == old.id)):
+        r = rnd.choice(pick)
+        if a.form == "staff":
+            a.items = [dict(i, mgr=max(1, min(5, r + rnd.choice([-1, 0, 0, 1])))) for i in staff_items(a, [], 1.0)]
+        else:
+            a.parts = {k: {"score": max(1, min(5, r + rnd.choice([-1, 0, 0, 1])))} for k in a.parts}
+        a.competencies = {c: {"mgr": max(1, min(5, r + rnd.choice([-1, 0, 0, 1])))} for c in a.competencies}
+        P.compute(a)
+        a.status, a.mgr_at, a.mgr_by = "calibration", datetime(y, 1, 12, 10), "demo seed"
+    old.status = "calibration"
+    db.flush()
+    P.release(db, hrm, old)
+    old.released_at = datetime(y, 2, 5, 9)
+    for a in db.scalars(select(Appraisal).where(Appraisal.cycle_id == old.id, Appraisal.form == "staff")):
+        if rnd.random() < 0.7:
+            a.ack_at, a.ack_agree = datetime(y, 2, 9, 14), rnd.random() < 0.9
+
+    # ---- this year: reviews open ----
+    cur, _ = P.open_cycle(db, hrm, f"{y} performance year", date(y, 1, 1), date(y, 12, 31), date(y, 2, 15), date(y, 7, 15), date(y + 1, 1, 20), groups)
+    cur.note = "SAMPLE: the demo opens the reviews early so every step can be tried."
+    goal = {}
+    for key, lvl, unit, k, title, target, actual, w in (
+        ("c1", "company", None, "KPI-PRD-01", "Output vs plan", 100, 97.1, 30),
+        ("c2", "company", None, "KPI-SAF-01", "Zero lost-time injuries", 0, 1, 30),
+        ("c3", "company", None, "KPI-QA-01", "STR 20 lots passing first test", 98, 98.6, 40),
+        ("prd", "unit", "PRD", "KPI-PRD-01", "Production output vs plan", 100, 96.0, 50),
+        ("prd2", "unit", "PRD", "KPI-PRD-03", "Energy per ton", 160, 152, 50),
+        ("dry", "unit", "PRD-DRY", "KPI-PRD-02", "Dryer unplanned downtime (hours, year)", 120, 98, 60),
+        ("dry2", "unit", "PRD-DRY", "KPI-PRD-05", "Bale weight within tolerance", 99, 99.4, 40),
+        ("pcl", "unit", "PRD-PCL", "KPI-SAF-03", "5S audit score, pre-cleaning", 85, 78, 100),
+        ("qa", "unit", "QA", "KPI-QA-02", "Customer complaints", 3, 2, 60),
+        ("lab", "unit", "LAB", "KPI-QA-03", "Lab results on time", 95, 96.5, 100),
+        ("mtn", "unit", "MTN", "KPI-MTN-01", "Preventive maintenance on time", 95, 91, 100),
+        ("hr", "unit", "HR", "KPI-HR-01", "Attendance rate", 97, 96.2, 50),
+        ("hr2", "unit", "HR", "KPI-HR-06", "Days to fill a vacancy", 30, 34, 50),
+        ("rmr", "unit", "RMR", "KPI-RMR-01", "Raw material weighing variance", 0.5, 0.4, 100),
+    ):
+        g = Goal(cycle_id=cur.id, level=lvl, org_unit_code=unit, kpi_code=k, title=title, target=target, actual=actual,
+                 actual_on=today - timedelta(days=rnd.randint(3, 25)), weight=w, owner="SAMPLE owner")
+        db.add(g)
+        db.flush()
+        goal[key] = g
+    for key in ("prd", "prd2", "dry", "dry2", "pcl"):
+        goal[key].parent_id = goal["c1"].id
+    goal["qa"].parent_id = goal["lab"].parent_id = goal["c3"].id
+    rows = {a.employee_id: a for a in db.scalars(select(Appraisal).where(Appraisal.cycle_id == cur.id))}
+    for a in rows.values():
+        if a.form != "staff":
+            continue
+        gs = P.unit_goals(db, cur, a.org_unit_code)
+        if a.employee_id == "YTR815":  # still drafting, past the due date
+            a.items = staff_items(a, gs)[:2]
+            continue
+        a.items = staff_items(a, gs)
+        a.status, a.goals_agreed_at = "goals_agreed", datetime(y, 2, rnd.randint(5, 14), 10)
+        a.items = [dict(i, mid="On track (SAMPLE)") for i in a.items]
+        a.midyear_note, a.midyear_at = "Talked through progress; keep the focus on the first KPI. (SAMPLE)", datetime(y, 7, 14, 15)
+
+    cur.status = "review"
+
+    def self_done(a, send=True):
+        a.items = [dict(i, actual=round(i["target"] * rnd.uniform(0.9, 1.2), 1), self=rnd.choice([3, 3, 4]), self_comment="Kept the monthly record. (SAMPLE)")
+                   for i in a.items]
+        a.competencies = {c: {"self": rnd.choice([3, 4, 4])} for c in a.competencies}
+        a.self_note = "I would like more training on data and Excel. (SAMPLE)"
+        a.status = "manager" if send else "self"
+        if send:
+            a.self_at = datetime.combine(today - timedelta(days=4), time(9))
+
+    def mgr_done(a, u):
+        form = {f"cm_{c}": str(rnd.choice([3, 3, 4, 4, 5])) for c in a.competencies}
+        form["mgr_note"] = "Solid year; steady with the records, can lead more. (SAMPLE)"
+        if a.form == "operator":
+            P.collect_facts(db, a, today)
+            sug = P.suggest_parts(db, a)
+            for k, v in sug.items():
+                if not v and k != "behaviour":
+                    form[f"p_{k}"] = "3"
+        P.manager_review(db, u, a, form, True)
+
+    for eid in ("YTR806", "YTR802", "YTR813", "YTR814"):
+        if eid in rows:
+            self_done(rows[eid])
+    if "YTR807" in rows:
+        self_done(rows["YTR807"], send=False)
+    qa = users.get("qa.head")
+    for eid in ("YTR813", "YTR814"):
+        if qa and eid in rows and rows[eid].reviewer_employee_id == qa.employee_id:
+            mgr_done(rows[eid], qa)
+    sup = users.get("sup.dry")
+    dry = sorted(e for e, a in rows.items() if a.form == "operator" and a.org_unit_code == "PRD-DRY" and a.reviewer_employee_id == "YTR806")
+    for eid in dry[:7]:
+        P.skip_self(db, sup, rows[eid], "No login: talked it through at the line meeting (SAMPLE)")
+        mgr_done(rows[eid], sup)
+    head = users.get("prod.head")
+    for eid in dry[:3]:
+        a = rows[eid]
+        if head and a.status == "endorse" and a.endorser_employee_id == head.employee_id:
+            P.endorse(db, head, a, "Agree. (SAMPLE)", a.proposed_rating)
     db.flush()
 
 

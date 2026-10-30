@@ -100,6 +100,25 @@ def demo_classify(hint: dict) -> dict:
                 "title_en": f"We are hiring: {t} x {n} (SAMPLE)",
                 "ad_en": f"Unit: {u}\n• Run the work to the work instruction, quality and safety first\n• No experience needed, we train you\n• Shift work on the factory calendar\n"
                          "Pay and benefits per company policy\nApply at the HR office, Monday to Saturday 08:00-16:00"}
+    if hint.get("task") == "kpi":
+        if hint.get("mode") == "check":
+            return {"items": [], "review": [{"title": i["title"], "ok": bool(i.get("target")) and 5 <= (i.get("weight") or 0) <= 40,
+                                             "comment": "Clear and measurable (AI SAMPLE)" if i.get("target") else "Add a number target, e.g. a % or a count by December (AI SAMPLE)"}
+                                            for i in hint.get("items") or []]}
+        goals = hint.get("goals") or []
+        items = [{"title": f"Contribute to: {t} (AI SAMPLE)", "kpi_code": k, "goal_id": gid, "measure": "Monthly report from the unit", "unit": "%",
+                  "direction": "up", "target": float(tg or 100), "weight": 0} for gid, t, tg, k in goals[:3]]
+        items += [{"title": "Improvement ideas put in place (AI SAMPLE)", "kpi_code": "KPI-GEN-01", "goal_id": None, "measure": "Kaizen log", "unit": "ideas",
+                   "direction": "up", "target": 4.0, "weight": 0},
+                  {"title": "Train one colleague to U level on a key task (AI SAMPLE)", "kpi_code": None, "goal_id": None, "measure": "Skills matrix", "unit": "people",
+                   "direction": "up", "target": 1.0, "weight": 0},
+                  {"title": "Work done right the first time (AI SAMPLE)", "kpi_code": None, "goal_id": None, "measure": "Rework log checked by the supervisor",
+                   "unit": "%", "direction": "up", "target": 95.0, "weight": 0}]
+        w = [100 // len(items)] * len(items)
+        w[0] += 100 - sum(w)
+        for it, x in zip(items, w):
+            it["weight"] = x
+        return {"items": items, "review": []}
     if hint.get("task") == "interview_q":
         return {"questions": [{"criterion": c["code"], "text": (c.get("q_en") or c["en"]) + " (AI SAMPLE)", "text_th": c.get("q_th") or "",
                                "listen_for": "A real example with what they did and the result"} for c in hint.get("criteria") or []]}

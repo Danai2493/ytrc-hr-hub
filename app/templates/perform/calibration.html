@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "perform/_tabs.html" %}
+<div class="phead"><h2>{{ c.name }} · {{ _('Calibration') }}</h2>
+  <form class="end"><select name="unit" onchange="this.form.submit()"><option value="">{{ _('All units') }}</option>{% for u in units %}<option value="{{ u }}" {% if u == unit %}selected{% endif %}>{{ unit_names.get(u, u) }}</option>{% endfor %}</select></form></div>
+<p class="lead">{{ _('Department Heads and HR look at ratings side by side so the same standard is used in every unit. The guide shows a typical spread; it is a prompt to talk, never a quota.') }}</p>
+<div class="grid">
+  <section class="panel c5"><h2>{{ _('Spread of ratings') }}</h2>
+    {% set n = st.ratings.values()|sum %}
+    <div class="dist">{% for r in [5, 4, 3, 2, 1] %}{% set got = (100 * st.ratings.get(r, 0) / n) if n else 0 %}
+      <div style="height:{{ [got, 1]|max }}%"><span>{{ st.ratings.get(r, 0) }}</span><i style="bottom:{{ c.guide.get(r|string, 0) }}%"></i></div>{% endfor %}</div>
+    <div class="dist" style="height:auto">{% for r in [5, 4, 3, 2, 1] %}<div style="background:none;text-align:center"><strong>{{ letter(r) }}</strong></div>{% endfor %}</div>
+    <p class="note">{{ _('Dashed line: the guide.') }} {{ n }} {{ _('people rated') }}</p>
+    {% if gaps %}<ul class="find">{% for f in gaps %}<li class="{{ f.level }}">{{ rt(f) }}</li>{% endfor %}</ul>{% endif %}
+  </section>
+  <section class="panel c7 scroll"><h2>{{ _('People, highest score first') }}</h2>
+    <table><tr><th>{{ _('Employee') }}</th><th>{{ _('Unit') }}</th><th class="n">KPI</th><th class="n">{{ _('Behaviour') }}</th><th class="n">{{ _('Overall') }}</th><th>{{ _('Proposed') }}</th><th>{{ _('Final') }}</th><th></th></tr>
+    {% for a in rows %}<tr><td><a href="/perform/a/{{ a.id }}"><span class="mono">{{ a.employee_id }}</span> {{ a.employee.full_name_en }}</a><div class="note">{{ _(statuses[a.status]) }}</div></td>
+      <td class="note">{{ unit_names.get(a.org_unit_code, a.org_unit_code) }}</td><td class="n">{{ '%.2f' % a.kpi_score if a.kpi_score else '' }}</td><td class="n">{{ '%.2f' % a.comp_score if a.comp_score else '' }}</td>
+      <td class="n"><strong>{{ '%.2f' % a.overall if a.overall else '' }}</strong></td><td>{{ letter(a.proposed_rating) if a.proposed_rating else '' }}</td>
+      <td>{% if can_cal and a.status == 'calibration' %}<form method="post" action="/perform/a/{{ a.id }}" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="calibrate">
+        <select name="rating" style="width:64px">{% for r in [5, 4, 3, 2, 1] %}<option value="{{ r }}" {% if r == (a.final_rating or a.proposed_rating) %}selected{% endif %}>{{ letter(r) }}</option>{% endfor %}</select>
+        <input name="note" placeholder="{{ _('Why (if changed)') }}" value="{{ a.calibration_note or '' }}" style="width:150px"><button class="small">✓</button></form>
+        {% else %}<strong>{{ letter(a.final_rating) if a.final_rating else '' }}</strong>{% if a.calibration_note %}<div class="note">{{ a.calibration_note }}</div>{% endif %}{% endif %}</td></tr>{% endfor %}</table>
+  </section>
+</div>
+{% endblock %}

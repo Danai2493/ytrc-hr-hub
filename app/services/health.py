@@ -52,6 +52,9 @@ RULES = {
     "INTERVIEW_NO_SCORE": ("flag", "dept_head", "Interview held but no scorecard"),
     "CAND_RETENTION": ("flag", "hr", "Candidate data kept past the PDPA retention period"),
     "PROBATION_LATE": ("block", "dept_head", "Probation review not decided before the end date"),
+    "GOALS_LATE": ("flag", "dept_head", "Yearly goals not agreed by the due date"),
+    "REVIEW_LATE": ("flag", "dept_head", "Appraisal not finished by the due date"),
+    "NO_REVIEWER": ("block", "hr", "Appraisal has no supervisor to review it"),
 }
 
 
@@ -186,6 +189,21 @@ def _recruit(db: Session, today: date) -> Iterator[Hit]:
             yield Hit("CAND_RETENTION", "candidate", c.ref, f"{c.ref}: kept until {c.retain_until}; erase the personal data", due=today + timedelta(days=14))
 
 
+def _perform(db: Session, today: date) -> Iterator[Hit]:
+    from ..models import Appraisal, PerformanceCycle
+
+    for c in db.scalars(select(PerformanceCycle).where(PerformanceCycle.status != "closed")):
+        for a in db.scalars(select(Appraisal).where(Appraisal.cycle_id == c.id)):
+            if not a.reviewer_employee_id:
+                yield Hit("NO_REVIEWER", "appraisal", str(a.id), f"{a.employee_id} {c.name}: no supervisor found; set the unit head", a.employee_id, a.org_unit_code)
+            if a.status == "goals" and c.goals_due < today:
+                yield Hit("GOALS_LATE", "appraisal", str(a.id), f"{a.employee_id} {c.name}: goals due {c.goals_due} not agreed yet",
+                          a.employee_id, a.org_unit_code, today + timedelta(days=7))
+            if a.status in ("goals_agreed", "self", "manager", "endorse") and c.review_due < today:
+                yield Hit("REVIEW_LATE", "appraisal", str(a.id), f"{a.employee_id} {c.name}: review due {c.review_due}, now at {a.status}",
+                          a.employee_id, a.org_unit_code, today + timedelta(days=5))
+
+
 def _develop(db: Session, today: date) -> Iterator[Hit]:
     from ..models import EmployeeSkill, OnboardingCase, ProbationReview, Skill
     from .skills import matrix, required
@@ -222,7 +240,7 @@ def run(db: Session, today: Optional[date] = None) -> dict:
     sync_reviews(db, today)
     generate_needs(db, today)
     hits: dict[tuple[str, str, str], Hit] = {}
-    for gen in (_employees, _org, _time, _hrdev, _develop, _recruit):
+    for gen in (_employees, _org, _time, _hrdev, _develop, _recruit, _perform):
         for h in gen(db, today):
             hits[(h.rule, h.entity, h.entity_id)] = h
     open_issues = {
