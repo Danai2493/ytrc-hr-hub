@@ -10,6 +10,14 @@ from .core import (
     Sequence,
     Setting,
 )
+from .competency import (
+    Assessment,
+    AssessmentRound,
+    Competency,
+    CompetencyQuestion,
+    DevelopmentPlan,
+    GrowthPath,
+)
 from .develop import (
     Course,
     EmployeeSkill,
@@ -48,12 +56,17 @@ from .time import (
 __all__ = [
     "ApprovalRequest",
     "ApprovalStep",
+    "Assessment",
+    "AssessmentRound",
     "AuditLog",
     "Calendar",
     "CaptureLine",
+    "Competency",
+    "CompetencyQuestion",
     "Course",
     "DailyAttendance",
     "DataIssue",
+    "DevelopmentPlan",
     "Employee",
     "EmployeeRestricted",
     "EmployeeSkill",
@@ -61,6 +74,7 @@ __all__ = [
     "ExitCase",
     "FormCapture",
     "Grade",
+    "GrowthPath",
     "Holiday",
     "Job",
     "JobSkill",

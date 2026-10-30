@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "growth/_tabs.html" %}
+<div class="phead"><h2>{{ p.title }} · <span class="mono">{{ p.employee_id }}</span> {{ p.employee.full_name_en }}</h2>{{ status_tag(p.status) }}
+  {% if p.agreed_by %}<span class="note">{{ _('agreed by') }} {{ p.agreed_by }} · {{ fmt_dt(p.agreed_at) }}</span>{% endif %}</div>
+<p class="note">{{ _('Pick one to three areas. Most learning happens on the job (70%), some from other people (20%) and a little from courses (10%).') }}
+  {% if rep %}{{ _('From the report') }}: {{ _('strengths') }} {% for c in rep.strengths %}{{ nm(c) }}{% if not loop.last %}, {% endif %}{% endfor %} · {{ _('to develop') }} {% for c in rep.develop %}{{ nm(c) }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}</p>
+<form method="post" class="grid">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  {% set ro = not can_edit %}
+  {% for i in range(3) %}{% set it = p.items[i] if i < p.items|length else {} %}
+  <section class="panel c12">
+    <div class="form">
+      <label>{{ _('Focus area') }} {{ i + 1 }}<select name="c{{ i }}" {% if ro %}disabled{% endif %}><option value=""></option>{% for code, c in comps.items() %}<option value="{{ code }}" {% if it.competency == code %}selected{% endif %}>{{ nm(code) }}</option>{% endfor %}</select></label>
+      <label class="wide">{{ _('Goal: what will others see me do differently?') }}<input name="g{{ i }}" value="{{ it.goal or '' }}" {% if ro %}readonly{% endif %}></label>
+      <label>{{ _('Progress %') }}<input name="p{{ i }}" value="{{ it.progress or 0 }}" class="w-num" {% if ro %}readonly{% endif %}></label>
+    </div>
+    <table><tr><th>{{ _('Type') }}</th><th>{{ _('Action') }}</th><th>{{ _('Course') }}</th><th>{{ _('By') }}</th><th>{{ _('Done') }}</th></tr>
+    {% for j in range([(it.actions or [])|length + (1 if can_edit else 0), 1]|max) %}{% set act = (it.actions or [])[j] if j < (it.actions or [])|length else {} %}
+    <tr><td><select name="t{{ i }}_{{ j }}" {% if ro %}disabled{% endif %}>{% for k, v in types.items() %}<option value="{{ k }}" {% if act.type == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></td>
+      <td style="width:50%"><input name="a{{ i }}_{{ j }}" value="{{ act.text or '' }}" style="width:100%" {% if ro %}readonly{% endif %}></td>
+      <td><select name="k{{ i }}_{{ j }}" {% if ro %}disabled{% endif %}><option value=""></option>{% for c in courses %}<option value="{{ c.code }}" {% if act.course == c.code %}selected{% endif %}>{{ c.code }}</option>{% endfor %}</select></td>
+      <td><input type="date" name="d{{ i }}_{{ j }}" value="{{ act.due or '' }}" {% if ro %}readonly{% endif %}></td>
+      <td><input type="checkbox" name="x{{ i }}_{{ j }}" {% if act.done %}checked{% endif %} {% if ro %}disabled{% endif %}></td></tr>
+    {% endfor %}</table>
+  </section>
+  {% endfor %}
+  <section class="panel c12"><div class="form">
+    <label>{{ _('Path I am interested in') }}<select name="career_interest" {% if ro %}disabled{% endif %}><option value=""></option>{% for x in paths %}<option value="{{ x.code }}" {% if p.career_interest == x.code %}selected{% endif %}>{{ x.name_th if lang == 'th' and x.name_th else x.name_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('Review on') }}<input type="date" name="review_on" value="{{ p.review_on or '' }}" {% if ro %}readonly{% endif %}></label>
+    <label class="wide">{{ _('My notes') }}<textarea name="employee_note" rows="2" {% if ro %}readonly{% endif %}>{{ p.employee_note or '' }}</textarea></label>
+  </div></section>
+  {% if can_edit %}<div class="bar c12">
+    <button name="do" value="save">{{ _('Save') }}</button>
+    <button name="do" value="suggest">{{ _('Ask AI for action ideas') }}</button>
+    {% if can_agree %}<button class="primary" name="do" value="agree">{{ _('Agree the plan (supervisor)') }}</button>{% endif %}
+    {% if p.status == 'agreed' %}<button name="do" value="done" data-confirm="{{ _('Mark the whole plan as done?') }}">{{ _('Mark as done') }}</button>{% endif %}
+  </div>{% endif %}
+</form>
+<p class="note">{{ _('Course actions are sent to HR as training needs when the supervisor agrees the plan.') }}{% if p.ai_used %} {{ _('Some actions were suggested by AI and checked by people.') }}{% endif %}</p>
+{% endblock %}

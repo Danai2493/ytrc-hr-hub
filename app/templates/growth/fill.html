@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "growth/_tabs.html" %}
+<h2>{{ a.round.name }} · <span class="mono">{{ a.employee_id }}</span> {{ a.employee.full_name_en }}</h2>
+{% if not own %}<div class="flash warn">{{ _('You are typing in the paper form for this employee. Enter their answers exactly as written.') }}</div>{% endif %}
+<p class="lead">{{ _('Think about the last three months. How often do you do each of these? There are no right or wrong answers: honest answers give you the most useful report.') }}</p>
+<form method="post" class="panel">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  {% set ns = namespace(cl='') %}
+  <table class="likert">
+  {% for q in qs %}{% set c = comps[q.competency_code] %}
+    {% if c.cluster != ns.cl %}{% set ns.cl = c.cluster %}
+    <tr><th class="cl">{% for k, en, th in clusters if k == c.cluster %}{{ th if lang == 'th' else en }}{% endfor %}</th>{% for v, lab in scale.items() %}<th class="n">{{ _(lab) }}</th>{% endfor %}</tr>{% endif %}
+    <tr><td>{{ loop.index }}. {{ q.text_th if lang == 'th' and q.text_th else (q.text_my if lang == 'my' and q.text_my else q.text_en) }}</td>
+      {% for v in scale %}<td class="n"><input type="radio" name="q_{{ q.id }}" value="{{ v }}" aria-label="{{ v }}" {% if answers.get(q.id|string) == v %}checked{% endif %}></td>{% endfor %}</tr>
+  {% endfor %}
+  </table>
+  <div class="bar"><button name="submit" value="0">{{ _('Save and finish later') }}</button><button class="primary" name="submit" value="1">{{ _('Send my answers') }}</button></div>
+</form>
+{% endblock %}

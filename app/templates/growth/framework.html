@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "growth/_tabs.html" %}
+<p class="lead">{{ _('YTRC Growth Compass: our own framework of 20 competencies in 5 groups, with behaviour questions written for our factory. Draft version 1 for HR and managers to review.') }}</p>
+<p class="no-print">{{ _('Print a paper questionnaire') }}: {% for k, v in audiences.items() %}<a class="btn small" href="/growth/framework?print=1&audience={{ k }}" target="_blank">{{ _(v) }}</a> {% endfor %}</p>
+{% for k, en, th in clusters %}
+<section class="panel">
+  <h2>{{ th if lang == 'th' else en }}</h2>
+  <table>{% for code, c in comps.items() if c.cluster == k %}
+    <tr><td class="mono">{{ code }}</td><td><strong>{{ c.name_th if lang == 'th' and c.name_th else c.name_en }}</strong>{% if c.leaders_only %} <span class="tag">{{ _('team leaders') }}</span>{% endif %}
+      <div class="note">{{ c.definition_th if lang == 'th' and c.definition_th else c.definition_en }}</div>
+      <ul class="note">{% for q in qs if q.competency_code == code %}<li>{{ q.text_th if lang == 'th' and q.text_th else q.text_en }} <span class="tag">{{ q.audience }}</span>{% if q.reverse %} <span class="tag">{{ _('reverse') }}</span>{% endif %}</li>{% endfor %}</ul></td></tr>
+  {% endfor %}</table>
+</section>
+{% endfor %}
+<section class="panel">
+  <h2>{{ _('Growth paths') }}</h2>
+  <table>{% for x in paths %}<tr><td><strong>{{ x.name_th if lang == 'th' and x.name_th else x.name_en }}</strong><div class="note">{{ x.description_th if lang == 'th' and x.description_th else x.description_en }}</div></td>
+    <td class="note">{% for c, v in x.targets.items() %}{{ comps[c].name_th if lang == 'th' and comps[c].name_th else comps[c].name_en }} {{ v }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>{% endfor %}</table>
+</section>
+{% endblock %}

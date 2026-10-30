@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "growth/_tabs.html" %}
+<div class="phead"><h2>{{ rnd.name }}</h2>{{ status_tag(rnd.status) }}<span class="note">{{ fmt_date(rnd.opens_on) }} – {{ fmt_date(rnd.closes_on) }} · {{ rnd.groups|join(', ') }}</span>
+  {% if is_hr and rnd.status == 'open' %}<div class="end"><form method="post" action="/growth/rounds/{{ rnd.id }}/close" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small" data-confirm="{{ _('Close the round? No more answers can be sent.') }}">{{ _('Close round') }}</button></form></div>{% endif %}</div>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Invited') }}</span><span class="v">{{ s.invited }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Answered') }}</span><span class="v">{{ s.done }}</span><span class="d">{{ (s.done / s.invited * 100)|round|int if s.invited else 0 }}%</span></div>
+  <div class="kpi"><span class="k">{{ _('Development plans') }}</span><span class="v">{{ s.plans }}</span><span class="d">{{ s.agreed }} {{ _('agreed') }}</span></div>
+</div>
+<div class="grid">
+  <section class="panel c6"><h2>{{ _('Company profile') }}</h2>{% if chart %}{{ chart }}{% else %}<p class="note">{{ _('Shown when at least {n} people have answered.', n=min_group) }}</p>{% endif %}</section>
+  <section class="panel c6 scroll"><h2>{{ _('By unit') }}</h2>
+    <table><tr><th>{{ _('Unit') }}</th><th class="n">{{ _('Answered') }}</th>{% for k, en, th in clusters %}<th class="n">{{ th if lang == 'th' else en }}</th>{% endfor %}</tr>
+    {% for u, x in s.units|dictsort %}<tr><td>{{ unit_names.get(u, u) }}</td><td class="n">{{ x.n }}</td>
+      {% if x.hidden %}<td colspan="{{ clusters|length }}" class="note">{{ _('fewer than {n} people: hidden to protect privacy', n=min_group) }}</td>
+      {% else %}{% for k, en, th in clusters %}<td class="n">{{ '%.1f' % x.clusters[k] if k in x.clusters else '' }}</td>{% endfor %}{% endif %}</tr>{% endfor %}</table>
+    <p class="note">{{ _('Averages help plan team training. They are never used to compare or rank individuals.') }}</p>
+  </section>
+</div>
+{% endblock %}

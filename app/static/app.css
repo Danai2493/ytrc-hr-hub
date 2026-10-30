@@ -126,3 +126,11 @@ details.cellform{position:relative}
 details.cellform summary{list-style:none;cursor:pointer}
 details.cellform summary::-webkit-details-marker{display:none}
 details.cellform[open] form{position:absolute;z-index:5;left:0;top:28px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px;display:grid;gap:6px;min-width:220px;text-align:left;box-shadow:0 6px 20px rgba(0,0,0,.12)}
+/* growth */
+svg.radar{width:100%;max-width:560px;display:block;margin:0 auto}
+svg.radar text{fill:var(--ink-2)}
+table.likert td.n,table.likert th.n{text-align:center;width:64px}
+table.likert th.n{font-size:11px;font-weight:500}
+table.likert th.cl{text-align:left;padding-top:14px}
+table.likert tr:hover td{background:var(--bg-2,rgba(0,0,0,.03))}
+.ok-t{color:var(--ok,#1a7f37)}.warn-t{color:var(--warn,#9a6700)}

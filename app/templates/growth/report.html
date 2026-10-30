@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "growth/_tabs.html" %}
+{% set s = rep.scores %}
+<div class="phead"><h2>{{ a.round.name }} · <span class="mono">{{ a.employee_id }}</span> {{ a.employee.full_name_en }}</h2>
+  <div class="end no-print"><button class="btn small" onclick="window.print()">{{ _('Print') }}</button></div></div>
+<p class="note">{{ _('This report shows how often you see these behaviours in yourself (1 rarely, 5 almost always). It is a starting point for a conversation, not a judgement.') }}</p>
+<div class="grid">
+  <section class="panel c7"><h2>{{ _('Your profile') }}</h2>{{ main }}</section>
+  <section class="panel c5">
+    <h2>{{ _('Strengths to build on') }}</h2>
+    <ul class="find">{% for c in rep.strengths %}<li class="ok"><strong>{{ nm(c) }}</strong> {{ '%.1f' % s[c] }}<div class="note">{{ rep.comps[c].definition_th if lang == 'th' else rep.comps[c].definition_en }}</div></li>{% endfor %}</ul>
+    <h2>{{ _('Areas to develop next') }}</h2>
+    <ul class="find">{% for c in rep.develop %}<li class="flag"><strong>{{ nm(c) }}</strong> {{ '%.1f' % s[c] }}<div class="note">{{ rep.comps[c].definition_th if lang == 'th' else rep.comps[c].definition_en }}</div></li>{% endfor %}</ul>
+    {% if plan %}<a class="btn primary" href="/growth/plan/{{ plan.id }}">{{ _('Open the development plan') }}</a> {{ status_tag(plan.status) }}
+    {% elif own or is_sup %}<form method="post" action="/growth/a/{{ a.id }}/plan"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="primary">{{ _('Make a development plan') }}</button></form>{% endif %}
+  </section>
+  <section class="panel c12 scroll">
+    <h2>{{ _('All competencies') }}</h2>
+    <table><tr><th>{{ _('Group') }}</th><th>{{ _('Competency') }}</th><th class="n">{{ _('Self view') }}</th>{% if a.manager_scores %}<th class="n">{{ _('Supervisor view') }}</th>{% endif %}{% if rep.previous %}<th class="n">{{ _('Change since last round') }}</th>{% endif %}<th></th></tr>
+    {% for code, c in rep.comps.items() if code in s %}
+    <tr><td class="note">{% for k, en, th in clusters if k == c.cluster %}{{ th if lang == 'th' else en }}{% endfor %}</td><td>{{ nm(code) }}</td><td class="n">{{ '%.1f' % s[code] }}</td>
+      {% if a.manager_scores %}<td class="n">{{ a.manager_scores.get(code, '') }}</td>{% endif %}
+      {% if rep.previous %}{% set d = rep.delta.get(code) %}<td class="n {% if d and d > 0.2 %}ok-t{% elif d and d < -0.2 %}warn-t{% endif %}">{% if d is not none %}{{ '%+.1f' % d }}{% endif %}</td>{% endif %}
+      <td style="width:40%"><div style="background:var(--line);height:8px;border-radius:4px"><div style="width:{{ (s[code] / 5 * 100)|round }}%;height:8px;border-radius:4px;background:var(--s1)"></div></div></td></tr>
+    {% endfor %}</table>
+    {% if rep.views_differ %}<p class="note">{{ _('Where you and your supervisor see things differently by a point or more:') }} {% for c, mine, his in rep.views_differ %}<strong>{{ nm(c) }}</strong> ({{ '%.1f' % mine }} / {{ his }}){% if not loop.last %}, {% endif %}{% endfor %}. {{ _('Talk about real examples: both views can be right.') }}</p>{% endif %}
+  </section>
+  <section class="panel c12">
+    <h2>{{ _('Growth paths that fit your profile today') }}</h2>
+    <p class="note">{{ _('Each path needs a different mix. The dashed shape shows what helps most on that path; the closer your shape, the easier the path is today. Any path can be grown into.') }}</p>
+    <div class="grid">{% for pf, chart in path_charts %}
+      <div class="c4"><h3>{{ pf.path.name_th if lang == 'th' and pf.path.name_th else pf.path.name_en }} · {{ pf.fit }}%</h3>
+        <p class="note">{{ pf.path.description_th if lang == 'th' and pf.path.description_th else pf.path.description_en }}</p>{{ chart }}
+        {% if pf.gaps %}<p class="note">{{ _('To grow on this path') }}: {% for c, v, t in pf.gaps[:3] %}{{ nm(c) }}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}</div>
+    {% endfor %}</div>
+  </section>
+  {% if is_sup %}
+  <section class="panel c12 no-print">
+    <h2>{{ _('Supervisor view (optional)') }}</h2>
+    <p class="note">{{ _('How often do you see this person show each behaviour? Leave a line empty if you have not seen enough. The employee sees your view next to theirs.') }}</p>
+    <form method="post" action="/growth/a/{{ a.id }}/manager" class="form">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      {% for code, c in rep.comps.items() if code in s %}<label>{{ nm(code) }}<select name="m_{{ code }}"><option value=""></option>{% for v in range(1, 6) %}<option {% if (a.manager_scores or {}).get(code) == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>{% endfor %}
+      <label class="wide">{{ _('Note for the employee') }}<textarea name="note" rows="2">{{ a.manager_note or '' }}</textarea></label>
+      <div class="bar wide"><button class="primary">{{ _('Save supervisor view') }}</button></div>
+    </form>
+  </section>
+  {% elif a.manager_note %}<section class="panel c12"><h2>{{ _('Note from your supervisor') }}</h2><p>{{ a.manager_note }}</p><p class="note">{{ a.manager_by }}</p></section>{% endif %}
+</div>
+{% endblock %}

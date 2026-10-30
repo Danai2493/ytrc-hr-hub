@@ -110,7 +110,8 @@ class TrainingRecord(Timestamps, Base):
 
 
 NEED_REASONS = {"gap": "Skill below the job's level", "expiry": "Licence or refresher due", "legal": "Required by law",
-                "new_staff": "Induction for new staff", "coverage": "Too few people at U/O", "manual": "Asked by supervisor"}
+                "new_staff": "Induction for new staff", "coverage": "Too few people at U/O", "manual": "Asked by supervisor",
+                "idp": "Development plan"}
 
 
 class TrainingNeed(Timestamps, Base):

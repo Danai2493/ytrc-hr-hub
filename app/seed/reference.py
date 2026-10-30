@@ -123,3 +123,6 @@ def seed_reference(db: Session) -> None:
     from .skills import seed_skills
 
     seed_skills(db)
+    from .competency import seed_competency
+
+    seed_competency(db)

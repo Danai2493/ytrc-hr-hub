@@ -1,0 +1,11 @@
+<!doctype html><html lang="{{ lang }}"><head><meta charset="utf-8"><title>{{ _('YTRC Growth Compass') }}</title>
+<style>body{font:13px/1.4 sans-serif;margin:24px;color:#111}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:5px;vertical-align:top}th{background:#eee;font-size:11px}td.n{text-align:center;width:52px}h1{font-size:18px}</style></head>
+<body>
+<h1>{{ _('YTRC Growth Compass') }} · {{ _(audiences[audience]) }}</h1>
+<p>{{ _('Employee ID') }}: ____________ {{ _('Name') }}: ______________________ {{ _('Date') }}: ____________</p>
+<p>{{ _('Think about the last three months. How often do you do each of these? Tick one box per line.') }}</p>
+<table><tr><th>#</th><th></th>{% for v, lab in scale.items() %}<th>{{ v }}<br>{{ _(lab) }}</th>{% endfor %}</tr>
+{% for q in qs %}<tr><td>{{ loop.index }}</td><td>{{ q.text_th if lang == 'th' and q.text_th else q.text_en }}{% if lang == 'th' %}<br><small>{{ q.text_en }}</small>{% endif %}</td>{% for v in scale %}<td class="n">☐</td>{% endfor %}</tr>{% endfor %}
+</table>
+<p><small>{{ _('HR types the answers into the HR system. The paper form is kept by HR.') }}</small></p>
+</body></html>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "growth/_tabs.html" %}
+<p class="lead">{{ _('A periodic self-assessment to see your strengths and choose what to develop next. It is not a rating and is not used for pay or appraisal.') }}</p>
+{% if mine or plans %}
+<section class="panel">
+  <h2>{{ _('My assessments') }}</h2>
+  <table>{% for a in mine %}<tr><td>{{ a.round.name }}</td><td>{{ fmt_date(a.round.closes_on) }}</td>
+    <td>{% if a.status == 'submitted' %}<a class="btn small" href="/growth/a/{{ a.id }}/report">{{ _('My report') }}</a>{% elif a.round.status == 'open' %}<a class="btn small primary" href="/growth/a/{{ a.id }}">{{ _('Answer now') }}</a>{% else %}<span class="note">{{ _('not answered') }}</span>{% endif %}</td></tr>{% endfor %}</table>
+  {% if plans %}<h2>{{ _('My development plans') }}</h2>
+  <table>{% for p in plans %}<tr><td><a href="/growth/plan/{{ p.id }}">{{ p.title }}</a></td><td>{{ status_tag(p.status) }}</td><td class="note">{{ _('review on') }} {{ fmt_date(p.review_on) }}</td></tr>{% endfor %}</table>{% endif %}
+</section>
+{% endif %}
+{% if team %}
+<section class="panel scroll">
+  <h2>{{ _('My team') }} · {{ team[0][0].round.name }}</h2>
+  <table><tr><th>{{ _('Employee') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Questions') }}</th><th>{{ _('Assessment') }}</th><th>{{ _('Supervisor view') }}</th><th>{{ _('Development plan') }}</th></tr>
+  {% for a, p in team %}
+  <tr><td><span class="mono">{{ a.employee_id }}</span> {{ a.employee.full_name_en }}</td><td>{{ a.employee.org_unit.name_en }}</td><td class="note">{{ _(audiences[a.audience]) }}</td>
+    <td>{% if a.status == 'submitted' %}<a href="/growth/a/{{ a.id }}/report">{{ _('report') }}</a>{% else %}<span class="tag warn">{{ _('not yet') }}</span>{% if is_hr %} <a href="/growth/a/{{ a.id }}" class="note">{{ _('enter paper form') }}</a>{% endif %}{% endif %}</td>
+    <td>{% if a.manager_scores %}✓{% endif %}</td>
+    <td>{% if p %}<a href="/growth/plan/{{ p.id }}">{{ status_tag(p.status) }}</a>{% endif %}</td></tr>
+  {% endfor %}</table>
+</section>
+{% endif %}
+{% if is_hr or rounds %}
+<section class="panel">
+  <h2>{{ _('Assessment rounds') }}</h2>
+  <table>{% for r in rounds %}<tr><td><a href="/growth/rounds/{{ r.id }}">{{ r.name }}</a></td><td>{{ fmt_date(r.opens_on) }} – {{ fmt_date(r.closes_on) }}</td><td>{{ r.groups|join(', ') }}</td><td>{{ status_tag(r.status) }}</td></tr>{% else %}<tr><td class="note">{{ _('No rounds yet') }}</td></tr>{% endfor %}</table>
+  {% if is_hr %}
+  <form method="post" action="/growth/rounds" class="form">
+    <input type="hidden" name="_csrf" value="{{ csrf }}">
+    <label>{{ _('Name') }}<input name="name" value="{{ today.year }} {{ _('round') }} {{ rounds|length + 1 }}" required></label>
+    <label>{{ _('Opens') }}<input type="date" name="opens_on" value="{{ today }}" required></label>
+    <label>{{ _('Closes') }}<input type="date" name="closes_on" value="{{ default_close }}" required></label>
+    <label class="wide">{{ _('Who answers') }}<span>{% for g in groups %}<label style="display:inline;min-width:auto"><input type="checkbox" name="groups" value="{{ g }}" {% if g != 'Japanese Management' %}checked{% endif %}> {{ _(g) }}</label> {% endfor %}</span></label>
+    <label class="wide">{{ _('Note to employees') }}<input name="note"></label>
+    <div class="bar wide"><button class="primary">{{ _('Open the round') }}</button></div>
+  </form>
+  <p class="note">{{ _('Once or twice a year works well. Operators get the short set of questions; staff and team leaders get more. People without a login answer on paper and HR types it in.') }}</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

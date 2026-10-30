@@ -83,6 +83,12 @@ def demo_classify(hint: dict) -> dict:
     """Exit interview coding for the demo: a few keyword rules stand in for the model."""
     if hint.get("task") == "jd":
         return demo_jd(hint)
+    if hint.get("task") == "idp":
+        from ..growth import ACTION_LIBRARY
+
+        return {"items": [{"competency": c, "goal": f"Use {c} skills every week, seen and confirmed by my supervisor (SAMPLE)",
+                           "actions": [{"type": t, "text": x + " (AI SAMPLE)"} for t, x in ACTION_LIBRARY.get(c, [])]} for c in hint.get("focus") or []],
+                "note": "Give short feedback every week and check progress after one month. (SAMPLE)"}
     iv = hint.get("interview") or {}
     text = " ".join(str(iv.get(k) or "") for k in ("main_reason", "comments")).lower()
     scores = iv.get("scores") or {}

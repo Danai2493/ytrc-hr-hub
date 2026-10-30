@@ -153,6 +153,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_time(db, rnd, today, users)
     _demo_leave_exit(db, rnd, today, users)
     _demo_skills(db, rnd, today, users)
+    _demo_growth(db, rnd, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -384,4 +385,65 @@ def _demo_skills(db: Session, rnd: random.Random, today: date, users: dict) -> N
             if i["code"] in ("CONTRACT", "DOCS", "SCAN", "BPLUS", "PPE", "PERMIT"):
                 newstaff.tick(db, case, hr, i["code"], True)
     newstaff.sync_reviews(db, today)
+    db.flush()
+
+
+def _demo_growth(db: Session, rnd: random.Random, today: date, users: dict) -> None:
+    """Two assessment rounds (last year closed, this one open), supervisor views and two development plans."""
+    from ..models import Assessment
+    from ..services import growth
+
+    hr = users["hr.officer"]
+    groups = ["Operator", "Staff", "Manager"]
+    comps = list(growth.competencies(db))
+    # each person gets a stable profile: a few natural strengths and a few areas to grow
+    lean = {}
+    for e in db.scalars(select(Employee).where(Employee.status == "Active", Employee.is_sample.is_(True))):
+        lean[e.employee_id] = {c: rnd.choice([-1, 0, 0, 0, 1]) for c in comps}
+
+    def answer(a: Assessment, shift: float) -> dict:
+        out = {}
+        for q in growth.questions_for(db, a.audience):
+            v = 3 + lean.get(a.employee_id, {}).get(q.competency_code, 0) + shift + rnd.choice([-1, 0, 0, 1])
+            v = max(1, min(5, round(v)))
+            out[str(q.id)] = 6 - v if q.reverse else v
+        return out
+
+    old = growth.open_round(db, hr, f"{today.year - 1} round 1", today - timedelta(days=380), today - timedelta(days=360), groups)
+    db.flush()
+    for a in db.scalars(select(Assessment).where(Assessment.round_id == old.id)):
+        if rnd.random() < 0.7:
+            growth.save_answers(db, a, hr, answer(a, -0.3), True, "paper" if a.audience == "core" else "web")
+            a.submitted_at = datetime.combine(old.closes_on, time(10))
+    growth.close_round(db, hr, old)
+    cur = growth.open_round(db, hr, f"{today.year} round 1", today - timedelta(days=12), today + timedelta(days=9), groups,
+                            "Please answer by the closing date. HR can help with the paper form.")
+    db.flush()
+    sup = users.get("sup.dry")
+    cur_list = list(db.scalars(select(Assessment).where(Assessment.round_id == cur.id).order_by(Assessment.employee_id)))
+    for a in cur_list:
+        if rnd.random() < 0.8:
+            growth.save_answers(db, a, hr, answer(a, 0.2), True, "paper" if a.audience == "core" else "web")
+            if sup and a.employee.org_unit_code == "PRD-DRY" and rnd.random() < 0.6:
+                mine = a.scores or {}
+                growth.manager_view(db, a, sup, {c: max(1, min(5, round(v + rnd.choice([-1, 0, 0, 0, 0, 1])))) for c, v in mine.items()},
+                                    "Good progress this year. Let us talk about the handover and the next machine to learn. (SAMPLE)")
+    db.flush()
+    done = [a for a in cur_list if a.status == "submitted" and a.employee.org_unit_code == "PRD-DRY"]
+    if sup and done:
+        p = growth.create_plan(db, sup, done[0].employee, done[0])
+        items = [dict(it, actions=[dict(x) for x in it["actions"]]) for it in p.items]
+        for it in items:
+            for act in it["actions"]:
+                if act["type"] == "course":
+                    act["course"] = "CR-LDR-01" if it["competency"].startswith(("LE", "PE")) else "CR-IND-01"
+                act["due"] = (today + timedelta(days=60)).isoformat()
+            it["actions"][0]["done"] = True
+            it["progress"] = 30
+        p.items = items
+        p.career_interest = "TEAMLEAD"
+        p.employee_note = "I would like to train new colleagues. (SAMPLE)"
+        growth.agree(db, sup, p)
+    if sup and len(done) > 1:
+        growth.create_plan(db, sup, done[1].employee, done[1])
     db.flush()
