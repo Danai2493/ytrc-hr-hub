@@ -1,0 +1,12 @@
+{
+  // GitHub Codespaces: Code > Codespaces > Create codespace on main.
+  // The demo starts by itself and opens in a new browser tab. SAMPLE data only.
+  "name": "YTRC HR Hub demo",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+  "hostRequirements": { "cpus": 2 },
+  "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
+  "postAttachCommand": "bash scripts/demo.sh",
+  "forwardPorts": [8000],
+  "portsAttributes": { "8000": { "label": "YTRC HR Hub", "onAutoForward": "openBrowser" } },
+  "customizations": { "codespaces": { "openFiles": ["README.md"] } }
+}

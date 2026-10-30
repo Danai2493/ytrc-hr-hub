@@ -31,6 +31,13 @@ same data model and approval engine.
 | Dashboards | People and turnover, OT, attendance, monthly HR KPI pack (print to PDF). No Power BI needed. |
 | Admin | Users and roles, settings for the rules, shifts, holidays (upload the yearly company calendar workbook: Office rests Sunday, Factory rests Friday), OT budget, audit log. |
 
+## Try the demo in the browser (no install)
+
+On GitHub, open this repository, click the green **Code** button, the **Codespaces** tab,
+then **Create codespace on main**. After about 3 minutes the demo opens in a new tab
+(if it does not, open the **Ports** tab and click the globe next to port 8000).
+Stop the codespace when you are done: github.com/codespaces, the ... menu, **Stop codespace**.
+
 ## Run the demo on a laptop
 
 ```bash
@@ -42,7 +49,8 @@ uvicorn app.main:app --reload
 ```
 
 Open http://localhost:8000. Demo logins (password `Demo-2026-hr`): `hr.manager`,
-`hr.officer`, `hr.officer2`, `gm`, `prod.head`, `sup.dry`, `sup.pcl`, `it.admin`.
+`hr.officer`, `hr.officer2`, `gm`, `prod.head`, `qa.head`, `mtn.head`, `rmr.head`, `sup.dry`, `sup.pcl`, `it.admin`.
+Or run `bash scripts/demo.sh` (add `--fresh` to reload clean demo data).
 All people in the demo are SAMPLE data (IDs YTR801-816, YTOP951-990).
 
 ## Run in production
