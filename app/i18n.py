@@ -52,6 +52,7 @@ RULE_TEXT = {
     "leave_after": "Entered after the leave started",
     "leave_ot_same_day": "There is OT on a leave day ({ref}, {date})",
     "leave_scanned": "Face scan shows work on a leave day ({dates})",
+    "leave_probation": "Vacation can be used from {date}, after probation",
     "leave_left": "{left} days left in {year}",
     "leave_days_mismatch": "Days written ({written}) do not match the dates ({days} working days)",
 }

@@ -27,7 +27,10 @@ DEFAULT_SETTINGS: dict[str, tuple[Any, str]] = {
     "work_permit_alert_days": (60, "Flag work permits expiring within this many days"),
     "probation_alert_days": (14, "Flag probation evaluations not done this many days before the end"),
     "staff_ot_cutoff_day": (20, "Staff monthly OT period ends on this day (starts the day after, previous month)"),
-    "vacation_days_rule": ("1:6", "Vacation days by years of service, e.g. 1:6,3:8,5:10 (law: 6 days after 1 year)"),
+    "vacation_base_days": (6, "Basic vacation days a year, earned 1 day per 2 full months in the year of joining"),
+    "vacation_extra_max": (5, "Extra vacation days: +1 for each calendar year of service after the first, up to this cap"),
+    "vacation_carry_max": (3, "Unused vacation days that carry to the next year"),
+    "vacation_carry_from_year": (2027, "First year that gets a carry-forward computed from leave in this app"),
     "sso_notice_day": (15, "Social security must be told of an exit by this day of the next month"),
     "juvenile_age": (18, "Workers under this age: no OT, no holiday work, no night work"),
     "bplus_export_columns": (

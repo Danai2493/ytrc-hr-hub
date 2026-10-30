@@ -618,6 +618,7 @@
 "Users and roles": "ผู้ใช้และสิทธิ์",
 "Vacant": "ว่าง",
 "Vacation": "ลาพักร้อน",
+"Vacation can be used from {date}, after probation": "ใช้วันลาพักร้อนได้ตั้งแต่ {date} หลังผ่านทดลองงาน",
 "Verify OT against face scan": "ยืนยัน OT กับสแกนหน้า",
 "Verify against face scan": "ยืนยันกับสแกนหน้า",
 "Verify ticked lines": "ยืนยันรายการที่เลือก",

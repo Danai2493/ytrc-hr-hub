@@ -104,3 +104,35 @@ def test_overlap_and_after_exit(db):
     f, t = datetime.combine(d, time(17)), datetime.combine(d, time(19))
     findings, _, _ = check_ot(db, emp, d, f, t)
     assert any(x.code == "after_exit" for x in findings)
+
+
+def test_ytrc_vacation_policy(db):
+    from datetime import date
+
+    from app.models import Employee, LeaveRequest, LeaveType
+    from app.services import leave
+
+    e = Employee(employee_id="YTOP999", employee_group="Operator", full_name_en="Policy test (SAMPLE)", join_date=date(2019, 6, 1), org_unit_code="PRD-DRY")
+    assert leave._vac_own(db, e, 2019) == 3  # joined June: 7 full months, 1 day per 2 months
+    assert leave._vac_own(db, e, 2020) == 6  # "1 year or less" in the company table
+    assert leave._vac_own(db, e, 2021) == 7
+    assert leave._vac_own(db, e, 2030) == 11  # +5 cap
+    e.join_date = date(2019, 6, 15)
+    assert leave._vac_own(db, e, 2019) == 3
+    # within probation: earned but not usable
+    e.join_date = date(2026, 6, 1)
+    f, _ = leave.check(db, e, db.get(LeaveType, "VAC"), date(2026, 8, 3), date(2026, 8, 3), today=date(2026, 7, 1))
+    assert any(x.code == "leave_probation" and x.level == "block" for x in f)
+
+
+def test_vacation_carry_forward_capped(db):
+    from datetime import date
+
+    from app.models import Employee
+    from app.services import leave
+
+    e = Employee(employee_id="YTOP998", employee_group="Operator", full_name_en="Carry test (SAMPLE)", join_date=date(2015, 1, 5), org_unit_code="PRD-DRY")
+    # 2026 own = 11, nothing used in 2026 -> only 3 carry into 2027 (first carry year)
+    assert leave.vacation_carry(db, e, 2026) == 0
+    assert leave.vacation_carry(db, e, 2027) == 3
+    assert leave.vacation_entitlement(db, e, 2027) == 14

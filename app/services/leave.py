@@ -27,7 +27,7 @@ ACTIVE = ("pending", "approved")
 DEFAULT_TYPES = [
     ("SICK", "Sick leave", "ลาป่วย", "s", True, 30, False, 3, 0, 0, True, None),
     ("PERS", "Personal business leave", "ลากิจ", "p", True, 3, False, None, 0, 1, True, None),
-    ("VAC", "Vacation", "ลาพักร้อน", "v", True, None, False, None, 365, 3, False, None),
+    ("VAC", "Vacation", "ลาพักร้อน", "v", True, None, False, None, 119, 3, False, None),
     ("MAT", "Maternity leave", "ลาคลอด", "m", True, 98, True, None, 0, 0, False, "F"),
     ("MIL", "Military service", "ลารับราชการทหาร", "l", True, 60, False, None, 0, 0, False, None),
     ("TRAIN", "Training leave", "ลาฝึกอบรม", "l", False, None, False, None, 0, 7, False, None),
@@ -53,20 +53,38 @@ def db_type(db: Session, code: str) -> Optional[LeaveType]:
     return lt if lt is not None and lt.active else None
 
 
+def _vac_own(db: Session, emp: Employee, year: int) -> float:
+    """YTRC policy: 6 basic days, earned 1 day per 2 full months in the year of
+    joining; +1 day for each calendar year of service after the first, capped
+    at +5 (most 11). Example for 2020: joined 2019 = 6, 2018 = 7, 2013 = 11."""
+    base = float(get_setting(db, "vacation_base_days") or 6)
+    extra_max = int(get_setting(db, "vacation_extra_max") or 5)
+    if year < emp.join_date.year:
+        return 0.0
+    if year == emp.join_date.year:
+        j = emp.join_date
+        months = (12 - j.month) + (1 if j.day == 1 else 0)  # full months to 31 Dec
+        return min(base, float(months // 2))
+    return base + min(max(year - emp.join_date.year - 1, 0), extra_max)
+
+
+def vacation_carry(db: Session, emp: Employee, year: int, _depth: int = 0) -> float:
+    """Unused days carried in from last year, at most vacation_carry_max."""
+    first = int(get_setting(db, "vacation_carry_from_year") or 2027)
+    if year < first or year <= emp.join_date.year or _depth > 40:
+        return 0.0
+    cap = float(get_setting(db, "vacation_carry_max") or 3)
+    prev = year - 1
+    left = _vac_own(db, emp, prev) + vacation_carry(db, emp, prev, _depth + 1) - used_days(db, emp.employee_id, "VAC", prev)
+    return min(cap, max(left, 0.0))
+
+
 def vacation_entitlement(db: Session, emp: Employee, year: int) -> float:
-    """Vacation days for the year from the service-years rule, e.g. "1:6,3:8,5:10"."""
-    rule = str(get_setting(db, "vacation_days_rule") or "1:6")
-    on = date(year, 12, 31)
-    years = (on - emp.join_date).days / 365.25
-    days = 0.0
-    for part in rule.split(","):
-        try:
-            y, d = part.split(":")
-            if years >= float(y):
-                days = max(days, float(d))
-        except ValueError:
-            continue
-    return days
+    return _vac_own(db, emp, year) + vacation_carry(db, emp, year)
+
+
+def probation_end(emp: Employee) -> date:
+    return emp.probation_end_date or emp.join_date + timedelta(days=118)  # 119 days including the first
 
 
 def entitlement(db: Session, emp: Employee, lt: LeaveType, year: int) -> Optional[float]:
@@ -164,7 +182,10 @@ def check(
         left = ent - used_days(db, emp.employee_id, lt.code, y, exclude_id)
         if in_year > left:
             f.append(Finding("leave_over_balance", "flag", {"days": round(in_year, 1), "left": round(max(left, 0), 1), "year": y}))
-    if lt.min_service_days and (d0 - emp.join_date).days < lt.min_service_days:
+    if lt.code == "VAC" and d0 <= probation_end(emp):
+        # earned during probation, usable only after it
+        f.append(Finding("leave_probation", "block", {"date": (probation_end(emp) + timedelta(days=1)).isoformat()}))
+    elif lt.min_service_days and (d0 - emp.join_date).days < lt.min_service_days:
         f.append(Finding("leave_service", "flag", {"days": lt.min_service_days}))
     if lt.document_from_days and days >= lt.document_from_days and not has_document:
         f.append(Finding("leave_document", "flag", {"days": lt.document_from_days}))
