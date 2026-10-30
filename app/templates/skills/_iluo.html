@@ -1,0 +1,1 @@
+{% macro dot(c, levels) -%}<span class="iluo {% if c.gap %}gap{% endif %} {% if c.lapsed %}lapsed{% endif %}" style="--q:{{ c.level }}" title="{{ levels[c.level][0] }}: {{ _(levels[c.level][1]) }}{% if c.need %} · {{ _('job needs') }} {{ levels[c.need][0] }}{% endif %}{% if c.lapsed %} · {{ _('licence or refresher lapsed') }}{% endif %}"></span>{%- endmacro %}

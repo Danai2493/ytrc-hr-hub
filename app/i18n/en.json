@@ -7,5 +7,6 @@
 "gm_override": "GM weekly-limit override",
 "receiving_head": "Receiving Department Head",
 "hr": "HR",
-"admin": "IT admin"
+"admin": "IT admin",
+"hr_manager": "HR Manager"
 }

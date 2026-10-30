@@ -81,6 +81,8 @@ def demo_answer(form_type: str, hint: dict) -> dict:
 
 def demo_classify(hint: dict) -> dict:
     """Exit interview coding for the demo: a few keyword rules stand in for the model."""
+    if hint.get("task") == "jd":
+        return demo_jd(hint)
     iv = hint.get("interview") or {}
     text = " ".join(str(iv.get(k) or "") for k in ("main_reason", "comments")).lower()
     scores = iv.get("scores") or {}
@@ -99,3 +101,24 @@ def demo_classify(hint: dict) -> dict:
     low = min(scores, key=scores.get) if scores else None
     code = {"pay": "RES-PAY", "shift": "RES-WORK", "boss": "RES-BOSS", "growth": "RES-CAREER"}.get(low, "RES-OTHER")
     return {"reason_code": code, "confidence": 0.55, "summary_en": "No clear reason in the comments; the lowest score points to this area. (SAMPLE)", "themes": [low] if low else []}
+
+
+def demo_jd(hint: dict) -> dict:
+    """A plausible job description draft for the demo (no model call)."""
+    title = hint.get("title") or "Operator"
+    unit = hint.get("unit") or "the line"
+    skills = hint.get("skills") or []
+    return {
+        "purpose": f"Runs the {unit} work safely, to the quality standard and the shift plan, so the factory ships on time. (SAMPLE draft)",
+        "responsibilities": [
+            f"Prepare and run the {unit} equipment at the start of the shift, following the work instruction.",
+            "Check the product against the quality standard and stop the line when a defect is found.",
+            "Follow safety rules, wear PPE and lock out machines before cleaning or repair.",
+            "Record output, downtime and problems on the shift sheet.",
+            "Keep the work area clean (5S) and hand over clearly to the next shift.",
+        ],
+        "education": "Primary school (Grade 6) or higher; reads simple Thai or Myanmar work instructions",
+        "experience": "None required; on-the-job training is given",
+        "skills": [{"code": c, "level": 3} for c in skills[:6]],
+        "notes": f"Draft for {title}. HR and the Department Head check every line before saving.",
+    }

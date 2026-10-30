@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ c.ref }}</h1><span class="tag {{ 'ok' if c.status == 'closed' else 'warn' }}">{{ _(c.status) }}</span></div>
+<p><a href="/people/{{ c.employee_id }}" class="mono">{{ c.employee_id }}</a> {{ c.employee.full_name_en }} · {{ c.employee.org_unit.name_en }} · {{ _('started') }} {{ fmt_date(c.start_date) }}
+  · <a href="/skills/person/{{ c.employee_id }}">{{ _('Skills & training') }}</a></p>
+<section class="panel">
+  <h2>{{ _('Onboarding checklist') }}</h2>
+  <table>
+    <tr><th></th><th>{{ _('Item') }}</th><th>{{ _('Who') }}</th><th>{{ _('Due') }}</th><th></th></tr>
+    {% for i in c.items %}
+    <tr class="{% if i.done %}muted{% endif %}">
+      <td>{% if i.done %}<span class="tag ok">✓</span>{% else %}<span class="tag warn">○</span>{% endif %}</td>
+      <td>{{ _(i.label) }}{% if i.note %}<div class="note">{{ i.note }}</div>{% endif %}{% if i.done %}<div class="note">{{ i.by }} · {{ i.at|replace('T', ' ') }}</div>{% endif %}</td>
+      <td class="note">{{ _(i.owner) }}</td>
+      <td class="{% if not i.done and i.due < today.isoformat() %}bad-t{% endif %}">{{ fmt_date(i.due) }}</td>
+      <td>{% if can_tick[i.code] and c.status == 'open' or (can_tick[i.code] and i.done) %}<form method="post" action="/newstaff/onboarding/{{ c.id }}/tick" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="code" value="{{ i.code }}">
+        {% if i.done %}<button class="small" name="done" value="0">{{ _('Undo') }}</button>{% else %}<input name="note" placeholder="{{ _('Note') }}" size="10"><button class="small primary" name="done" value="1">{{ _('Done') }}</button>{% endif %}</form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

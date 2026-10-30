@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<form method="get" class="filters panel">
+  <label>{{ _('Course') }}<select name="course" onchange="this.form.submit()"><option value=""></option>{% for x in courses %}<option value="{{ x.code }}" {% if c and x.code == c.code %}selected{% endif %}>{{ x.code }} {{ _(x.name_en) }}</option>{% endfor %}</select></label>
+</form>
+{% if c %}
+<form method="post" class="panel">
+  <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="course" value="{{ c.code }}">
+  <h2>{{ c.code }} · {{ _(c.name_en) }}</h2>
+  <p class="note">{{ c.hours }}h · {{ _(c.kind) }}{% if c.legal %} · {{ _('required by law') }}{% endif %}{% if c.valid_months %} · {{ _('valid {n} months', n=c.valid_months) }}{% endif %}{% if c.skill_code %} · {{ _('a pass raises the skill to') }} {{ '-ILUO'[c.skill_level or 0] }}{% endif %}</p>
+  <div class="form">
+    <label>{{ _('Date') }}<input type="date" name="on_date" value="{{ today }}" required></label>
+    <label>{{ _('Hours') }}<input name="hours" value="{{ c.hours }}" class="w-num"></label>
+    <label>{{ _('Trainer') }}<input name="trainer"></label>
+    <label class="wide">{{ _('Note') }}<input name="note"></label>
+  </div>
+  <h2>{{ _('Who attended') }}</h2>
+  <table><tr><th>{{ _('Attended') }}</th><th>{{ _('Did not pass') }}</th><th>{{ _('Employee') }}</th></tr>
+  {% for e in team if e.employee_id in suggested %}<tr><td><input type="checkbox" name="emp" value="{{ e.employee_id }}" checked></td><td><input type="checkbox" name="failed" value="{{ e.employee_id }}"></td><td class="mono">{{ e.employee_id }} {{ e.full_name_en }} · {{ e.org_unit.name_en }}</td></tr>{% endfor %}
+  </table>
+  <label class="wide">{{ _('Other people: type or paste employee IDs (from the sign-in sheet)') }}<textarea name="people" rows="2" placeholder="YTOP951 YTOP952"></textarea></label>
+  <div class="bar"><button class="primary">{{ _('Save class') }}</button><a class="btn" href="/skills/training">{{ _('Cancel') }}</a></div>
+</form>
+{% endif %}
+{% endblock %}

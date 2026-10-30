@@ -110,6 +110,10 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
             if num == 957:  # juvenile worker: real step 2 finding (14 active operators under 18)
                 birth = date(today.year - 17, 3, 9)
                 join = today - timedelta(days=120)
+            if num == 983:  # probation ends in about two weeks: review to fill in
+                join = today - timedelta(days=104)
+            if num == 984:  # started this month: onboarding still open
+                join = today - timedelta(days=12)
             emp = Employee(
                 employee_id=eid, employee_group="Operator", pay_type="Daily" if rnd.random() < 0.3 else "Monthly",
                 title="Mr." if k % 2 == 0 else "Ms.", gender="M" if k % 2 == 0 else "F",
@@ -148,6 +152,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     users = {u.username: u for u in db.scalars(select(User))}
     _demo_time(db, rnd, today, users)
     _demo_leave_exit(db, rnd, today, users)
+    _demo_skills(db, rnd, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -321,4 +326,62 @@ def _demo_leave_exit(db: Session, rnd: random.Random, today: date, users: dict) 
         if eid == "YTOP986":
             exits.confirm_reason(db, case, users["hr.manager"], case.ai_reason_code or "RES-FAMILY")
             exits.close(db, case, users["hr.manager"])
+    db.flush()
+
+
+def _demo_skills(db: Session, rnd: random.Random, today: date, users: dict) -> None:
+    """Skill levels by length of service, a few classes, one new starter, one probation review."""
+    from ..models import Course, EmployeeSkill, Skill
+    from ..services import newstaff, skills
+
+    hr = users["hr.officer"]
+    active = list(db.scalars(select(Employee).where(Employee.status == "Active", Employee.is_sample.is_(True))))
+    # classes first (they raise levels), then the levels supervisors recorded
+    loto = db.get(Course, "CR-SAF-02")
+    ids = [e.employee_id for e in active if e.org_unit_code in ("PRD-DRY", "PRD-PCL") and rnd.random() < 0.7]
+    skills.record_session(db, hr, loto, today - timedelta(days=330), ids, {}, "May Sample (SAMPLE)")
+    fire = db.get(Course, "CR-SAF-03")
+    sv = [e.employee_id for e in active if e.job_code in ("PRD-SV", "SAF-OFF", "MTN-TECH")]
+    skills.record_session(db, hr, fire, today - timedelta(days=200), sv, {}, "Provincial fire office (SAMPLE)")
+    ind = db.get(Course, "CR-IND-01")
+    saf = db.get(Course, "CR-SAF-01")
+    recent = [e.employee_id for e in active if 20 < (today - e.join_date).days < 365]
+    skills.record_session(db, hr, ind, today - timedelta(days=21), recent, {}, "HR (SAMPLE)")
+    skills.record_session(db, hr, saf, today - timedelta(days=21), recent, {}, "May Sample (SAMPLE)")
+    flt = db.get(Course, "CR-FLT-01")
+    wh = [e.employee_id for e in active if e.org_unit_code == "PRD-WH"][:3]
+    skills.record_session(db, hr, flt, today - timedelta(days=700), wh[:1], {}, "Forklift school (SAMPLE)")  # lapses soon
+    skills.record_session(db, hr, flt, today - timedelta(days=760), wh[1:2], {}, "Forklift school (SAMPLE)")  # lapsed
+    skills.record_session(db, hr, flt, today - timedelta(days=90), wh[2:3], {}, "Forklift school (SAMPLE)")
+    db.flush()
+    for e in active:
+        years = (today - e.join_date).days / 365
+        for code, need in skills.required(db, e.job_code).items():
+            es = db.scalar(select(EmployeeSkill).where(EmployeeSkill.employee_id == e.employee_id, EmployeeSkill.skill_code == code))
+            if es is not None and es.skill.valid_months:
+                continue  # licence levels come from the classes above
+            if (today - e.join_date).days < 30:
+                lvl = 0
+            elif years < 0.5:
+                lvl = rnd.choice([1, 1, 2])
+            elif years < 2:
+                lvl = rnd.choice([2, 3, 3, 3])
+            else:
+                lvl = rnd.choice([3, 3, 3, 4, 4, 2])
+            if lvl == 0:
+                continue
+            if es is None:
+                es = EmployeeSkill(employee_id=e.employee_id, skill_code=code, history=[])
+                db.add(es)
+            es.level = max(es.level or 0, lvl)
+            es.assessed_on = today - timedelta(days=rnd.randint(10, 200))
+            es.assessed_by = "Supervisor (SAMPLE)"
+    db.flush()
+    new = db.get(Employee, "YTOP984")
+    if new is not None:
+        case = newstaff.open_onboarding(db, new, hr)
+        for i in case.items:
+            if i["code"] in ("CONTRACT", "DOCS", "SCAN", "BPLUS", "PPE", "PERMIT"):
+                newstaff.tick(db, case, hr, i["code"], True)
+    newstaff.sync_reviews(db, today)
     db.flush()

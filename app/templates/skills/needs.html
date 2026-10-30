@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<form method="get" class="filters panel">
+  <label>{{ _('Unit') }}<select name="unit"><option value="">{{ _('All') }}</option>{% for u in units %}<option value="{{ u.code }}" {% if u.code == unit %}selected{% endif %}>{{ _(u.name_en) }}</option>{% endfor %}</select></label>
+  <label>{{ _('Status') }}<select name="status">{% for s in ['open','planned','done','dropped',''] %}<option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ _(s or 'All') }}</option>{% endfor %}</select></label>
+  <button class="primary">{{ _('Filter') }}</button>
+  {% if is_hr %}</form><form method="post" action="/skills/needs/refresh" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small">{{ _('Find new needs now') }}</button>{% endif %}
+</form>
+{% if by_course %}
+<section class="panel"><h2>{{ _('Classes to plan') }}</h2>
+  <div class="kpis">{% for code, n in by_course|dictsort(by='value', reverse=True) %}<a class="kpi" href="/skills/training/new?course={{ code }}"><span class="k">{{ code }}</span><span class="v">{{ n }}</span><span class="d">{{ _(courses[code].name_en) }}</span></a>{% endfor %}</div>
+  <p class="note">{{ _('Click a course to record a class: the people who need it are already ticked.') }}</p>
+</section>
+{% endif %}
+<div class="panel scroll">
+<table>
+  <tr><th>{{ _('Priority') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Why') }}</th><th>{{ _('Skill') }}</th><th>{{ _('Now') }} → {{ _('target') }}</th><th>{{ _('Course') }}</th><th>{{ _('Due') }}</th><th>{{ _('Status') }}</th><th></th></tr>
+  {% for n in rows %}
+  <tr>
+    <td>{% if n.priority == 1 %}<span class="tag bad">{{ _('high') }}</span>{% else %}<span class="tag">{{ _('normal') }}</span>{% endif %}</td>
+    <td><a href="/skills/person/{{ n.employee_id }}" class="mono">{{ n.employee_id }}</a> {{ n.employee.full_name_en }}</td>
+    <td>{{ _(reasons[n.reason]) }}</td>
+    <td>{{ _(n.skill.name_en) if n.skill else '' }}</td>
+    <td class="mono">{% if n.target_level %}{{ '-ILUO'[n.current_level or 0] }} → {{ '-ILUO'[n.target_level] }}{% endif %}</td>
+    <td>{{ n.course_code or '' }}</td>
+    <td class="{% if n.due_date and n.due_date < today and n.status in ('open','planned') %}bad-t{% endif %}">{{ fmt_date(n.due_date) }}</td>
+    <td>{{ _(n.status) }}</td>
+    <td>{% if n.status in ('open','planned') %}<form method="post" action="/skills/needs/{{ n.id }}" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}">
+      {% if n.status == 'open' %}<button class="small" name="status" value="planned">{{ _('Planned') }}</button>{% endif %}
+      <input name="note" placeholder="{{ _('Note') }}" size="8"><button class="small danger" name="status" value="dropped">{{ _('Drop') }}</button></form>{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="9" class="note">{{ _('No training needs') }}</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

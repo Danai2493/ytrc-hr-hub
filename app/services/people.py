@@ -311,6 +311,9 @@ def _apply_change(db: Session, appr: ApprovalRequest, outcome: str, user: User) 
             )
         )
         audit(db, user, "create", "employee", emp.employee_id, "New employee approved")
+        from .newstaff import open_onboarding
+
+        open_onboarding(db, emp, user)
     elif p.get("action") == "update":
         emp = db.get(Employee, appr.entity_id)
         changes = p["changes"]

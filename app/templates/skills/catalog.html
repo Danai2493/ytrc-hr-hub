@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<section class="panel scroll">
+  <h2>{{ _('Skills') }}</h2>
+  <p class="note">{{ _('A starter list for a block rubber factory. Department Heads should check names, critical skills and the minimum people at U/O for their area.') }}</p>
+  <table>
+    <tr><th>{{ _('Code') }}</th><th>{{ _('Skill') }}</th><th>{{ _('Category') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Critical') }}</th><th class="n">{{ _('U/O now') }}</th><th class="n">{{ _('U/O needed') }}</th><th>{{ _('Course') }}</th><th>{{ _('Renew every') }}</th>{% if is_hr %}<th></th>{% endif %}</tr>
+    {% for s in skills %}{% set cv = cov.get(s.code, {}) %}
+    <tr>
+      <td class="mono">{{ s.code }}</td>
+      <td>{% if is_hr %}<input form="sf-{{ s.code }}" name="name_en" value="{{ s.name_en }}"><input form="sf-{{ s.code }}" name="name_th" value="{{ s.name_th or '' }}" placeholder="ไทย">{% else %}{{ _(s.name_en) }}{% endif %}</td>
+      <td>{% if is_hr %}<select form="sf-{{ s.code }}" name="category">{% for c in cats %}<option {% if c == s.category %}selected{% endif %}>{{ c }}</option>{% endfor %}</select>{% else %}{{ _(s.category) }}{% endif %}</td>
+      <td>{% if is_hr %}<select form="sf-{{ s.code }}" name="org_unit_code"><option value="">{{ _('Everyone') }}</option>{% for u in units %}<option value="{{ u.code }}" {% if u.code == s.org_unit_code %}selected{% endif %}>{{ u.code }}</option>{% endfor %}</select>{% else %}{{ s.org_unit_code or _('Everyone') }}{% endif %}</td>
+      <td>{% if is_hr %}<input form="sf-{{ s.code }}" type="checkbox" name="critical" {% if s.critical %}checked{% endif %}>{% elif s.critical %}★{% endif %}</td>
+      <td class="n {% if cv.get('short') %}bad-t{% endif %}">{{ cv.get('uo', 0) }}</td>
+      <td class="n">{% if is_hr %}<input form="sf-{{ s.code }}" name="min_uo" value="{{ s.min_uo }}" class="w-num">{% else %}{{ s.min_uo }}{% endif %}</td>
+      <td>{% if is_hr %}<select form="sf-{{ s.code }}" name="course_code"><option value=""></option>{% for c in courses %}<option value="{{ c.code }}" {% if c.code == s.course_code %}selected{% endif %}>{{ c.code }}</option>{% endfor %}</select>{% else %}{{ s.course_code or '' }}{% endif %}</td>
+      <td>{% if is_hr %}<input form="sf-{{ s.code }}" name="valid_months" value="{{ s.valid_months or '' }}" class="w-num"> {{ _('months') }}{% elif s.valid_months %}{{ s.valid_months }} {{ _('months') }}{% endif %}</td>
+      {% if is_hr %}<td><button class="small" form="sf-{{ s.code }}">{{ _('Save') }}</button></td>{% endif %}
+    </tr>
+    {% endfor %}
+    {% if is_hr %}<tr>
+      <td><input form="sf-new" name="code" placeholder="SK-NEW-01" class="mono" size="9"></td><td><input form="sf-new" name="name_en" placeholder="{{ _('New skill') }}"><input form="sf-new" name="name_th" placeholder="ไทย"></td>
+      <td><select form="sf-new" name="category">{% for c in cats %}<option>{{ c }}</option>{% endfor %}</select></td>
+      <td><select form="sf-new" name="org_unit_code"><option value="">{{ _('Everyone') }}</option>{% for u in units %}<option value="{{ u.code }}">{{ u.code }}</option>{% endfor %}</select></td>
+      <td><input form="sf-new" type="checkbox" name="critical"></td><td></td><td class="n"><input form="sf-new" name="min_uo" value="0" class="w-num"></td><td></td><td><input form="sf-new" name="valid_months" class="w-num"></td><td><button class="small primary" form="sf-new">{{ _('Add') }}</button></td></tr>{% endif %}
+  </table>
+  {% if is_hr %}{% for s in skills %}<form id="sf-{{ s.code }}" method="post" action="/skills/catalog/skill"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="code" value="{{ s.code }}"></form>{% endfor %}
+  <form id="sf-new" method="post" action="/skills/catalog/skill"><input type="hidden" name="_csrf" value="{{ csrf }}"></form>{% endif %}
+</section>
+<section class="panel scroll">
+  <h2>{{ _('Courses') }}</h2>
+  <table><tr><th>{{ _('Code') }}</th><th>{{ _('Course') }}</th><th>{{ _('Kind') }}</th><th class="n">{{ _('Hours') }}</th><th>{{ _('Required by law') }}</th><th>{{ _('Renew every') }}</th><th>{{ _('Skill') }}</th><th>{{ _('For new staff') }}</th></tr>
+  {% for c in courses %}<tr><td class="mono">{{ c.code }}</td><td>{{ _(c.name_en) }}</td><td>{{ _(c.kind) }}</td><td class="n">{{ c.hours }}</td><td>{% if c.legal %}<span class="tag warn">{{ _('yes') }}</span>{% endif %}</td><td>{% if c.valid_months %}{{ c.valid_months }} {{ _('months') }}{% endif %}</td><td>{{ c.skill_code or '' }}{% if c.skill_level %} → {{ '-ILUO'[c.skill_level] }}{% endif %}</td><td>{% if c.for_new_staff %}✓{% endif %}</td></tr>{% endfor %}
+  </table>
+</section>
+{% endblock %}

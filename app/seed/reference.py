@@ -120,3 +120,6 @@ def seed_reference(db: Session) -> None:
     from ..services import leave
 
     leave.seed_types(db)
+    from .skills import seed_skills
+
+    seed_skills(db)

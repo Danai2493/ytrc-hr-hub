@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+{% set d = draft or {} %}
+<div class="phead"><h2>{{ job.code }} · {{ _(job.title_en) }}{% if job.title_th %} · {{ job.title_th }}{% endif %}</h2>
+  {% if is_hr %}<div class="end"><form method="post" action="/skills/jobs/{{ job.code }}/draft" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small">{{ _('AI draft') }}</button></form></div>{% endif %}
+</div>
+<p class="note">{{ _('Works in') }}: {{ units|join(', ') or '-' }} · {{ _('grade') }} {{ job.default_grade_code or '-' }}</p>
+{% if d.notes %}<div class="flash warn">{{ _('AI notes') }}: {{ d.notes }}</div>{% endif %}
+<form method="post" action="/skills/jobs/{{ job.code }}" class="grid">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <section class="panel c7">
+    <h2>{{ _('Job description') }}</h2>
+    <div class="form">
+      <label class="wide">{{ _('Purpose of the job') }}<textarea name="purpose" rows="3" {% if not is_hr %}readonly{% endif %}>{{ d.purpose or job.purpose or '' }}</textarea></label>
+      <label class="wide">{{ _('Main responsibilities (one per line)') }}<textarea name="responsibilities" rows="9" {% if not is_hr %}readonly{% endif %}>{% if d.responsibilities %}{{ d.responsibilities|join('\n') }}{% else %}{{ job.responsibilities or '' }}{% endif %}</textarea></label>
+      <label class="wide">{{ _('Education') }}<input name="education" value="{{ d.education or job.education or '' }}" {% if not is_hr %}readonly{% endif %}></label>
+      <label class="wide">{{ _('Experience') }}<input name="experience" value="{{ d.experience or job.experience or '' }}" {% if not is_hr %}readonly{% endif %}></label>
+    </div>
+  </section>
+  <section class="panel c5">
+    <h2>{{ _('Skills the job needs') }}</h2>
+    <table>{% for s in skills %}{% set v = req.get(s.code, 0) %}
+      <tr class="{% if not v %}muted{% endif %}"><td>{% if s.critical %}★ {% endif %}{{ _(s.name_en) }}<div class="note">{{ _(s.category) }}</div></td>
+        <td><select name="lvl_{{ s.code }}" {% if not is_hr %}disabled{% endif %}>{% for k, lv in levels.items() %}<option value="{{ k }}" {% if k == v %}selected{% endif %}>{{ lv[0] }}</option>{% endfor %}</select></td></tr>
+    {% endfor %}</table>
+  </section>
+  {% if is_hr %}<div class="bar c12"><button class="primary">{{ _('Save') }}</button>{% if draft %}<a class="btn" href="/skills/jobs/{{ job.code }}">{{ _('Discard draft') }}</a>{% endif %}</div>{% endif %}
+</form>
+{% endblock %}

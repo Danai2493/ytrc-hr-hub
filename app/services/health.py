@@ -44,6 +44,10 @@ RULES = {
     "SSO_DUE": ("block", "hr", "Social security not told of an exit by the deadline"),
     "LEAVE_SICK_DOC": ("flag", "dept_head", "Sick leave of 3+ days with no medical certificate"),
     "EXIT_NO_CASE": ("flag", "hr", "Exit with no clearance case"),
+    "SKILL_COVERAGE": ("flag", "dept_head", "Critical skill has too few people at U/O"),
+    "LICENCE_LAPSED": ("block", "dept_head", "Licence or safety refresher lapsed"),
+    "ONBOARD_LATE": ("flag", "hr", "Onboarding item overdue"),
+    "PROBATION_LATE": ("block", "dept_head", "Probation review not decided before the end date"),
 }
 
 
@@ -158,10 +162,43 @@ def _hrdev(db: Session, today: date) -> Iterator[Hit]:
                       r.employee_id, r.employee.org_unit_code, r.end_date + timedelta(days=7))
 
 
+def _develop(db: Session, today: date) -> Iterator[Hit]:
+    from ..models import EmployeeSkill, OnboardingCase, ProbationReview, Skill
+    from .skills import matrix, required
+
+    active = list(db.scalars(select(Employee).where(Employee.status == "Active")))
+    m = matrix(db, active, today)
+    for s in db.scalars(select(Skill).where(Skill.critical.is_(True), Skill.active.is_(True))):
+        cv = m.coverage.get(s.code)
+        if cv and s.min_uo and cv["uo"] < s.min_uo:
+            yield Hit("SKILL_COVERAGE", "skill", s.code, f"{s.name_en}: {cv['uo']} people at U/O, needs {s.min_uo}", org_unit=s.org_unit_code,
+                      due=today + timedelta(days=60))
+    by_id = {e.employee_id: e for e in active}
+    for es in db.scalars(select(EmployeeSkill).where(EmployeeSkill.valid_until < today, EmployeeSkill.level >= 3)):
+        e = by_id.get(es.employee_id)
+        if e and es.skill_code in required(db, e.job_code):
+            yield Hit("LICENCE_LAPSED", "employee_skill", f"{e.employee_id}:{es.skill_code}", f"{es.skill.name_en} lapsed on {es.valid_until}: renew before working alone",
+                      e.employee_id, e.org_unit_code, today + timedelta(days=7))
+    for c in db.scalars(select(OnboardingCase).where(OnboardingCase.status == "open")):
+        late = [i for i in c.open_items if i.get("due") and i["due"] < today.isoformat()]
+        if late:
+            yield Hit("ONBOARD_LATE", "onboarding_case", c.ref, f"{c.ref}: overdue " + ", ".join(i["code"] for i in late), c.employee_id,
+                      c.employee.org_unit_code, today + timedelta(days=3))
+    for r in db.scalars(select(ProbationReview).where(ProbationReview.status.in_(("open", "submitted")))):
+        if today > r.probation_end:
+            yield Hit("PROBATION_LATE", "probation_review", r.ref, f"{r.ref}: probation ended {r.probation_end}, no decision", r.employee_id,
+                      r.employee.org_unit_code, today)
+
+
 def run(db: Session, today: Optional[date] = None) -> dict:
     today = today or date.today()
+    from .newstaff import sync_reviews
+    from .skills import generate_needs
+
+    sync_reviews(db, today)
+    generate_needs(db, today)
     hits: dict[tuple[str, str, str], Hit] = {}
-    for gen in (_employees, _org, _time, _hrdev):
+    for gen in (_employees, _org, _time, _hrdev, _develop):
         for h in gen(db, today):
             hits[(h.rule, h.entity, h.entity_id)] = h
     open_issues = {

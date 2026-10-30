@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<form method="get" class="filters panel">
+  <label>{{ _('Course') }}<select name="course"><option value="">{{ _('All') }}</option>{% for c in courses %}<option value="{{ c.code }}" {% if c.code == course %}selected{% endif %}>{{ c.code }} {{ _(c.name_en) }}</option>{% endfor %}</select></label>
+  <label>{{ _('From') }}<input type="date" name="d0" value="{{ d0 }}"></label>
+  <label>{{ _('To') }}<input type="date" name="d1" value="{{ d1 }}"></label>
+  <button class="primary">{{ _('Filter') }}</button>
+  {% if is_hr %}<a class="btn" href="/skills/training/new">{{ _('Record a class') }}</a>{% endif %}
+</form>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Classes') }}</span><span class="v">{{ sessions|length }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Training hours') }}</span><span class="v">{{ rows|sum(attribute='hours')|round(1) }}</span></div>
+  <div class="kpi"><span class="k">{{ _('People trained') }}</span><span class="v">{{ rows|map(attribute='employee_id')|unique|list|length }}</span></div>
+</div>
+<div class="panel scroll">
+<table>
+  <tr><th>{{ _('Ref') }}</th><th>{{ _('Date') }}</th><th>{{ _('Course') }}</th><th>{{ _('Trainer') }}</th><th class="n">{{ _('People') }}</th><th class="n">{{ _('Passed') }}</th><th class="n">{{ _('Hours') }}</th></tr>
+  {% for s in sessions %}<tr><td class="mono">{{ s.ref or '' }}</td><td>{{ fmt_date(s.on) }}</td><td>{{ s.course.code }} {{ _(s.course.name_en) }}{% if s.course.legal %} <span class="tag warn">{{ _('legal') }}</span>{% endif %}</td><td>{{ s.trainer or '' }}</td><td class="n">{{ s.people }}</td><td class="n">{{ s.passed }}</td><td class="n">{{ s.hours|round(1) }}</td></tr>
+  {% else %}<tr><td colspan="7" class="note">{{ _('No classes in this range') }}</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

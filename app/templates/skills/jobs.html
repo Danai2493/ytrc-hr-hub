@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<div class="panel scroll">
+<table>
+  <tr><th>{{ _('Job code') }}</th><th>{{ _('Job') }}</th><th>{{ _('Family') }}</th><th>{{ _('Grade') }}</th><th class="n">{{ _('People') }}</th><th>{{ _('JD') }}</th><th class="n">{{ _('Skills') }}</th></tr>
+  {% for j in rows %}
+  <tr><td class="mono"><a href="/skills/jobs/{{ j.code }}">{{ j.code }}</a></td><td>{{ _(j.title_en) }}{% if j.title_th %} <span class="note">{{ j.title_th }}</span>{% endif %}</td><td>{{ _(j.job_family or '') }}</td><td>{{ j.default_grade_code or '' }}</td>
+    <td class="n">{{ heads.get(j.code, 0) }}</td><td>{% if j.purpose and j.responsibilities %}<span class="tag ok">{{ _('done') }}</span>{% else %}<span class="tag warn">{{ _('missing') }}</span>{% endif %}</td><td class="n">{{ n_skills.get(j.code, 0) }}</td></tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

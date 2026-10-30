@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "skills/_iluo.html" import dot with context %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<h2><a href="/people/{{ emp.employee_id }}" class="mono">{{ emp.employee_id }}</a> {{ emp.full_name_en }} · {{ emp.job.title_en if emp.job else '' }}</h2>
+<div class="grid">
+  <section class="panel c7">
+    <h2>{{ _('Skills') }}</h2>
+    <table><tr><th>{{ _('Skill') }}</th><th>{{ _('Level') }}</th><th>{{ _('Job needs') }}</th><th>{{ _('Checked') }}</th><th>{{ _('Valid until') }}</th></tr>
+    {% for s in m.skills %}{% set c = m.cells[(emp.employee_id, s.code)] %}{% set h = held.get(s.code) %}
+    <tr><td>{{ _(s.name_en) }}</td><td>{{ dot(c, levels) }} {{ levels[c.level][0] }}</td><td>{{ levels[c.need][0] if c.need else '' }}</td>
+      <td class="note">{% if h %}{{ fmt_date(h.assessed_on) }} · {{ h.assessed_by }}{% if h.note %}<br>{{ h.note }}{% endif %}{% endif %}</td>
+      <td class="{% if c.lapsed %}bad-t{% elif c.due %}warn-t{% endif %}">{{ fmt_date(h.valid_until) if h and h.valid_until else '' }}</td></tr>
+    {% endfor %}</table>
+  </section>
+  <section class="panel c5">
+    <h2>{{ _('Training needs') }}</h2>
+    <ul class="find">{% for n in needs %}<li class="{{ 'flag' if n.status in ('open','planned') else 'ok' }}">{{ _(reasons[n.reason]) }}: {{ _(n.skill.name_en) if n.skill else '' }}{% if n.course %} · {{ n.course.code }}{% endif %} · {{ _(n.status) }}{% if n.due_date %} · {{ fmt_date(n.due_date) }}{% endif %}</li>{% else %}<li class="ok">{{ _('None') }}</li>{% endfor %}</ul>
+    <h2>{{ _('Training records') }}</h2>
+    <table>{% for r in records %}<tr><td>{{ fmt_date(r.on_date) }}</td><td>{{ _(r.course.name_en) }}</td><td>{{ r.hours }}h</td><td>{{ _(r.result) }}</td></tr>{% else %}<tr><td class="note">{{ _('None') }}</td></tr>{% endfor %}</table>
+  </section>
+</div>
+{% endblock %}

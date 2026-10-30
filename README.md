@@ -5,9 +5,10 @@ positions, OT requests and approvals, face scan check, pay input to Bplus 7.4,
 AI reading of paper forms, data health checks and dashboards. Screens in Thai,
 English and Myanmar.
 
-Phase 1 (HR Foundation) and the first part of Phase 2 (leave and exit) of the
-5-level HR blueprint are built. Later parts (skills, training, appraisal,
-succession, predictive flags) plug into the same data model and approval engine.
+Phase 1 (HR Foundation) and Phase 2 (leave, exit, skills, training,
+onboarding, probation) of the 5-level HR blueprint are built. Later phases
+(appraisal, succession, workforce planning, predictive flags) plug into the
+same data model and approval engine.
 
 ## What it does today
 
@@ -21,7 +22,9 @@ succession, predictive flags) plug into the same data model and approval engine.
 | Paper forms (AI) | Photograph a paper OT form, leave form or work permit. AI reads it, every line goes through the same checks as the web form, HR fixes the unclear cells and accepts. |
 | Leave | Employees, supervisors or HR request leave with live checks (company calendar, days left under the Labour Protection Act, overlap, medical certificate, OT or scans on leave days). Department Head approves; approved leave replaces "absent" in attendance. HR can photograph a paper leave form and AI fills it in. |
 | Exit | An approved exit opens a clearance checklist (handover, assets, ID card, IT accounts, final pay to Bplus, social security notice by the 15th, work permit notice). Exit interview; AI suggests the reason code, HR confirms. |
-| Data health | 21 rules (ID format, missing fields, juvenile workers, permits expiring, OT without request, unknown scan IDs, open exit clearance, social security deadline, sick leave without certificate...). Issues have owners and close themselves when fixed. |
+| Skills & training | ILUO skills matrix per unit: what each job needs, each person's level, and how many people are at U/O for every critical skill. Gaps, lapsed licences and induction become training needs; recording a class closes them and raises the level. Job descriptions per job with an AI first draft that HR edits. |
+| New employees | An approved hire opens an onboarding checklist (contract, social security within 30 days, Bplus, face scan, PPE, induction, buddy). A probation review opens before day 119 with attendance and skills filled in; a fail needs reasons and the HR Manager, and opens the exit case. |
+| Data health | 25 rules (ID format, missing fields, juvenile workers, permits expiring, OT without request, unknown scan IDs, open exit clearance, social security deadline, sick leave without certificate, skills short of U/O people, lapsed licences, late onboarding, undecided probation...). Issues have owners and close themselves when fixed. |
 | Dashboards | People and turnover, OT, attendance, monthly HR KPI pack (print to PDF). No Power BI needed. |
 | Admin | Users and roles, settings for the rules, shifts, holidays (upload the yearly company calendar workbook: Office rests Sunday, Factory rests Friday), OT budget, audit log. |
 

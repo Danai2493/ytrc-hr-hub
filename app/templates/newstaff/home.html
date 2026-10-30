@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('New employees') }}</h1></div>
+<p class="note">{{ _('Onboarding opens by itself when a new employee is approved. A probation review opens about five weeks before the 119th day.') }}</p>
+<div class="grid">
+  <section class="panel c6 scroll">
+    <h2>{{ _('Probation reviews') }}</h2>
+    <table><tr><th>{{ _('Ref') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Probation ends') }}</th><th>{{ _('Days left') }}</th><th>{{ _('Status') }}</th></tr>
+    {% for r in rvs %}{% set left = (r.probation_end - today).days %}
+    <tr><td class="mono"><a href="/newstaff/probation/{{ r.id }}">{{ r.ref }}</a></td><td><span class="mono">{{ r.employee_id }}</span> {{ r.employee.full_name_en }}<div class="note">{{ r.employee.org_unit.name_en }}</div></td>
+      <td>{{ fmt_date(r.probation_end) }}</td><td class="{% if left < 7 %}bad-t{% elif left < 14 %}warn-t{% endif %}">{{ left }}</td>
+      <td><span class="tag {{ 'warn' if r.status == 'open' else '' }}">{{ _('to fill in' if r.status == 'open' else 'waiting for approval') }}</span></td></tr>
+    {% else %}<tr><td colspan="5" class="note">{{ _('No reviews due') }}</td></tr>{% endfor %}</table>
+    {% if done %}<h2>{{ _('Decided') }}</h2>
+    <table>{% for r in done %}<tr><td class="mono"><a href="/newstaff/probation/{{ r.id }}">{{ r.ref }}</a></td><td><span class="mono">{{ r.employee_id }}</span> {{ r.employee.full_name_en }}</td><td>{{ fmt_date(r.probation_end) }}</td><td><span class="tag {{ 'ok' if r.status == 'passed' else 'bad' }}">{{ _(r.status) }}</span></td></tr>{% endfor %}</table>{% endif %}
+  </section>
+  <section class="panel c6 scroll">
+    <h2>{{ _('Onboarding') }}</h2>
+    <table><tr><th>{{ _('Ref') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Started') }}</th><th>{{ _('Checklist') }}</th></tr>
+    {% for c in onb %}{% set late = c.open_items|selectattr('due', 'lt', today.isoformat())|list %}
+    <tr><td class="mono"><a href="/newstaff/onboarding/{{ c.id }}">{{ c.ref }}</a></td><td><span class="mono">{{ c.employee_id }}</span> {{ c.employee.full_name_en }}<div class="note">{{ c.employee.org_unit.name_en }}</div></td>
+      <td>{{ fmt_date(c.start_date) }}</td><td>{{ c.items|length - c.open_items|length }}/{{ c.items|length }}{% if late %} <span class="tag bad">{{ late|length }} {{ _('late') }}</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="4" class="note">{{ _('No open onboarding') }}</td></tr>{% endfor %}</table>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "skills/_iluo.html" import dot with context %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<form method="get" class="filters panel">
+  <label>{{ _('Unit') }}<select name="unit" onchange="this.form.submit()">{% for u in units %}<option value="{{ u.code }}" {% if u.code == unit %}selected{% endif %}>{{ _(u.name_en) }}</option>{% endfor %}</select></label>
+  <p class="note">{% for k, v in levels.items() if k %}<span class="iluo" style="--q:{{ k }}"></span> <strong>{{ v[0] }}</strong> {{ _(v[1]) }}<br>{% endfor %}
+    <span class="iluo gap" style="--q:1"></span> {{ _('below what the job needs') }} · <span class="iluo lapsed" style="--q:3"></span> {{ _('licence or refresher lapsed') }}</p>
+</form>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('People') }}</span><span class="v">{{ m.people|length }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Skill gaps') }}</span><span class="v {% if m.gaps %}warn-t{% endif %}">{{ m.gaps }}</span><span class="d">{{ _('person-skills below the job level') }}</span></div>
+  {% set short = m.coverage.values()|selectattr('short')|list %}
+  <div class="kpi"><span class="k">{{ _('Skills short of U/O people') }}</span><span class="v {% if short %}bad-t{% endif %}">{{ short|length }}</span><span class="d">{{ _('risk when someone is absent or leaves') }}</span></div>
+</div>
+<div class="panel scroll">
+<table class="matrix">
+  <tr><th>{{ _('Employee') }}</th><th>{{ _('Job') }}</th>{% for s in m.skills %}<th class="sk" title="{{ s.code }}">{% if s.critical %}★ {% endif %}{{ _(s.name_en) }}</th>{% endfor %}</tr>
+  {% for e in m.people %}
+  <tr>
+    <td><a href="/skills/person/{{ e.employee_id }}" class="mono">{{ e.employee_id }}</a> {{ e.full_name_en }}</td>
+    <td class="note">{{ e.job.title_en if e.job else '' }}</td>
+    {% for s in m.skills %}{% set c = m.cells[(e.employee_id, s.code)] %}
+    <td class="c">{% if can %}<details class="cellform"><summary>{{ dot(c, levels) }}</summary>
+      <form method="post" action="/skills/set"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="employee_id" value="{{ e.employee_id }}"><input type="hidden" name="skill_code" value="{{ s.code }}"><input type="hidden" name="back" value="/skills?unit={{ unit }}">
+        <strong>{{ e.employee_id }} · {{ _(s.name_en) }}</strong>
+        <select name="level">{% for k, v in levels.items() %}<option value="{{ k }}" {% if k == c.level %}selected{% endif %}>{{ v[0] }} {{ _(v[1]) }}</option>{% endfor %}</select>
+        <input name="note" placeholder="{{ _('How was it checked? (e.g. watched 1 shift)') }}"><button class="small primary">{{ _('Save') }}</button></form></details>
+      {% else %}{{ dot(c, levels) }}{% endif %}{% if c.need %}<div class="cell-need">{{ levels[c.need][0] }}</div>{% endif %}</td>
+    {% endfor %}
+  </tr>
+  {% else %}<tr><td colspan="3" class="note">{{ _('No people in this unit') }}</td></tr>{% endfor %}
+  <tr><th colspan="2">{{ _('People at U or O / needed') }}</th>{% for s in m.skills %}{% set cv = m.coverage[s.code] %}<td class="c {% if cv.short %}short{% endif %}">{{ cv.uo }}{% if cv.min %}/{{ cv.min }}{% endif %}</td>{% endfor %}</tr>
+</table>
+</div>
+<p class="note">{{ _('Small letters under a circle show the level the job needs. Click a circle to record a new level; every change is logged with who checked it.') }}</p>
+{% endblock %}

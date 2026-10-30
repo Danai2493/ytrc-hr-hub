@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% set e = rv.employee %}{% set sc = rv.scores or {} %}
+<div class="phead"><h1>{{ rv.ref }}</h1><span class="tag {{ 'ok' if rv.status == 'passed' else ('bad' if rv.status == 'failed' else 'warn') }}">{{ _(rv.status) }}</span></div>
+<div class="grid">
+  <section class="panel c5">
+    <dl class="kv">
+      <dt>{{ _('Employee') }}</dt><dd><a href="/people/{{ e.employee_id }}" class="mono">{{ e.employee_id }}</a> {{ e.full_name_en }}</dd>
+      <dt>{{ _('Unit') }}</dt><dd>{{ e.org_unit.name_en }} · {{ e.job.title_en if e.job else '' }}</dd>
+      <dt>{{ _('Joined') }}</dt><dd>{{ fmt_date(e.join_date) }}</dd>
+      <dt>{{ _('Probation ends') }}</dt><dd>{{ fmt_date(rv.probation_end) }}</dd>
+      <dt>{{ _('Decide a fail by') }}</dt><dd class="{% if (decide_by - today).days < 7 %}bad-t{% endif %}">{{ fmt_date(decide_by) }}</dd>
+    </dl>
+    <p class="note">{{ _('After 119 days of work, ending employment means severance pay under the Labour Protection Act (s.118). A fail must be approved and the employee told before this date.') }}</p>
+    <h2>{{ _('Facts from the system') }}</h2>
+    <dl class="kv">
+      <dt>{{ _('Workdays') }}</dt><dd>{{ facts.workdays }}</dd>
+      <dt>{{ _('Absent, no leave') }}</dt><dd class="{% if facts.no_show > 2 %}bad-t{% endif %}">{{ facts.no_show }}</dd>
+      <dt>{{ _('Sick leave days') }}</dt><dd>{{ facts.sick }}</dd>
+      <dt>{{ _('Late days') }}</dt><dd class="{% if facts.late > 5 %}warn-t{% endif %}">{{ facts.late }}</dd>
+      <dt>{{ _('Skills at job level') }}</dt><dd>{{ facts.skills_met }}/{{ facts.skills_needed }} · <a href="/skills/person/{{ e.employee_id }}">{{ _('see skills') }}</a></dd>
+    </dl>
+  </section>
+  <section class="panel c7">
+    <h2>{{ _('Probation review') }}</h2>
+    <form method="post" class="form">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <p class="note wide">{{ _('1 = far below what the job needs, 3 = meets it, 5 = well above.') }}</p>
+      {% for k, label in criteria %}
+      <label>{{ _(label) }}<select name="s_{{ k }}" {% if not can_fill %}disabled{% endif %} required><option value=""></option>{% for v in range(1, 6) %}<option {% if sc.get(k) == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      {% endfor %}
+      <label class="wide">{{ _('Recommendation') }}<select name="recommendation" {% if not can_fill %}disabled{% endif %} required><option value=""></option>
+        <option value="pass" {% if rv.recommendation == 'pass' %}selected{% endif %}>{{ _('Pass probation') }}</option>
+        <option value="fail" {% if rv.recommendation == 'fail' %}selected{% endif %}>{{ _('Does not pass: end employment before the probation ends') }}</option></select></label>
+      <label class="wide">{{ _('Comments and examples (required for a fail)') }}<textarea name="comment" rows="4" {% if not can_fill %}readonly{% endif %}>{{ rv.comment or '' }}</textarea></label>
+      {% if can_fill %}<div class="bar wide"><button class="primary">{{ _('Send for approval') }}</button></div>{% endif %}
+    </form>
+    {% if rv.reviewed_by %}<p class="note">{{ _('Reviewed by') }} {{ rv.reviewed_by }} · {{ fmt_dt(rv.reviewed_at) }}</p>{% endif %}
+    {% if appr %}
+    <h2>{{ _('Approval') }}</h2>
+    <ol>{% for s in appr.steps %}<li>{{ _(s.name) }}: {% if s.decision %}{{ status_tag(s.decision) }} {{ s.decided_by }} · {{ fmt_dt(s.decided_at) }}{% if s.comment %} · {{ s.comment }}{% endif %}{% else %}<span class="note">{{ s.approver_employee_id or s.approver_role }}</span>{% endif %}</li>{% endfor %}</ol>
+    {% if can %}<a class="btn primary" href="/approvals/{{ appr.id }}">{{ _('Decide') }}</a>{% endif %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

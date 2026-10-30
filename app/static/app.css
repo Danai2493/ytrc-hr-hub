@@ -113,3 +113,16 @@ footer{color:var(--ink-3);font-size:12px;padding-block:20px;border-top:1px solid
 /* narrow cells in the AI review table */
 input.w-time{width:5.6em;min-width:5.6em;padding-left:6px;padding-right:6px}
 input.w-num{width:3.6em;min-width:3.6em}
+
+/* ILUO skills matrix: the quarter-filled circle of the shop-floor board */
+table.matrix th.sk{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;font-weight:500;font-size:12px;padding:6px 2px;vertical-align:bottom;max-height:220px}
+table.matrix td.c{text-align:center;padding:2px}
+.iluo{display:inline-block;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--ink-3);background:conic-gradient(var(--ink) calc(var(--q) * 25%), transparent 0);vertical-align:middle}
+.iluo.gap{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad-bg)}
+.iluo.lapsed{border-style:dashed;border-color:var(--warn)}
+.cell-need{font:10px var(--f-mono);color:var(--ink-3)}
+td.short{color:var(--bad);font-weight:600}
+details.cellform{position:relative}
+details.cellform summary{list-style:none;cursor:pointer}
+details.cellform summary::-webkit-details-marker{display:none}
+details.cellform[open] form{position:absolute;z-index:5;left:0;top:28px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px;display:grid;gap:6px;min-width:220px;text-align:left;box-shadow:0 6px 20px rgba(0,0,0,.12)}
