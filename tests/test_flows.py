@@ -227,3 +227,161 @@ def test_data_health_closes_fixed_issues(login, db):
     db.expire_all()
     assert db.scalar(select(DataIssue).where(DataIssue.rule_code == "JUVENILE", DataIssue.status == "open"))
     assert db.scalar(select(DataIssue).where(DataIssue.rule_code == "SCAN_UNKNOWN", DataIssue.entity_id == "0000003029"))
+
+
+# ---------- Phase 2: leave and exit ----------
+
+def _workday(db, eid: str, start: date, step: int = 1) -> date:
+    from app.services.timecalc import is_rest_day
+
+    emp = db.get(Employee, eid)
+    d = start
+    while is_rest_day(db, emp, d):
+        d += timedelta(days=step)
+    return d
+
+
+def test_leave_request_approve_feeds_attendance(login, db):
+    from app.models import DailyAttendance, LeaveRequest
+
+    sup = login("sup.dry")
+    # a past workday with no scans for YTOP953: it shows as absent "a"
+    db.expire_all()
+    att = db.scalars(select(DailyAttendance).where(DailyAttendance.employee_id == "YTOP953", DailyAttendance.day_code == "a", DailyAttendance.work_date < date.today())).first()
+    if att is None:
+        from app.services.facescan import rebuild_attendance
+
+        d = _workday(db, "YTOP953", date.today() - timedelta(days=3), -1)
+        for a in db.scalars(select(DailyAttendance).where(DailyAttendance.employee_id == "YTOP953", DailyAttendance.work_date == d)):
+            db.delete(a)
+        db.commit()
+        from app.models import ScanPunch
+
+        for p in db.scalars(select(ScanPunch).where(ScanPunch.employee_id == "YTOP953")):
+            if p.punched_at.date() == d:
+                db.delete(p)
+        db.commit()
+        rebuild_attendance(db, d, d, ["YTOP953"])
+        db.commit()
+        att = db.scalar(select(DailyAttendance).where(DailyAttendance.employee_id == "YTOP953", DailyAttendance.work_date == d))
+    d = att.work_date
+    assert att.day_code == "a"
+    r = sup.post("/leave/check", {"employee_id": "YTOP953", "leave_type": "PERS", "start_date": d.isoformat(), "end_date": d.isoformat()})
+    assert "YTOP953" in r.text and "1 d" in r.text
+    r = sup.post("/leave/new", {"employee_id": "YTOP953", "leave_type": "PERS", "start_date": d.isoformat(), "end_date": d.isoformat(), "reason": "Family"})
+    assert r.status_code == 303
+    db.expire_all()
+    req = db.scalars(select(LeaveRequest).where(LeaveRequest.employee_id == "YTOP953").order_by(LeaveRequest.id.desc())).first()
+    assert req.status == "pending" and req.days == 1
+    # overlap is blocked
+    r = sup.post("/leave/new", {"employee_id": "YTOP953", "leave_type": "SICK", "start_date": d.isoformat(), "end_date": d.isoformat()})
+    db.expire_all()
+    assert db.scalar(select(LeaveRequest).where(LeaveRequest.employee_id == "YTOP953", LeaveRequest.leave_type == "SICK", LeaveRequest.start_date == d)) is None
+    login("prod.head").post(f"/approvals/{req.approval_id}/decide", {"decision": "approved"})
+    db.expire_all()
+    assert db.get(LeaveRequest, req.id).status == "approved"
+    att = db.scalar(select(DailyAttendance).where(DailyAttendance.employee_id == "YTOP953", DailyAttendance.work_date == d))
+    assert att.day_code == "p"  # no longer counted as a no-show
+    assert login("sup.dry").get(f"/leave/{req.id}").status_code == 200
+
+
+def test_leave_sick_three_days_needs_hr_check(login, db):
+    from app.models import LeaveRequest
+
+    sup = login("sup.pcl")
+    d0 = _workday(db, "YTOP966", date.today() + timedelta(days=21))
+    d1 = d0 + timedelta(days=6)
+    emp = db.get(Employee, "YTOP966")
+    if emp.org_unit_code != "PRD-PCL":
+        return
+    r = sup.post("/leave/new", {"employee_id": "YTOP966", "leave_type": "SICK", "start_date": d0.isoformat(), "end_date": d1.isoformat()})
+    assert r.status_code == 303
+    req = db.scalars(select(LeaveRequest).where(LeaveRequest.employee_id == "YTOP966").order_by(LeaveRequest.id.desc())).first()
+    assert any(f["code"] == "leave_document" for f in req.flags)
+    appr = db.get(ApprovalRequest, req.approval_id)
+    assert [s.name for s in appr.steps][-1] == "hr_check"
+
+
+def test_leave_maternity_only_for_women(db):
+    from app.models import LeaveType
+    from app.services import leave
+
+    man = db.scalars(select(Employee).where(Employee.gender == "M", Employee.status == "Active")).first()
+    f, _ = leave.check(db, man, db.get(LeaveType, "MAT"), date.today() + timedelta(days=30), date.today() + timedelta(days=40))
+    assert any(x.code == "leave_not_for" and x.level == "block" for x in f)
+
+
+def test_ai_capture_leave_form(login, db):
+    from app.models import LeaveRequest
+
+    hr = login("hr.officer")
+    r = hr.post("/capture/new", {"form_type": "LEAVE_FORM", "employee": "YTOP954"}, files={"file": ("leave.png", _photo(), "image/png")})
+    assert r.status_code == 303
+    cid = int(r.headers["location"].rsplit("/", 1)[1])
+    db.expire_all()
+    cap = db.get(FormCapture, cid)
+    codes = {f["code"] for f in cap.header["_findings"]}
+    assert cap.status == "needs_review"
+    assert "low_confidence" in codes  # the end date was hard to read
+    page = hr.get(f"/capture/{cid}")
+    assert "Create leave request" in page.text
+    # HR checks the photo, the certificate was attached after all, and accepts with the paper signature
+    h = cap.header
+    hr.post(f"/capture/{cid}/header", {"employee_id": "YTOP954", "leave_type": "SICK", "start_date": h["start_date"], "end_date": h["end_date"],
+                                       "part": "full", "reason": h.get("reason") or "", "medical_certificate": "on", "approved_by_signed": "on"})
+    db.expire_all()
+    cap = db.get(FormCapture, cid)
+    assert "leave_document" not in {f["code"] for f in cap.header["_findings"]}
+    r = hr.post(f"/capture/{cid}/accept", {"paper_signed": "on"})
+    assert r.status_code == 303 and r.headers["location"].startswith("/leave/")
+    db.expire_all()
+    req = db.scalar(select(LeaveRequest).where(LeaveRequest.capture_id == cid))
+    assert req.source == "paper" and req.has_document
+    assert req.status == "approved"  # the Department Head's paper signature was the only step
+
+
+def test_exit_opens_case_checklist_and_ai_reason(login, db):
+    from app.models import ExitCase, User
+
+    head = login("prod.head")
+    last = date.today() + timedelta(days=10)
+    r = head.post("/people/YTOP956/event", {"event_type": "exit", "effective_date": last.isoformat(), "reason_code": "RES-OTHER", "note": "Resigned"})
+    assert r.status_code == 303
+    appr = last_approval(db)
+    login("hr.officer").post(f"/approvals/{appr.id}/decide", {"decision": "approved"})
+    db.expire_all()
+    case = db.scalar(select(ExitCase).where(ExitCase.employee_id == "YTOP956"))
+    assert case is not None and case.status == "open" and case.last_day == last
+    codes = [i["code"] for i in case.items]
+    assert "HANDOVER" in codes and "SSO" in codes
+    # the supervisor side ticks handover; HR cannot close while items are open
+    head.post(f"/exit/{case.id}/tick", {"code": "HANDOVER", "done": "1"})
+    hr = login("hr.manager")
+    hr.post(f"/exit/{case.id}/close")
+    db.expire_all()
+    assert db.get(ExitCase, case.id).status == "open"
+    # interview with Thai comments, AI suggests a code, HR confirms it
+    hr.post(f"/exit/{case.id}/interview", {"s_job": "4", "s_boss": "4", "s_pay": "1", "s_shift": "3", "would_return": "maybe",
+                                           "main_reason": "ได้งานใหม่ เงินเดือนสูงกว่า", "comments": "Pay is too low compared to the factory nearby", "ask_ai": "1"})
+    db.expire_all()
+    case = db.get(ExitCase, case.id)
+    assert case.ai_reason_code == "RES-PAY" and case.interview["scores"]["pay"] == 1
+    hr.post(f"/exit/{case.id}/reason", {"code": case.ai_reason_code})
+    for i in case.items:
+        if not i["done"]:
+            hr.post(f"/exit/{case.id}/tick", {"code": i["code"], "done": "1"})
+    hr.post(f"/exit/{case.id}/close")
+    db.expire_all()
+    case = db.get(ExitCase, case.id)
+    emp = db.get(Employee, "YTOP956")
+    assert case.status == "closed" and emp.exit_reason_code == "RES-PAY"
+    assert "Exit interview scores" in hr.get("/dash").text
+
+
+def test_phase2_pages_render(login):
+    hr = login("hr.manager")
+    for url in ("/leave", "/leave/new", "/leave/balances", "/exit", "/exit?status=closed", "/dash/attendance", "/capture/new?type=LEAVE_FORM"):
+        assert hr.get(url).status_code == 200, url
+    sup = login("sup.dry")
+    assert sup.get("/leave").status_code == 200
+    assert sup.get("/exit").status_code == 200

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Request
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
@@ -31,7 +32,15 @@ def people_dash(request: Request, db: Session = Depends(get_db), user=Depends(re
     scope = user_scope(db, user)
     mv = A.movement(db, scope, 12)
     year_ago = date.today().replace(day=1) - timedelta(days=365)
-    return render(request, "dash/people.html", {"tab": "people", "hc": A.headcount(db, scope), "mv": mv, "reasons": A.exit_reasons(db, scope, year_ago), "reason_names": dict(EXIT_REASONS)})
+    from ..models import Employee
+    from ..models.hrdev import EXIT_INTERVIEW_QUESTIONS
+    from ..services.exits import interview_averages
+
+    ids = None if scope.all else {e for e, u in db.execute(select(Employee.employee_id, Employee.org_unit_code)) if u in scope.org_units}
+    avg, n_iv = interview_averages(db, year_ago, ids)
+    iv = [(label, avg[q]) for q, label in EXIT_INTERVIEW_QUESTIONS if q in avg]
+    return render(request, "dash/people.html", {"tab": "people", "hc": A.headcount(db, scope), "mv": mv, "reasons": A.exit_reasons(db, scope, year_ago),
+                                                "reason_names": dict(EXIT_REASONS), "iv": iv, "n_iv": n_iv})
 
 
 @router.get("/ot")

@@ -155,6 +155,7 @@ class AuditLog(Base):
 CAPTURE_TYPES = {
     "OT_FORM": "OT form FM-HRM-25",
     "WORK_PERMIT": "Work permit",
+    "LEAVE_FORM": "Leave form",
 }
 
 

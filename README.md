@@ -5,9 +5,9 @@ positions, OT requests and approvals, face scan check, pay input to Bplus 7.4,
 AI reading of paper forms, data health checks and dashboards. Screens in Thai,
 English and Myanmar.
 
-This is Phase 1 (HR Foundation) of the 5-level HR blueprint. Later phases
-(leave, exit, skills, training, appraisal, succession, predictive flags) plug
-into the same data model and approval engine.
+Phase 1 (HR Foundation) and the first part of Phase 2 (leave and exit) of the
+5-level HR blueprint are built. Later parts (skills, training, appraisal,
+succession, predictive flags) plug into the same data model and approval engine.
 
 ## What it does today
 
@@ -18,8 +18,10 @@ into the same data model and approval engine.
 | OT | Supervisor enters OT like form FM-HRM-25 with live checks (36h weekly limit, under-18 rule, holiday calendar, overlap, shift hours). Department Head approves. GM override for the weekly limit is logged. |
 | Face scan | Import the timelog file. Daily attendance, late, stayed after shift. Each OT line is checked against the scans and short lines are paid only for covered time. |
 | Pay input | HR verifies OT, builds a batch per pay cycle, a second HR person checks it, the CSV goes into Bplus. Totals by unit come back from Bplus for reconciliation. Salaries and bank data stay in Bplus. |
-| Paper forms (AI) | Photograph a paper OT form or work permit. AI reads it, every line goes through the same checks as the web form, HR fixes the unclear cells and accepts. |
-| Data health | 17 rules (ID format, missing fields, juvenile workers, permits expiring, OT without request, unknown scan IDs...). Issues have owners and close themselves when fixed. |
+| Paper forms (AI) | Photograph a paper OT form, leave form or work permit. AI reads it, every line goes through the same checks as the web form, HR fixes the unclear cells and accepts. |
+| Leave | Employees, supervisors or HR request leave with live checks (company calendar, days left under the Labour Protection Act, overlap, medical certificate, OT or scans on leave days). Department Head approves; approved leave replaces "absent" in attendance. HR can photograph a paper leave form and AI fills it in. |
+| Exit | An approved exit opens a clearance checklist (handover, assets, ID card, IT accounts, final pay to Bplus, social security notice by the 15th, work permit notice). Exit interview; AI suggests the reason code, HR confirms. |
+| Data health | 21 rules (ID format, missing fields, juvenile workers, permits expiring, OT without request, unknown scan IDs, open exit clearance, social security deadline, sick leave without certificate...). Issues have owners and close themselves when fixed. |
 | Dashboards | People and turnover, OT, attendance, monthly HR KPI pack (print to PDF). No Power BI needed. |
 | Admin | Users and roles, settings for the rules, shifts, holidays (upload the yearly company calendar workbook: Office rests Sunday, Factory rests Friday), OT budget, audit log. |
 

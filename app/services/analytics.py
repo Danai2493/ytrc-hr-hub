@@ -175,7 +175,15 @@ def absence(db: Session, scope: Scope, d0: date, d1: date) -> dict:
     if not scope.all:
         rows = [a for a in rows if a.employee.org_unit_code in scope.org_units]
     workdays = [a for a in rows if not a.is_rest_day]
-    absent = [a for a in workdays if a.day_code == "a"]
+    # Unplanned absence: no-show plus leave types that count as absence (sick, personal, unpaid).
+    from ..models import LeaveType
+
+    absence_codes = {"a"} | set(db.scalars(select(LeaveType.day_code).where(LeaveType.counts_as_absence.is_(True))).all())
+    absent = [a for a in workdays if a.day_code in absence_codes]
+    by_code: dict[str, int] = defaultdict(int)
+    for a in workdays:
+        if a.day_code and a.day_code not in ("1", "h"):
+            by_code[a.day_code] += 1
     late = [a for a in workdays if a.late_minutes > 5]
     by_dow: dict[int, int] = defaultdict(int)
     for a in absent:
@@ -186,6 +194,8 @@ def absence(db: Session, scope: Scope, d0: date, d1: date) -> dict:
     return {
         "workdays": len(workdays),
         "absent": len(absent),
+        "no_show": by_code.get("a", 0),
+        "by_code": dict(by_code),
         "rate": round(len(absent) / len(workdays) * 100, 1) if workdays else 0,
         "late": len(late),
         "by_dow": [by_dow.get(i, 0) for i in range(7)],

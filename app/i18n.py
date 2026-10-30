@@ -40,6 +40,20 @@ RULE_TEXT = {
     "hours_unreadable": "Hours unreadable",
     "not_signed": "Employee did not sign",
     "dropped": "Dropped by HR: {note}",
+    "leave_dates": "The end date is before the start date",
+    "leave_type": "Choose a leave type",
+    "leave_not_for": "{type} does not apply to this employee",
+    "leave_no_workdays": "No working days in these dates (rest days or holidays only)",
+    "leave_overlap": "Overlaps another leave ({ref})",
+    "leave_over_balance": "{days} days asked but only {left} paid days left in {year}: the extra days are unpaid",
+    "leave_service": "Needs {days} days of service first: please check with HR",
+    "leave_document": "A medical certificate is needed from {days} days of sick leave",
+    "leave_notice": "Should be asked at least {days} days ahead",
+    "leave_after": "Entered after the leave started",
+    "leave_ot_same_day": "There is OT on a leave day ({ref}, {date})",
+    "leave_scanned": "Face scan shows work on a leave day ({dates})",
+    "leave_left": "{left} days left in {year}",
+    "leave_days_mismatch": "Days written ({written}) do not match the dates ({days} working days)",
 }
 
 

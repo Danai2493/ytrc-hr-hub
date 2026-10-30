@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ _('New leave request') }}</h1>
+<p class="lead">{{ _('The checks run while you fill in: working days by the company calendar, days left, overlap, medical certificate, notice, OT or face scans on the same days.') }}</p>
+<form method="post" class="panel" data-check="/leave/check" data-check-out="#checks">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <datalist id="team">{% for e in team %}<option value="{{ e.employee_id }}">{{ e.full_name_en }} · {{ e.org_unit.name_en }}</option>{% endfor %}</datalist>
+  <div class="form">
+    <label>{{ _('Employee ID') }}<input name="employee_id" list="team" class="mono" value="{{ employee }}" required autocomplete="off"></label>
+    <label>{{ _('Leave type') }}<select name="leave_type" required><option value=""></option>{% for t in types %}<option value="{{ t.code }}">{{ _(t.name_en) }}</option>{% endfor %}</select></label>
+    <label>{{ _('From') }}<input type="date" name="start_date" value="{{ today }}" required></label>
+    <label>{{ _('To') }}<input type="date" name="end_date" value="{{ today }}" required></label>
+    <label>{{ _('Part of day') }}<select name="part">{% for k, v in parts.items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select></label>
+    <label><span><input type="checkbox" name="has_document"> {{ _('Medical certificate or other document seen') }}</span></label>
+    <label class="wide">{{ _('Reason') }}<input name="reason"></label>
+  </div>
+  <div id="checks" class="panel" aria-live="polite"><p class="note">{{ _('Checks appear here.') }}</p></div>
+  <div class="bar"><button class="primary">{{ _('Send for approval') }}</button><a class="btn" href="/leave">{{ _('Cancel') }}</a></div>
+</form>
+{% endblock %}

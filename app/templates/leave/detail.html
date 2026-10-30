@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag, findings %}
+{% block content %}
+<div class="phead"><h1>{{ r.ref }}</h1>{{ status_tag(r.status) }}{% if r.source == 'paper' %}<span class="tag">{{ _('from paper form') }}</span>{% endif %}</div>
+<div class="grid">
+  <section class="panel c6">
+    <dl class="kv">
+      <dt>{{ _('Employee') }}</dt><dd><a href="/people/{{ r.employee_id }}" class="mono">{{ r.employee_id }}</a> {{ r.employee.full_name_en }}</dd>
+      <dt>{{ _('Leave type') }}</dt><dd>{{ _(r.type.name_en) }}{% if not r.type.paid %} · {{ _('unpaid') }}{% endif %}</dd>
+      <dt>{{ _('Dates') }}</dt><dd>{{ fmt_date(r.start_date) }}{% if r.end_date != r.start_date %} – {{ fmt_date(r.end_date) }}{% endif %} · {{ _(parts[r.part]) }}</dd>
+      <dt>{{ _('Days') }}</dt><dd>{{ r.days|round(1) }}</dd>
+      <dt>{{ _('Reason') }}</dt><dd>{{ r.reason or '' }}</dd>
+      <dt>{{ _('Document') }}</dt><dd>{{ _('yes') if r.has_document else _('no') }}</dd>
+      <dt>{{ _('Submitted by') }}</dt><dd>{{ r.submitted_by }} · {{ fmt_dt(r.created_at) }}</dd>
+      {% if r.capture_id %}<dt>{{ _('Paper form') }}</dt><dd><a href="/capture/{{ r.capture_id }}">#{{ r.capture_id }}</a></dd>{% endif %}
+    </dl>
+    {{ findings(r.flags or [], rt) }}
+    {% if can_cancel %}<form method="post" action="/leave/{{ r.id }}/cancel" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input name="reason" placeholder="{{ _('Reason') }}"><button class="danger small" data-confirm="{{ _('Cancel this leave?') }}">{{ _('Cancel request') }}</button></form>{% endif %}
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('Balance') }} {{ r.start_date.year }}</h2>
+    <table><tr><th>{{ _('Leave type') }}</th><th class="n">{{ _('Entitled') }}</th><th class="n">{{ _('Used') }}</th><th class="n">{{ _('Pending') }}</th><th class="n">{{ _('Left') }}</th></tr>
+    {% for b in bal %}<tr><td>{{ _(b.type.name_en) }}</td><td class="n">{{ b.entitled|round(1) if b.entitled is not none else '-' }}</td><td class="n">{{ b.used|round(1) }}</td><td class="n">{{ b.pending|round(1) }}</td><td class="n {% if b.left is not none and b.left < 0 %}bad-t{% endif %}">{{ b.left|round(1) if b.left is not none else '-' }}</td></tr>{% endfor %}</table>
+    {% if appr %}
+    <h2>{{ _('Approval') }}</h2>
+    <ol>{% for s in appr.steps %}<li>{{ _(s.name) }}: {% if s.decision %}{{ status_tag(s.decision) }} {{ s.decided_by }} · {{ fmt_dt(s.decided_at) }}{% if s.comment %} · {{ s.comment }}{% endif %}{% else %}<span class="note">{{ s.approver_employee_id or s.approver_role }}</span>{% endif %}</li>{% endfor %}</ol>
+    {% if can %}<a class="btn primary" href="/approvals/{{ appr.id }}">{{ _('Decide') }}</a>{% endif %}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

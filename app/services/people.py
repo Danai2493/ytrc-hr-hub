@@ -358,6 +358,10 @@ def _apply_event(db: Session, appr: ApprovalRequest, outcome: str, user: User) -
     )
     db.add(ev)
     db.flush()
+    if ev.event_type in ("exit", "probation_fail"):
+        from . import exits
+
+        exits.open_case(db, emp, ev.effective_date, ev.reason_code or ("PROBATION" if ev.event_type == "probation_fail" else None), user, appr.id)
     apply_due_events(db, date.today(), employee_id=emp.employee_id)
     audit(db, user, "event", "employee", emp.employee_id, f"{ev.event_type} effective {ev.effective_date}")
 

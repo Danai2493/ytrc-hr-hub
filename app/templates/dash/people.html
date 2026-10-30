@@ -20,5 +20,9 @@
     {% set rows = [] %}{% for code, n in reasons %}{% set _x = rows.append((_(reason_names.get(code, code)), n)) %}{% endfor %}{{ hbar(rows, '', 'var(--s2)', 560, 220) }}
     {% else %}<p class="note">{{ _('No exits recorded with a reason yet. Reason codes start with the first exit after go-live.') }}</p>{% endif %}
     <p class="note">{{ _('Exit reason codes from the exit workflow feed this chart and, later, the attrition risk flags.') }}</p></section>
+  <section class="panel c6"><h2>{{ _('Exit interview scores, 12 months') }}</h2>
+    {% if iv %}{% set rows = [] %}{% for label, v in iv %}{% set _x = rows.append((_(label), v)) %}{% endfor %}{{ hbar(rows | sort(attribute=1), ' / 5', 'var(--s4)', 560, 220) }}
+    <p class="note">{{ _('Average of {n} interviews. The lowest bars show what to fix first.', n=n_iv) }}</p>
+    {% else %}<p class="note">{{ _('No exit interviews yet.') }}</p>{% endif %}</section>
 </div>
 {% endblock %}

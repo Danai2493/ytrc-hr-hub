@@ -56,12 +56,16 @@ async def upload(request: Request, form_type: str = Form(...), employee: str = F
         emp = db.get(Employee, employee)
         if emp:
             hint["name"] = emp.full_name_en
+            hint["employee_id"] = emp.employee_id
     try:
         cap = C.upload(db, user, form_type, data, file.content_type or "image/jpeg", file.filename or "photo.jpg", hint)
         if employee:
             cap.employee_id = employee
             if form_type == "WORK_PERMIT":
                 C.validate_permit(db, cap)
+            elif form_type == "LEAVE_FORM" and not (cap.header or {}).get("employee_id"):
+                cap.header = {**(cap.header or {}), "employee_id": employee}
+                C.validate_leave(db, cap)
         db.commit()
     except AIError as e:
         db.rollback()
@@ -79,7 +83,10 @@ async def upload(request: Request, form_type: str = Form(...), employee: str = F
 @router.get("/{cid}")
 def review(request: Request, cid: int, db: Session = Depends(get_db), user=Depends(require(*WHO))):
     cap = _get(db, cid, user)
-    return render(request, "capture/review.html", {"cap": cap, "types": CAPTURE_TYPES, "thr": settings.ai_review_threshold, "is_hr": user.has(*HR)})
+    from ..services import leave as leave_service
+
+    return render(request, "capture/review.html", {"cap": cap, "types": CAPTURE_TYPES, "thr": settings.ai_review_threshold, "is_hr": user.has(*HR),
+                                                   "leave_types": leave_service.types(db) if cap.form_type == "LEAVE_FORM" else []})
 
 
 @router.get("/{cid}/image")
@@ -102,6 +109,11 @@ async def set_header(request: Request, cid: int, db: Session = Depends(get_db), 
             if str(h.get(k) or "") != f.get(k):
                 conf[k] = 1.0
             h[k] = f.get(k)
+    if cap.form_type == "LEAVE_FORM":
+        C.update_leave(db, user, cap, {k: f.get(k) for k in ("employee_id", "leave_type", "start_date", "end_date", "part", "reason")}
+                       | {"medical_certificate": f.get("medical_certificate") == "on", "approved_by_signed": f.get("approved_by_signed") == "on"})
+        db.commit()
+        return redirect(f"/capture/{cid}")
     h["approved_by_signed"] = f.get("approved_by_signed") == "on"
     cap.header, cap.header_confidence = h, conf
     C.validate_ot(db, cap)
@@ -139,6 +151,11 @@ async def accept(request: Request, cid: int, db: Session = Depends(get_db), user
             flash(request, f"{made} OT request(s) created from the paper form")
             for e in errors:
                 flash(request, e, "bad")
+        elif cap.form_type == "LEAVE_FORM":
+            req = C.accept_leave(db, user, cap, f.get("paper_signed") == "on")
+            db.commit()
+            flash(request, f"Leave {req.ref} created from the paper form")
+            return redirect(f"/leave/{req.id}")
         else:
             C.accept_permit(db, user, cap, f.get("employee_id", ""), {k: f.get(k) for k in ("work_permit_no", "expiry_date", "passport_no")})
             db.commit()

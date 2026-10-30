@@ -67,6 +67,37 @@
     </form>
     <form method="post" action="/capture/{{ cap.id }}/reject" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input name="note" placeholder="{{ _('Reason (e.g. wrong form, unreadable)') }}" required><button class="danger small">{{ _('Reject whole form') }}</button></form>
     {% endif %}
+  {% elif cap.form_type == 'LEAVE_FORM' %}
+    {% set done = cap.status in ('approved','rejected') %}
+    <section class="panel">
+      <h2>{{ _('Leave form') }}</h2>
+      {% if h._issues %}<ul class="find">{% for i in h._issues %}<li class="flag">{{ _(i) }}</li>{% endfor %}</ul>{% endif %}
+      <ul class="find">{% for i in h._findings or [] %}<li class="{{ i.level }}">{{ rt(i) }}</li>{% else %}{% if not h._issues %}<li class="ok">{{ _('All checks passed') }}</li>{% endif %}{% endfor %}</ul>
+      <form method="post" action="/capture/{{ cap.id }}/header" class="form">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <label>{{ _('Employee ID') }}<input name="employee_id" value="{{ h.employee_id or '' }}" class="mono {{ cf(hc, 'employee_id') }}" {% if not is_hr or done %}readonly{% endif %}></label>
+        <label>{{ _('Name on form') }}<input value="{{ h.name or '' }}" readonly class="{{ cf(hc, 'name') }}"></label>
+        <label>{{ _('Leave type') }}<select name="leave_type" class="{{ cf(hc, 'leave_type') }}" {% if not is_hr or done %}disabled{% endif %}>
+          <option value="">?</option>{% for t in leave_types %}<option value="{{ t.code }}" {% if t.code == h.leave_type %}selected{% endif %}>{{ _(t.name_en) }}</option>{% endfor %}</select></label>
+        <label>{{ _('Part of day') }}<select name="part" {% if not is_hr or done %}disabled{% endif %}>{% for k, v in {'full': 'Full day', 'am': 'Morning (half day)', 'pm': 'Afternoon (half day)'}.items() %}<option value="{{ k }}" {% if (h.part or 'full') == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+        <label>{{ _('From') }}<input type="date" name="start_date" value="{{ h.start_date or '' }}" class="{{ cf(hc, 'start_date') }}" {% if not is_hr or done %}readonly{% endif %}></label>
+        <label>{{ _('To') }}<input type="date" name="end_date" value="{{ h.end_date or '' }}" class="{{ cf(hc, 'end_date') }}" {% if not is_hr or done %}readonly{% endif %}></label>
+        <label class="wide">{{ _('Reason') }}<input name="reason" value="{{ h.reason or '' }}" {% if not is_hr or done %}readonly{% endif %}></label>
+        <label><span><input type="checkbox" name="medical_certificate" {% if h.medical_certificate %}checked{% endif %} {% if not is_hr or done %}disabled{% endif %}> {{ _('Medical certificate attached') }}</span></label>
+        <label><span><input type="checkbox" name="approved_by_signed" {% if h.approved_by_signed %}checked{% endif %} {% if not is_hr or done %}disabled{% endif %}> {{ _('Approval box signed') }}</span></label>
+        {% if is_hr and not done %}<div class="wide"><button class="small">{{ _('Save and re-check') }}</button></div>{% endif %}
+      </form>
+      <p class="note">{{ _('Days written on form') }}: {{ h.days if h.days is not none else '?' }} · {{ _('working days by the calendar') }}: {{ h._days if h._days is defined else '?' }} · {{ _('photo') }}: {{ h.page_quality or '?' }}</p>
+    </section>
+    {% if is_hr and not done %}
+    <form method="post" action="/capture/{{ cap.id }}/accept" class="panel">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <h2>{{ _('Create leave request') }}</h2>
+      <label><span><input type="checkbox" name="paper_signed" {% if h.approved_by_signed %}checked{% endif %}> {{ _('The Department Head signed the paper form: record that as the first approval') }}</span></label>
+      <div class="bar"><button class="primary" {% if (h._findings or []) | selectattr('level','equalto','block') | list %}disabled{% endif %}>{{ _('Create leave request') }}</button></div>
+    </form>
+    <form method="post" action="/capture/{{ cap.id }}/reject" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input name="note" placeholder="{{ _('Reason (e.g. wrong form, unreadable)') }}" required><button class="danger small">{{ _('Reject whole form') }}</button></form>
+    {% endif %}
   {% else %}
     <section class="panel">
       <h2>{{ _('Work permit') }}</h2>

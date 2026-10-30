@@ -165,6 +165,30 @@ def decide(
     return req
 
 
+def record_paper_signature(db: Session, req: ApprovalRequest, user: User, note: str, step_name: str = "dept_head") -> bool:
+    """A Department Head who already signed the paper form should not have to
+    approve again on screen. HR records that signature as the first step; the
+    request then moves on (or closes) like any other decision."""
+    step = req.active_step
+    if step is None or req.status != "pending" or step.name != step_name:
+        return False
+    step.decision = "approved"
+    step.decided_by = f"paper signature, recorded by {user.label}"
+    step.decided_at = datetime.now()
+    step.comment = note[:500]
+    audit(db, user, "approved", "approval", req.id, f"Paper signature recorded: {note}")
+    if req.request_type in _ON_STEP:
+        _ON_STEP[req.request_type](db, req, step, user)
+    if step.seq >= max(s.seq for s in req.steps):
+        req.status = "approved"
+        req.closed_at = datetime.now()
+        _close(db, req, "approved", user)
+    else:
+        req.current_step = step.seq + 1
+    db.flush()
+    return True
+
+
 def cancel(db: Session, req: ApprovalRequest, user: User, reason: str) -> None:
     if req.status != "pending":
         raise ApprovalError("Only pending requests can be cancelled")

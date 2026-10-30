@@ -22,6 +22,25 @@ def demo_answer(form_type: str, hint: dict) -> dict:
             "employer": f("SAMPLE COMPANY", 0.88),
             "page_quality": "good",
         }
+    if form_type == "LEAVE_FORM":
+        # a sick-leave form written in Thai: dates readable, ID partly smudged
+        start = date.today() - timedelta(days=(date.today().weekday() - 1) % 7 or 7)  # last Tuesday
+        eid = hint.get("employee_id", "YTOP958")
+        return {
+            "employee_id": f(eid, 0.91),
+            "name": f(hint.get("names", {}).get(eid, "Wichai H. (SAMPLE)"), 0.88),
+            "department": f("Drying & Packing", 0.9),
+            "leave_type": f("SICK", 0.95),
+            "start_date": f(start.isoformat(), 0.93),
+            "end_date": f((start + timedelta(days=2)).isoformat(), 0.62),  # the 2 could be a 3
+            "part": f("full", 0.97),
+            "days": f(3, 0.9),
+            "reason": f("ไข้หวัด มีไข้สูง (SAMPLE)", 0.85),
+            "medical_certificate": f(False, 0.8),
+            "employee_signed": f(True, 0.95),
+            "approved_by_signed": f(True, 0.9),
+            "page_quality": "good",
+        }
     d = hint.get("work_date") or date.today().isoformat()
     names = hint.get("names") or {}
     rows = [
@@ -58,3 +77,25 @@ def demo_answer(form_type: str, hint: dict) -> dict:
         "rows": out,
         "page_quality": "good",
     }
+
+
+def demo_classify(hint: dict) -> dict:
+    """Exit interview coding for the demo: a few keyword rules stand in for the model."""
+    iv = hint.get("interview") or {}
+    text = " ".join(str(iv.get(k) or "") for k in ("main_reason", "comments")).lower()
+    scores = iv.get("scores") or {}
+    rules = [
+        ("RES-PAY", ("pay", "salary", "money", "เงิน", "ค่าแรง", "လစာ")),
+        ("RES-WORK", ("night", "shift", "tired", "กะ", "เหนื่อย", "ดึก")),
+        ("RES-BOSS", ("supervisor", "boss", "หัวหน้า", "shout", "ดุ")),
+        ("RES-FAMILY", ("family", "home", "mother", "ครอบครัว", "บ้าน", "မိသားစု")),
+        ("RES-HEALTH", ("health", "sick", "ป่วย", "สุขภาพ")),
+        ("RES-CAREER", ("study", "career", "เรียน", "งานใหม่")),
+    ]
+    for code, words in rules:
+        hits = [w for w in words if w in text]
+        if hits:
+            return {"reason_code": code, "confidence": 0.82, "summary_en": f"The employee mainly mentions {hits[0]}-related reasons. Scores are lowest for {min(scores, key=scores.get) if scores else 'no area'}. (SAMPLE)", "themes": hits[:3]}
+    low = min(scores, key=scores.get) if scores else None
+    code = {"pay": "RES-PAY", "shift": "RES-WORK", "boss": "RES-BOSS", "growth": "RES-CAREER"}.get(low, "RES-OTHER")
+    return {"reason_code": code, "confidence": 0.55, "summary_en": "No clear reason in the comments; the lowest score points to this area. (SAMPLE)", "themes": [low] if low else []}

@@ -1,5 +1,6 @@
-"""Pluggable AI providers. Every provider does one thing: read an image and
-return JSON that matches a schema. Pick one with AI_PROVIDER:
+"""Pluggable AI providers. Every provider does two things: read an image, or
+read a piece of text, and return JSON that matches a schema. Pick one with
+AI_PROVIDER:
 
   none       AI switched off (HR types the form in by hand)
   mock       built-in demo answers, no data leaves the server
@@ -40,12 +41,17 @@ class Provider(Protocol):
 
     def extract(self, image: bytes, mime: str, schema: dict, instructions: str, hint: Optional[dict] = None) -> AIResult: ...
 
+    def classify(self, text: str, schema: dict, hint: Optional[dict] = None) -> AIResult: ...
+
 
 class NoProvider:
     name = "none"
 
     def extract(self, image, mime, schema, instructions, hint=None) -> AIResult:
         raise AIError("AI is switched off. Type the form in by hand.")
+
+    def classify(self, text, schema, hint=None) -> AIResult:
+        raise AIError("AI is switched off. Choose the reason by hand.")
 
 
 class AnthropicProvider:
@@ -65,27 +71,28 @@ class AnthropicProvider:
         self.model = settings.ai_model or "claude-opus-5-5"
 
     def extract(self, image, mime, schema, instructions, hint=None) -> AIResult:
+        return self._call(
+            [
+                {"type": "image", "source": {"type": "base64", "media_type": mime, "data": base64.b64encode(image).decode()}},
+                {"type": "text", "text": instructions},
+            ],
+            schema,
+        )
+
+    def classify(self, text, schema, hint=None) -> AIResult:
+        return self._call([{"type": "text", "text": text}], schema)
+
+    def _call(self, content: list, schema: dict) -> AIResult:
         resp = self.client.beta.messages.create(
             model=self.model,
             max_tokens=16000,
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
             output_config={"effort": "medium", "format": {"type": "json_schema", "schema": schema}},
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {"type": "base64", "media_type": mime, "data": base64.b64encode(image).decode()},
-                        },
-                        {"type": "text", "text": instructions},
-                    ],
-                }
-            ],
+            messages=[{"role": "user", "content": content}],
         )
         if resp.stop_reason == "refusal":
-            raise AIError("The AI provider declined to read this image")
+            raise AIError("The AI provider declined this request")
         if resp.stop_reason == "max_tokens":
             raise AIError("The AI answer was cut off; try a smaller photo")
         text = next((b.text for b in resp.content if b.type == "text"), None)
@@ -104,17 +111,15 @@ class OpenAICompatibleProvider:
 
     def extract(self, image, mime, schema, instructions, hint=None) -> AIResult:
         uri = f"data:{mime};base64,{base64.b64encode(image).decode()}"
+        return self._call([{"type": "text", "text": instructions}, {"type": "image_url", "image_url": {"url": uri}}], schema)
+
+    def classify(self, text, schema, hint=None) -> AIResult:
+        return self._call([{"type": "text", "text": text}], schema)
+
+    def _call(self, content: list, schema: dict) -> AIResult:
         body = {
             "model": self.model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": instructions},
-                        {"type": "image_url", "image_url": {"url": uri}},
-                    ],
-                }
-            ],
+            "messages": [{"role": "user", "content": content}],
             "response_format": {"type": "json_schema", "json_schema": {"name": "form", "schema": schema, "strict": True}},
         }
         headers = {"Authorization": f"Bearer {self.key}"} if self.key else {}
@@ -136,15 +141,14 @@ class GeminiProvider:
         self.base = (settings.ai_base_url or "https://generativelanguage.googleapis.com/v1beta").rstrip("/")
 
     def extract(self, image, mime, schema, instructions, hint=None) -> AIResult:
+        return self._call([{"inline_data": {"mime_type": mime, "data": base64.b64encode(image).decode()}}], instructions, schema)
+
+    def classify(self, text, schema, hint=None) -> AIResult:
+        return self._call([], text, schema)
+
+    def _call(self, parts: list, instructions: str, schema: dict) -> AIResult:
         body = {
-            "contents": [
-                {
-                    "parts": [
-                        {"inline_data": {"mime_type": mime, "data": base64.b64encode(image).decode()}},
-                        {"text": instructions + "\n\nReturn JSON matching this schema:\n" + json.dumps(schema)},
-                    ]
-                }
-            ],
+            "contents": [{"parts": parts + [{"text": instructions + "\n\nReturn JSON matching this schema:\n" + json.dumps(schema)}]}],
             "generationConfig": {"responseMimeType": "application/json"},
         }
         r = httpx.post(
@@ -175,6 +179,11 @@ class MockProvider:
         from .demo_fixtures import demo_answer
 
         return AIResult(demo_answer(hint.get("form_type", "OT_FORM"), hint), self.name, self.model)
+
+    def classify(self, text, schema, hint=None) -> AIResult:
+        from .demo_fixtures import demo_classify
+
+        return AIResult(demo_classify(hint or {}), self.name, self.model)
 
 
 def get_provider(name: Optional[str] = None) -> Provider:

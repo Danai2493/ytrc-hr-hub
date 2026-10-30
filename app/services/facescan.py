@@ -119,6 +119,9 @@ def rebuild_attendance(db: Session, d0: date, d1: date, employee_ids: Optional[l
     by_emp: dict[str, list[datetime]] = defaultdict(list)
     for eid, at in punch_rows:
         by_emp[eid].append(at)
+    from .leave import approved_leave_codes
+
+    on_leave = approved_leave_codes(db, d0, d1)
     count = 0
     for emp in emps:
         times = sorted(by_emp.get(emp.employee_id, []))
@@ -144,8 +147,10 @@ def rebuild_attendance(db: Session, d0: date, d1: date, employee_ids: Optional[l
                     scan_ot = max(0, int((last - s1).total_seconds() // 60)) if n >= 2 else 0
             if n:
                 code = "1"
+            elif rest:
+                code = "h"
             else:
-                code = "h" if rest else "a"
+                code = on_leave.get((emp.employee_id, d), "a")
             att = db.scalar(
                 select(DailyAttendance).where(
                     DailyAttendance.employee_id == emp.employee_id, DailyAttendance.work_date == d

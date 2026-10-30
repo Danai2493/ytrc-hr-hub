@@ -117,3 +117,6 @@ def seed_reference(db: Session) -> None:
                 if date.fromisoformat(d) not in have:
                     db.add(Holiday(calendar_code=cal, day=date.fromisoformat(d), name=name))
     db.flush()
+    from ..services import leave
+
+    leave.seed_types(db)

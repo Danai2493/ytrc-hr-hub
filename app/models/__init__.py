@@ -10,6 +10,7 @@ from .core import (
     Sequence,
     Setting,
 )
+from .hrdev import ExitCase, LeaveRequest, LeaveType
 from .system import (
     ApprovalRequest,
     ApprovalStep,
@@ -45,10 +46,13 @@ __all__ = [
     "Employee",
     "EmployeeRestricted",
     "EmploymentEvent",
+    "ExitCase",
     "FormCapture",
     "Grade",
     "Holiday",
     "Job",
+    "LeaveRequest",
+    "LeaveType",
     "OTBudget",
     "OTRequest",
     "OrgUnit",

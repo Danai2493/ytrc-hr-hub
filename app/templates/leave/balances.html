@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Leave balances') }} {{ year }}</h1>
+  <form method="get" class="end inline"><input type="number" name="year" value="{{ year }}" class="w-num"><button class="small">{{ _('Show') }}</button></form></div>
+<p class="note">{{ _('Days left (used + pending taken off). A dash means no yearly limit; the number is then the days used.') }}</p>
+<div class="panel scroll">
+<table>
+  <tr><th>{{ _('Employee') }}</th><th>{{ _('Unit') }}</th>{% for t in types %}<th class="n">{{ _(t.name_en) }}</th>{% endfor %}</tr>
+  {% for e, b in rows %}
+  <tr><td><a href="/people/{{ e.employee_id }}" class="mono">{{ e.employee_id }}</a> {{ e.full_name_en }}</td><td>{{ e.org_unit.name_en }}</td>
+    {% for t in types %}{% set x = b.get(t.code) %}<td class="n {% if x and x.left is not none and x.left < 0 %}bad-t{% endif %}">{% if not x %}{% elif x.left is not none %}{{ x.left|round(1) }}{% else %}<span class="note">{{ x.used|round(1) }}</span>{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Exit cases') }}</h1>
+  <form method="get" class="end inline"><select name="status" onchange="this.form.submit()">{% for s, l in [('open','Open'),('closed','Closed'),('','All')] %}<option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ _(l) }}</option>{% endfor %}</select></form></div>
+<p class="note">{{ _('A case opens by itself when an exit is approved in People. Each owner ticks their items; HR closes the case when all are done.') }}</p>
+<div class="panel scroll">
+<table>
+  <tr><th>{{ _('Ref') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Last day') }}</th><th>{{ _('Reason') }}</th><th>{{ _('Checklist') }}</th><th>{{ _('Interview') }}</th><th>{{ _('Status') }}</th></tr>
+  {% for c in rows %}{% set n = c.items|length %}{% set left = c.open_items|length %}
+  <tr>
+    <td class="mono"><a href="/exit/{{ c.id }}">{{ c.ref }}</a></td>
+    <td><a href="/people/{{ c.employee_id }}" class="mono">{{ c.employee_id }}</a> {{ c.employee.full_name_en }}</td>
+    <td>{{ c.employee.org_unit.name_en }}</td>
+    <td>{{ fmt_date(c.last_day) }}</td>
+    <td>{{ _(reasons.get(c.reason_code, c.reason_code or '-')) }}</td>
+    <td>{{ n - left }}/{{ n }}{% if left and c.status == 'open' and (today - c.last_day).days > 7 %} <span class="tag bad">{{ _('late') }}</span>{% endif %}</td>
+    <td>{% if c.interview %}<span class="tag ok">{{ _('done') }}</span>{% else %}<span class="note">-</span>{% endif %}</td>
+    <td><span class="tag {{ 'ok' if c.status == 'closed' else 'warn' }}">{{ _(c.status) }}</span></td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="note">{{ _('No exit cases') }}</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

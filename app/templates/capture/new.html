@@ -5,7 +5,7 @@
   <input type="hidden" name="_csrf" value="{{ csrf }}">
   <div class="form">
     <label>{{ _('Form') }}<select name="form_type">{% for k, v in types.items() %}<option value="{{ k }}" {% if k == ftype %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
-    {% if ftype == 'WORK_PERMIT' %}<label>{{ _('Employee ID (if known)') }}<input name="employee" value="{{ employee }}" class="mono"></label>{% endif %}
+    {% if ftype in ('WORK_PERMIT', 'LEAVE_FORM') %}<label>{{ _('Employee ID (if known)') }}<input name="employee" value="{{ employee }}" class="mono"></label>{% endif %}
     <label class="wide">{{ _('Photo') }}<input type="file" name="file" accept="image/*" capture="environment" required></label>
   </div>
   <ul class="note">

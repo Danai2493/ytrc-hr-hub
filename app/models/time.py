@@ -32,6 +32,9 @@ DAY_CODES = {
     "s": "Sick leave",
     "p": "Personal leave",
     "c": "Company leave",
+    "m": "Maternity leave",
+    "u": "Unpaid leave",
+    "l": "Other leave",
 }
 
 # Pay codes handed to Bplus. Rate factors are applied in Bplus, the app sends hours.

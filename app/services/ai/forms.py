@@ -91,7 +91,51 @@ for a foreign worker, usually from Myanmar. Return each field with your confiden
 Never guess: return null with low confidence if a value is unreadable."""
 
 
+LEAVE_FORM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "employee_id": _field(),
+        "name": _field(),
+        "department": _field(),
+        "leave_type": {
+            "type": "object",
+            "properties": {
+                "value": {"type": ["string", "null"], "enum": ["SICK", "PERS", "VAC", "MAT", "MIL", "TRAIN", "UNPAID", None]},
+                "confidence": {"type": "number"},
+            },
+            "required": ["value", "confidence"],
+            "additionalProperties": False,
+        },
+        "start_date": _field(),
+        "end_date": _field(),
+        "part": _field(),
+        "days": _field("number"),
+        "reason": _field(),
+        "medical_certificate": _field("boolean"),
+        "employee_signed": _field("boolean"),
+        "approved_by_signed": _field("boolean"),
+        "page_quality": {"type": "string", "enum": ["good", "blurry", "cut_off", "not_this_form"]},
+    },
+    "required": ["employee_id", "name", "department", "leave_type", "start_date", "end_date", "part", "days", "reason",
+                 "medical_certificate", "employee_signed", "approved_by_signed", "page_quality"],
+    "additionalProperties": False,
+}
+
+LEAVE_FORM_PROMPT = """You are reading a photo of a paper leave form (ใบลา) from a Thai rubber factory.
+Text may be Thai, English or Burmese, typed or handwritten. Return each field with your confidence from 0 to 1:
+- employee_id as written (e.g. YTOP898, YTR009); name as written.
+- leave_type: SICK for ลาป่วย/sick, PERS for ลากิจ/personal business, VAC for ลาพักร้อน/พักผ่อนประจำปี/vacation,
+  MAT for ลาคลอด/maternity, MIL for military, TRAIN for training, UNPAID for ลาไม่รับค่าจ้าง/unpaid.
+- start_date and end_date as YYYY-MM-DD. Convert Thai Buddhist years (2569) to Gregorian (2026).
+- part: "full", "am" (morning / ครึ่งเช้า) or "pm" (afternoon / ครึ่งบ่าย).
+- days: the number of days written on the form, if any.
+- medical_certificate: true if a medical certificate (ใบรับรองแพทย์) is attached or ticked.
+- employee_signed / approved_by_signed: true if those signature boxes are signed.
+Never guess a value you cannot read: return null with a low confidence instead."""
+
+
 FORMS = {
     "OT_FORM": (OT_FORM_SCHEMA, OT_FORM_PROMPT),
     "WORK_PERMIT": (WORK_PERMIT_SCHEMA, WORK_PERMIT_PROMPT),
+    "LEAVE_FORM": (LEAVE_FORM_SCHEMA, LEAVE_FORM_PROMPT),
 }

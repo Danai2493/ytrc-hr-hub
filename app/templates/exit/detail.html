@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+{% set iv = c.interview or {} %}{% set sc = iv.get('scores', {}) %}
+<div class="phead"><h1>{{ c.ref }}</h1><span class="tag {{ 'ok' if c.status == 'closed' else 'warn' }}">{{ _(c.status) }}</span>
+  {% if is_hr and c.status == 'open' %}<div class="end"><form method="post" action="/exit/{{ c.id }}/close" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="primary small" {% if c.open_items %}disabled title="{{ _('Tick every checklist item first') }}"{% endif %}>{{ _('Close case') }}</button></form></div>{% endif %}
+</div>
+<div class="grid">
+  <section class="panel c6">
+    <dl class="kv">
+      <dt>{{ _('Employee') }}</dt><dd><a href="/people/{{ c.employee_id }}" class="mono">{{ c.employee_id }}</a> {{ c.employee.full_name_en }}</dd>
+      <dt>{{ _('Unit') }}</dt><dd>{{ c.employee.org_unit.name_en }}</dd>
+      <dt>{{ _('Joined') }}</dt><dd>{{ fmt_date(c.employee.join_date) }}</dd>
+      <dt>{{ _('Last day') }}</dt><dd>{{ fmt_date(c.last_day) }}</dd>
+      <dt>{{ _('Reason') }}</dt><dd>{{ _(reason_names.get(c.reason_code, c.reason_code or '-')) }}{% if c.reason_confirmed_by %} · {{ _('confirmed by') }} {{ c.reason_confirmed_by }}{% endif %}</dd>
+      <dt>{{ _('Unused vacation') }}</dt><dd>{{ c.vacation_days_left|round(1) if c.vacation_days_left is not none else '-' }} {{ _('days, paid in the final pay (LPA s.67)') }}</dd>
+      <dt>{{ _('Social security notice due') }}</dt><dd class="{% if today > sso_due and not (c.items|selectattr('code','equalto','SSO')|selectattr('done')|list) %}bad-t{% endif %}">{{ fmt_date(sso_due) }}</dd>
+    </dl>
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('Clearance checklist') }}</h2>
+    <table>
+      {% for i in c.items %}
+      <tr class="{% if i.done %}muted{% endif %}">
+        <td>{% if i.done %}<span class="tag ok">✓</span>{% else %}<span class="tag warn">○</span>{% endif %}</td>
+        <td>{{ _(i.label) }}{% if i.note %}<div class="note">{{ i.note }}</div>{% endif %}{% if i.done %}<div class="note">{{ i.by }} · {{ i.at|replace('T', ' ') }}</div>{% endif %}</td>
+        <td class="note">{{ _(i.owner) }}</td>
+        <td>{% if can_tick[i.code] and c.status == 'open' %}<form method="post" action="/exit/{{ c.id }}/tick" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="code" value="{{ i.code }}">
+          {% if i.done %}<button class="small" name="done" value="0">{{ _('Undo') }}</button>{% else %}<input name="note" placeholder="{{ _('Note') }}" size="10"><button class="small primary" name="done" value="1">{{ _('Done') }}</button>{% endif %}</form>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+  <section class="panel c12" id="interview">
+    <h2>{{ _('Exit interview') }}</h2>
+    {% if is_hr %}
+    <form method="post" action="/exit/{{ c.id }}/interview" class="form">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <p class="note wide">{{ _('1 = very unhappy, 5 = very happy. Comments can be in Thai, Myanmar or English.') }}</p>
+      {% for q, label in questions %}
+      <label>{{ _(label) }}<select name="s_{{ q }}"><option value="">-</option>{% for v in range(1, 6) %}<option {% if sc.get(q) == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+      {% endfor %}
+      <label>{{ _('Would come back?') }}<select name="would_return">{% for v, l in [('', '-'), ('yes', 'Yes'), ('maybe', 'Maybe'), ('no', 'No')] %}<option value="{{ v }}" {% if iv.get('would_return') == v %}selected{% endif %}>{{ _(l) }}</option>{% endfor %}</select></label>
+      <label class="wide">{{ _('Main reason, in their words') }}<textarea name="main_reason" rows="2">{{ iv.get('main_reason') or '' }}</textarea></label>
+      <label class="wide">{{ _('Other comments') }}<textarea name="comments" rows="3">{{ iv.get('comments') or '' }}</textarea></label>
+      <div class="bar wide"><button class="small">{{ _('Save interview') }}</button><button class="small primary" name="ask_ai" value="1">{{ _('Save and ask AI for the reason') }}</button></div>
+    </form>
+    {% elif iv %}
+    <p class="note">{{ _('Interview recorded by') }} {{ iv.by }}</p>
+    {% endif %}
+    {% if c.ai_reason_code %}
+    <div class="panel">
+      <h2>{{ _('AI suggestion') }}</h2>
+      <p><strong>{{ _(reason_names.get(c.ai_reason_code, c.ai_reason_code)) }}</strong> <span class="note">{{ _('confidence') }} {{ (c.ai_confidence * 100)|round|int }}%</span></p>
+      <p>{{ c.ai_summary }}</p>
+      <p>{% for t in c.ai_themes or [] %}<span class="tag">{{ t }}</span> {% endfor %}</p>
+      <p class="note">{{ _('AI only suggests. HR confirms the code that goes into the turnover report.') }}</p>
+    </div>
+    {% endif %}
+    {% if is_hr %}
+    <form method="post" action="/exit/{{ c.id }}/reason" class="bar">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label>{{ _('Confirmed exit reason') }}<select name="code">{% for code, name in reasons %}<option value="{{ code }}" {% if code == (c.ai_reason_code if not c.reason_confirmed_by and c.ai_reason_code else c.reason_code) %}selected{% endif %}>{{ _(name) }}</option>{% endfor %}</select></label>
+      <button class="primary small">{{ _('Confirm reason') }}</button>
+    </form>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

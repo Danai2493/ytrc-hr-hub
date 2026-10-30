@@ -147,6 +147,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
 
     users = {u.username: u for u in db.scalars(select(User))}
     _demo_time(db, rnd, today, users)
+    _demo_leave_exit(db, rnd, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -247,4 +248,77 @@ def _demo_time(db: Session, rnd: random.Random, today: date, users: dict) -> Non
         paybatch.build(db, hr1, "OPERATOR_HALF", p0, p1)
     except paybatch.BatchError:
         pass
+    db.flush()
+
+
+def _approve_head(db: Session, appr: ApprovalRequest, users: dict) -> None:
+    step = appr.active_step
+    if step is None:
+        return
+    approver = next((u for u in users.values() if u.employee_id and u.employee_id == step.approver_employee_id), None)
+    if approver is not None:
+        try:
+            approvals.decide(db, appr, approver, "approved", "OK")
+        except approvals.ApprovalError:
+            pass
+
+
+def _demo_leave_exit(db: Session, rnd: random.Random, today: date, users: dict) -> None:
+    """Leave for most of the absent days, a few planned vacations, and two exit cases."""
+    from ..models import DailyAttendance, LeaveRequest
+    from ..services import exits, leave
+
+    hr = users["hr.officer"]
+    sup = {"PRD-DRY": users["sup.dry"], "PRD-PCL": users["sup.pcl"]}
+    absent = db.scalars(select(DailyAttendance).where(DailyAttendance.day_code == "a").order_by(DailyAttendance.work_date)).all()
+    first_day = min((a.work_date for a in absent), default=None)
+    for a in absent:
+        if a.work_date == first_day or rnd.random() < 0.3:  # first day of the scan file is incomplete
+            continue  # stays a no-show
+        e = a.employee
+        code = rnd.choice(["SICK", "SICK", "SICK", "PERS", "VAC"])
+        res = leave.create(db, sup.get(e.org_unit_code) or hr, e, code, a.work_date, a.work_date, reason=rnd.choice(["Fever", "Family matter", "Hospital visit", "Child sick", ""]))
+        if res.ok and rnd.random() < 0.9:
+            _approve_head(db, db.get(ApprovalRequest, res.request.approval_id), users)
+    # three-day sick leave with no certificate yet: goes to HR check
+    e = db.get(Employee, "YTOP958")
+    d0 = today - timedelta(days=12)
+    while is_rest_day(db, e, d0):
+        d0 -= timedelta(days=1)
+    leave.create(db, hr, e, "SICK", d0, d0 + timedelta(days=3), reason="Dengue fever (SAMPLE)")
+    # planned vacations, waiting for the Department Head
+    for eid, days_ahead in (("YTOP961", 9), ("YTOP970", 16), ("YTR805", 5)):
+        e = db.get(Employee, eid)
+        if e is None:
+            continue
+        d = today + timedelta(days=days_ahead)
+        res = leave.create(db, users["hr.manager"], e, "VAC", d, d + timedelta(days=1), reason="Going home (SAMPLE)")
+        if res.ok and eid == "YTR805":
+            _approve_head(db, db.get(ApprovalRequest, res.request.approval_id), users)
+    db.flush()
+    # Exit cases for the two most recent exits
+    head, it = users["prod.head"], users["it.admin"]
+    samples = [
+        ("YTOP985", {"job": 4, "boss": 2, "team": 4, "pay": 3, "shift": 2, "growth": 3, "safety": 4}, "maybe",
+         "หัวหน้าพูดจาแรง และต้องทำกะดึกติดกันหลายเดือน", "Night shift every month is too tiring. Supervisor shouts when the line stops."),
+        ("YTOP986", {"job": 3, "boss": 4, "team": 4, "pay": 2, "shift": 3, "growth": 2, "safety": 4}, "yes",
+         "ကျွန်တော့်အမေ နေမကောင်းလို့ ရွာပြန်ရမယ်", "Mother is ill in Myanmar, going home. Would come back later."),
+    ]
+    for eid, scores, back, reason, comments in samples:
+        e = db.get(Employee, eid)
+        if e is None or not e.exit_date:
+            continue
+        case = exits.open_case(db, e, e.exit_date, e.exit_reason_code, hr)
+        for item in case.items:
+            if item["code"] in ("HANDOVER", "ASSETS"):
+                exits.tick(db, case, head, item["code"], True)
+            elif item["code"] == "IT_ACCESS":
+                exits.tick(db, case, it, item["code"], True)
+            elif eid == "YTOP986" or item["code"] in ("ID_CARD", "FINAL_PAY"):
+                exits.tick(db, case, hr, item["code"], True)
+        exits.save_interview(db, case, hr, scores, back, reason, comments)
+        exits.suggest_reason(db, case)
+        if eid == "YTOP986":
+            exits.confirm_reason(db, case, users["hr.manager"], case.ai_reason_code or "RES-FAMILY")
+            exits.close(db, case, users["hr.manager"])
     db.flush()

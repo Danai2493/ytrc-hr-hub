@@ -99,6 +99,8 @@ def extract(db: Session, cap: FormCapture, hint: Optional[dict] = None) -> None:
     db.flush()
     if cap.form_type == "OT_FORM":
         _load_ot(db, cap, res.data)
+    elif cap.form_type == "LEAVE_FORM":
+        _load_leave(db, cap, res.data)
     else:
         _load_permit(db, cap, res.data)
     db.flush()
@@ -376,3 +378,111 @@ def accept_permit(db: Session, user: User, cap: FormCapture, employee_id: str, v
     cap.reviewed_by = user.label
     cap.reviewed_at = datetime.now()
     audit(db, user, "update_restricted", "employee", emp.employee_id, f"Work permit from capture #{cap.id}", {"before": before, "after": {"work_permit_no": r.work_permit_no, "work_permit_expiry": exp.isoformat()}})
+
+
+# ---------- leave form ----------
+
+LEAVE_KEYS = ("employee_id", "name", "department", "leave_type", "start_date", "end_date", "part", "days", "reason",
+              "medical_certificate", "employee_signed", "approved_by_signed")
+
+
+def _load_leave(db: Session, cap: FormCapture, data: dict) -> None:
+    cap.header = {k: _val(data.get(k)) for k in LEAVE_KEYS}
+    cap.header["page_quality"] = data.get("page_quality")
+    cap.header_confidence = {k: _conf(data.get(k)) for k in LEAVE_KEYS}
+    validate_leave(db, cap)
+
+
+def validate_leave(db: Session, cap: FormCapture) -> None:
+    """Same checks as a leave typed on screen, plus what only paper has:
+    unclear handwriting, a days total that does not match the dates, no signature."""
+    from ...models import LeaveType
+    from .. import leave as leave_service
+
+    h = {k: v for k, v in (cap.header or {}).items() if not k.startswith("_")}
+    conf = cap.header_confidence or {}
+    thr = settings.ai_review_threshold
+    findings: list[dict] = []
+    issues: list[str] = []
+    if h.get("page_quality") not in (None, "good"):
+        issues.append(f"Photo quality: {h.get('page_quality')}")
+    low = [k for k in ("employee_id", "leave_type", "start_date", "end_date") if conf.get(k, 1) < thr]
+    if low:
+        findings.append({"code": "low_confidence", "level": "flag", "params": {"fields": ", ".join(low)}})
+    eid = normalize_employee_id(h.get("employee_id") or "") or cap.employee_id
+    emp = db.get(Employee, eid) if eid else None
+    if emp is None:
+        guess = _guess_by_name(db, h.get("name"))
+        findings.append({"code": "id_not_found", "level": "block", "params": {"id": h.get("employee_id") or "-", "guess": guess or ""}})
+    else:
+        h["employee_id"] = cap.employee_id = emp.employee_id
+        if h.get("name") and _name_ratio(h.get("name"), emp) < 0.55:
+            findings.append({"code": "name_mismatch", "level": "flag", "params": {"master": emp.full_name_en, "form": h.get("name")}})
+    lt = db.get(LeaveType, h.get("leave_type") or "")
+    d0, d1 = parse_day(h.get("start_date")), parse_day(h.get("end_date"))
+    if lt is None:
+        issues.append("Leave type unreadable")
+    if d0 is None or d1 is None:
+        issues.append("Leave dates unreadable")
+    if not h.get("employee_signed"):
+        findings.append({"code": "not_signed", "level": "flag", "params": {}})
+    if not h.get("approved_by_signed"):
+        issues.append("No approval signature on the form")
+    if emp is not None and lt is not None and d0 and d1:
+        part = h.get("part") if h.get("part") in ("am", "pm") else "full"
+        res, days = leave_service.check(db, emp, lt, d0, d1, part, bool(h.get("medical_certificate")))
+        findings += [x.as_dict() for x in res if x.code != "leave_after"]
+        h["_days"] = days
+        written = h.get("days")
+        if written not in (None, ""):
+            try:
+                if abs(float(written) - days) > 0.01:
+                    findings.append({"code": "leave_days_mismatch", "level": "flag", "params": {"written": float(written), "days": days}})
+            except (TypeError, ValueError):
+                pass
+    cap.header = {**h, "_issues": issues, "_findings": findings}
+    if cap.status not in ("approved", "rejected"):
+        cap.status = "extracted" if not issues and not findings else "needs_review"
+
+
+def update_leave(db: Session, user: User, cap: FormCapture, values: dict) -> None:
+    before = {k: v for k, v in (cap.header or {}).items() if not k.startswith("_")}
+    h = dict(before)
+    conf = dict(cap.header_confidence or {})
+    for k in ("employee_id", "leave_type", "start_date", "end_date", "part", "reason"):
+        if k in values and str(values[k] or "") != str(h.get(k) or ""):
+            h[k] = values[k] or None
+            conf[k] = 1.0  # a person checked it
+    for k in ("medical_certificate", "approved_by_signed"):
+        h[k] = bool(values.get(k))
+    cap.header, cap.header_confidence = h, conf
+    audit(db, user, "edit", "form_capture", cap.id, "HR corrected the leave form", {"before": before, "after": h})
+    validate_leave(db, cap)
+
+
+def accept_leave(db: Session, user: User, cap: FormCapture, paper_signed: bool):
+    from .. import approvals
+    from .. import leave as leave_service
+
+    if not user.has("hr", "hr_manager"):
+        raise AIError("Only HR can accept captured forms")
+    h = cap.header or {}
+    if any(f.get("level") == "block" for f in h.get("_findings") or []) or h.get("_issues") and any("unreadable" in i for i in h["_issues"]):
+        raise AIError("Fix the blocking issue first")
+    emp = db.get(Employee, cap.employee_id or "")
+    d0, d1 = parse_day(h.get("start_date")), parse_day(h.get("end_date"))
+    if emp is None or d0 is None or d1 is None:
+        raise AIError("Employee and dates are required")
+    part = h.get("part") if h.get("part") in ("am", "pm") else "full"
+    res = leave_service.create(db, user, emp, h.get("leave_type") or "", d0, d1, part, h.get("reason") or f"Paper leave form (capture #{cap.id})",
+                               has_document=bool(h.get("medical_certificate")), source="paper", capture_id=cap.id)
+    if not res.ok:
+        raise AIError("; ".join(f.code for f in res.findings if f.level == "block"))
+    if paper_signed and res.request.approval_id:
+        appr = db.get(ApprovalRequest, res.request.approval_id)
+        approvals.record_paper_signature(db, appr, user, f"Signed on paper leave form, photo capture #{cap.id}")
+    cap.status = "approved"
+    cap.reviewed_by = user.label
+    cap.reviewed_at = datetime.now()
+    audit(db, user, "accept", "form_capture", cap.id, f"Leave {res.request.ref} created from paper form")
+    return res.request

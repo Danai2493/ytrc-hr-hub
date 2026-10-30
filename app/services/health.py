@@ -13,6 +13,8 @@ from ..models import (
     DailyAttendance,
     DataIssue,
     Employee,
+    ExitCase,
+    LeaveRequest,
     OrgUnit,
     OTRequest,
     Position,
@@ -38,6 +40,10 @@ RULES = {
     "OT_SCAN_SHORT": ("flag", "dept_head", "OT not covered by face scan"),
     "SCAN_UNKNOWN": ("flag", "hr", "Face scan user not in the master"),
     "NO_EMAIL": ("info", "hr", "Manager or staff with no work email (cannot sign in)"),
+    "EXIT_CLEARANCE": ("flag", "hr", "Exit clearance still open a week after the last day"),
+    "SSO_DUE": ("block", "hr", "Social security not told of an exit by the deadline"),
+    "LEAVE_SICK_DOC": ("flag", "dept_head", "Sick leave of 3+ days with no medical certificate"),
+    "EXIT_NO_CASE": ("flag", "hr", "Exit with no clearance case"),
 }
 
 
@@ -127,10 +133,35 @@ def _time(db: Session, today: date) -> Iterator[Hit]:
         yield Hit("SCAN_UNKNOWN", "scan_user", u, f"Scan user {u} is not in the employee master")
 
 
+def _hrdev(db: Session, today: date) -> Iterator[Hit]:
+    from .exits import sso_due
+
+    open_cases = db.scalars(select(ExitCase).where(ExitCase.status == "open")).all()
+    for c in open_cases:
+        e = c.employee
+        h = dict(employee_id=e.employee_id, org_unit=e.org_unit_code)
+        left = c.open_items
+        if left and today > c.last_day + timedelta(days=7):
+            yield Hit("EXIT_CLEARANCE", "exit_case", c.ref, f"{c.ref}: {len(left)} item(s) open: " + ", ".join(i["code"] for i in left), due=c.last_day + timedelta(days=14), **h)
+        due = sso_due(db, c.last_day)
+        if any(i["code"] == "SSO" for i in left) and today >= due - timedelta(days=5):
+            yield Hit("SSO_DUE", "exit_case", f"{c.ref}:SSO", f"{c.ref}: tell social security (SPS 6-09) by {due}", due=due, **h)
+    has_case = set(db.scalars(select(ExitCase.employee_id)).all())
+    for e in db.scalars(select(Employee).where(Employee.status == "Resigned", Employee.exit_date >= today - timedelta(days=60))):
+        if e.employee_id not in has_case and e.exit_date >= date(2026, 11, 1):
+            yield Hit("EXIT_NO_CASE", "employee", e.employee_id, f"Left {e.exit_date} with no clearance checklist", e.employee_id, e.org_unit_code)
+    for r in db.scalars(select(LeaveRequest).where(LeaveRequest.leave_type == "SICK", LeaveRequest.status.in_(("pending", "approved")),
+                                                   LeaveRequest.end_date >= today - timedelta(days=60), LeaveRequest.has_document.is_(False))):
+        need = r.type.document_from_days
+        if need and r.days >= need:
+            yield Hit("LEAVE_SICK_DOC", "leave_request", r.ref, f"{r.ref}: {r.days:g} days sick leave, no medical certificate",
+                      r.employee_id, r.employee.org_unit_code, r.end_date + timedelta(days=7))
+
+
 def run(db: Session, today: Optional[date] = None) -> dict:
     today = today or date.today()
     hits: dict[tuple[str, str, str], Hit] = {}
-    for gen in (_employees, _org, _time):
+    for gen in (_employees, _org, _time, _hrdev):
         for h in gen(db, today):
             hits[(h.rule, h.entity, h.entity_id)] = h
     open_issues = {
