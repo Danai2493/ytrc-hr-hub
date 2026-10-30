@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "recruit/_tabs.html" %}
+<div class="phead"><h2><span class="mono">{{ req.ref }}</span> · {{ req.headcount }} × {{ req.job.title_th if lang == 'th' and req.job.title_th else req.job.title_en }}</h2>{{ status_tag(req.status) }}
+  {% if is_hr and req.status in ('open', 'on_hold', 'pending', 'filled') %}<div class="end">
+    <form method="post" action="/recruit/req/{{ req.id }}/status" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}">
+      {% if req.status == 'open' %}<button class="small" name="status" value="on_hold">{{ _('Put on hold') }}</button>{% endif %}
+      {% if req.status in ('on_hold',) or (req.status == 'filled' and req.open_seats) %}<button class="small" name="status" value="open">{{ _('Reopen') }}</button>{% endif %}
+      {% if req.status != 'filled' %}<button class="small" name="status" value="cancelled" data-confirm="{{ _('Cancel this request? Open candidates are closed as not selected.') }}">{{ _('Cancel request') }}</button>{% endif %}
+    </form></div>{% endif %}
+</div>
+<div class="grid">
+  <section class="panel c6">
+    <dl class="kv">
+      <dt>{{ _('Unit') }}</dt><dd>{{ req.org_unit.name_en }}</dd>
+      <dt>{{ _('Position') }}</dt><dd>{% if req.position %}<span class="mono">{{ req.position_id }}</span> {{ req.position.title }} · {{ req.position.filled }}/{{ req.position.seats }} {{ _('filled') }}{% else %}-{% endif %}</dd>
+      <dt>{{ _('Group, grade') }}</dt><dd>{{ req.employee_group }} · {{ req.grade_code or '-' }}</dd>
+      <dt>{{ _('Reason') }}</dt><dd>{{ _(reasons[req.reason]) }}{% if req.replaces_employee_id %} · {{ req.replaces_employee_id }}{% endif %}{% if not req.within_budget %} <span class="tag warn">{{ _('outside budget') }}</span>{% endif %}</dd>
+      <dt>{{ _('Needed by') }}</dt><dd class="{% if req.status == 'open' and req.needed_by < today %}bad-t{% endif %}">{{ fmt_date(req.needed_by) }}</dd>
+      <dt>{{ _('Hired') }}</dt><dd>{{ req.hired }} / {{ req.headcount }}{% if req.opened_on %} · {{ _('open since') }} {{ fmt_date(req.opened_on) }} ({{ (today - req.opened_on).days }} {{ _('days') }}){% endif %}</dd>
+      <dt>{{ _('Asked by') }}</dt><dd>{{ req.requested_by }}</dd>
+      {% if req.requirements %}<dt>{{ _('Also needs') }}</dt><dd>{{ req.requirements }}</dd>{% endif %}
+      {% if req.note %}<dt>{{ _('Note') }}</dt><dd>{{ req.note }}</dd>{% endif %}
+    </dl>
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('Approval') }}</h2>
+    {% if appr %}<table>{% for s in appr.steps %}<tr><td>{{ _(s.name) }}</td><td>{{ s.approver_employee_id or _(s.approver_role) }}</td><td>{{ status_tag(s.decision or ('pending' if appr.status == 'pending' and s.seq == appr.current_step else '')) }}</td><td class="note">{{ s.decided_by or '' }} {{ fmt_dt(s.decided_at) if s.decided_at else '' }}</td></tr>{% endfor %}</table>
+    {% if appr.status == 'pending' %}<p><a href="/approvals/{{ appr.id }}">{{ _('Open in Approvals') }}</a></p>{% endif %}{% endif %}
+    {% if checks %}<ul class="find">{% for c in checks %}<li class="flag">{{ c }}</li>{% endfor %}</ul>{% endif %}
+    <h2>{{ _('Interview scorecard') }}</h2>
+    <p class="note">{{ _('Every candidate for this job is scored on the same points:') }} {% for c in criteria %}{{ c.th if lang == 'th' else c.en }}{% if not loop.last %} · {% endif %}{% endfor %}</p>
+  </section>
+  {% if req.status not in ('pending', 'rejected') %}
+  <section class="panel c12" id="ad">
+    <h2>{{ _('Job ad') }}{% if req.ad_ai %} <span class="tag">{{ _('AI draft, edited by HR') }}</span>{% endif %}</h2>
+    {% if is_hr %}
+    <form method="post" action="/recruit/req/{{ req.id }}/ad" class="form">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label class="half">{{ _('Thai') }}<textarea name="ad_th" rows="9">{{ req.ad_th or '' }}</textarea></label>
+      <label class="half">{{ _('English') }}<textarea name="ad_en" rows="9">{{ req.ad_en or '' }}</textarea></label>
+      <label class="wide">{{ _('Posted on') }}<span>{% for k, v in sources.items() if k not in ('walk_in', 'referral', 'rehire', 'other') %}<label style="display:inline;min-width:auto"><input type="checkbox" name="channels" value="{{ k }}" {% if k in (req.channels or []) %}checked{% endif %}> {{ _(v) }}</label> {% endfor %}</span></label>
+      <div class="bar wide"><button class="primary">{{ _('Save ad') }}</button><button name="do" value="ai" data-confirm="{{ _('Replace the ad with a new AI draft?') }}">{{ _('New AI draft from the JD') }}</button></div>
+    </form>
+    <p class="note">{{ _('The ad never shows pay. It must not ask for age, gender, religion or marital status unless the job legally needs it.') }}</p>
+    {% else %}<div class="grid"><pre class="c6 wrap">{{ req.ad_th or '' }}</pre><pre class="c6 wrap">{{ req.ad_en or '' }}</pre></div>{% endif %}
+  </section>
+  <section class="panel c12 scroll">
+    <h2>{{ _('Candidates') }}</h2>
+    <div class="board">
+      {% for s, label in stages.items() %}{% if board[s] or s in active_stages %}
+      <div class="col"><h3>{{ _(label) }} <span class="note">{{ board[s]|length }}</span></h3>
+        {% for a in board[s] %}{% set sm = summaries[a.id] %}
+        <a class="card" href="/recruit/app/{{ a.id }}"><strong>{{ a.candidate.full_name_en }}</strong>
+          <span class="note">{{ _(sources.get(a.candidate.source, '')) }} · {{ fmt_date(a.applied_on) }}</span>
+          {% set bl = a.checks|selectattr('level', 'equalto', 'block')|list %}{% set fl = a.checks|selectattr('level', 'equalto', 'flag')|list %}
+          <span>{% if bl %}<span class="tag bad">{{ bl|length }} {{ _('block') }}</span>{% endif %}{% if fl %} <span class="tag warn">{{ fl|length }} {{ _('check') }}</span>{% endif %}
+          {% if sm.n %} <span class="tag">{{ _('interview') }} {{ sm.mean }}</span>{% for r, n in sm.recs.items() %} <span class="tag {{ 'ok' if r == 'hire' else ('bad' if r == 'no' else 'warn') }}">{{ _(recommend[r]) }}</span>{% endfor %}{% endif %}</span></a>
+        {% endfor %}</div>
+      {% endif %}{% endfor %}
+    </div>
+    {% if is_hr and req.status == 'open' %}
+    <div class="bar">
+      <form method="post" action="/recruit/req/{{ req.id }}/add" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}">
+        <select name="candidate_id" required><option value="">{{ _('Add an existing candidate') }}</option>{% for c in pool %}<option value="{{ c.id }}">{{ c.ref }} · {{ c.full_name_en }}{% if c.talent_pool %} · {{ _('talent pool') }}{% endif %}</option>{% endfor %}</select>
+        <button class="small">{{ _('Add') }}</button></form>
+      <a class="btn small primary" href="/recruit/candidates/new?req={{ req.id }}">{{ _('New candidate or CV') }}</a>
+    </div>{% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

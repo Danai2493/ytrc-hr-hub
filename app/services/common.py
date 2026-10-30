@@ -32,6 +32,13 @@ DEFAULT_SETTINGS: dict[str, tuple[Any, str]] = {
     "vacation_carry_max": (3, "Unused vacation days that carry to the next year"),
     "vacation_carry_from_year": (2027, "First year that gets a carry-forward computed from leave in this app"),
     "sso_notice_day": (15, "Social security must be told of an exit by this day of the next month"),
+    "recruit_retention_months": (12, "Months to keep a candidate's data after the last application (PDPA notice); then HR erases it"),
+    "recruit_pool_months": (24, "Months to keep candidates who agreed to stay in the talent pool"),
+    "recruit_offer_days": (7, "Flag an offer with no answer after this many days"),
+    "recruit_benefits": ("Social security, uniform and safety shoes, free lunch, bus service, annual bonus per company results",
+                         "Benefits the job ad may mention (no pay figures)"),
+    "recruit_apply_how": ("Walk in Monday to Saturday 08:00-16:00 at the HR office, or send name and phone by LINE",
+                          "How to apply, printed on every job ad"),
     "juvenile_age": (18, "Workers under this age: no OT, no holiday work, no night work"),
     "bplus_export_columns": (
         ["employee_id", "pay_code", "hours", "period_start", "period_end"],

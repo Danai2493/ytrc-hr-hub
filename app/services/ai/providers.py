@@ -71,9 +71,10 @@ class AnthropicProvider:
         self.model = settings.ai_model or "claude-opus-5-5"
 
     def extract(self, image, mime, schema, instructions, hint=None) -> AIResult:
+        kind = "document" if mime == "application/pdf" else "image"
         return self._call(
             [
-                {"type": "image", "source": {"type": "base64", "media_type": mime, "data": base64.b64encode(image).decode()}},
+                {"type": kind, "source": {"type": "base64", "media_type": mime, "data": base64.b64encode(image).decode()}},
                 {"type": "text", "text": instructions},
             ],
             schema,
@@ -111,7 +112,8 @@ class OpenAICompatibleProvider:
 
     def extract(self, image, mime, schema, instructions, hint=None) -> AIResult:
         uri = f"data:{mime};base64,{base64.b64encode(image).decode()}"
-        return self._call([{"type": "text", "text": instructions}, {"type": "image_url", "image_url": {"url": uri}}], schema)
+        part = {"type": "file", "file": {"filename": "document.pdf", "file_data": uri}} if mime == "application/pdf" else {"type": "image_url", "image_url": {"url": uri}}
+        return self._call([{"type": "text", "text": instructions}, part], schema)
 
     def classify(self, text, schema, hint=None) -> AIResult:
         return self._call([{"type": "text", "text": text}], schema)

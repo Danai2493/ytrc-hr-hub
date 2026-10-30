@@ -13,7 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from .config import settings
 from .db import engine
 from .security import LoginRequired
-from .web import admin, approvals, attendance, auth, capture, dash, exits, growth, health, home, leave, newstaff, org, ot, pay, people, skills
+from .web import admin, approvals, attendance, auth, capture, dash, exits, growth, health, home, leave, newstaff, org, ot, pay, people, recruit, skills
 from .web.templating import redirect, render
 
 # Register approval hooks
@@ -54,7 +54,7 @@ async def security_headers(request: Request, call_next):
 
 
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
-for r in (auth, home, people, org, ot, leave, attendance, approvals, capture, newstaff, skills, growth, exits, pay, health, dash, admin):
+for r in (auth, home, people, org, ot, leave, attendance, approvals, capture, recruit, newstaff, skills, growth, exits, pay, health, dash, admin):
     app.include_router(r.router)
 
 

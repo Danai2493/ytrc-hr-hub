@@ -1,0 +1,3 @@
+<div class="phead"><h1>{{ _('Recruitment') }}</h1>
+  <div class="end no-print"><a class="btn" href="/recruit">{{ _('Requests') }}</a>{% if user.has('hr', 'hr_manager') %}<a class="btn" href="/recruit/candidates">{{ _('Candidates') }}</a>{% endif %}<a class="btn primary" href="/recruit/new">{{ _('Ask for people') }}</a></div>
+</div>

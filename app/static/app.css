@@ -134,3 +134,15 @@ table.likert th.n{font-size:11px;font-weight:500}
 table.likert th.cl{text-align:left;padding-top:14px}
 table.likert tr:hover td{background:var(--bg-2,rgba(0,0,0,.03))}
 .ok-t{color:var(--ok,#1a7f37)}.warn-t{color:var(--warn,#9a6700)}
+/* recruitment */
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:12px}
+.board .col{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;display:grid;gap:6px;align-content:start;min-height:80px}
+.board h3{font-size:13px;margin:0 0 2px}
+.board .card{display:grid;gap:3px;background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:7px 8px;text-decoration:none;color:inherit;font-size:13px}
+.board .card:hover{border-color:var(--s1)}
+pre.wrap{white-space:pre-wrap;font:inherit;margin:0}
+label.half{grid-column:span 2}
+.lowc input,.lowc select,.lowc textarea{background:#fff6d6;border-color:#d9a400}
+.scorecard td{vertical-align:top}
+.scorecard .q{font-size:13px;color:var(--ink-2)}
+@media (max-width:640px){label.half{grid-column:1/-1}}

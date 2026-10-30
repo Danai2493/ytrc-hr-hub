@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "recruit/_tabs.html" %}
+{% macro fld(name, label, type='text', cls='') -%}
+<label class="{{ cls }} {% if name in low %}lowc{% endif %}">{{ _(label) }}{% if name in low %} <span class="note">{{ _('AI unsure') }} {{ ((c.ai_confidence or {}).get(name, 0) * 100)|round|int }}%</span>{% endif %}
+  {% if type == 'area' %}<textarea name="{{ name }}" rows="3">{{ (c[name] if c else '') or '' }}</textarea>{% else %}<input type="{{ type }}" name="{{ name }}" value="{{ (c[name] if c else '') if (c and c[name] is not none) else '' }}">{% endif %}</label>
+{%- endmacro %}
+{% if c %}<div class="phead"><h2><span class="mono">{{ c.ref }}</span> · {{ c.full_name_en }}</h2>{% if c.talent_pool %}<span class="tag ok">{{ _('talent pool') }}</span>{% endif %}
+  <span class="note">{{ _('added by') }} {{ c.created_by }}{% if c.ai_used %} · {{ _('read by AI') }}{% endif %}</span></div>{% else %}<h2>{{ _('New candidate') }}</h2>{% endif %}
+{% if c and c.erased_at %}<div class="flash warn">{{ _('Personal data was erased on') }} {{ fmt_dt(c.erased_at) }}. {{ _('Only the stage history is kept for the numbers.') }}</div>
+{% else %}
+{% if not c %}
+<section class="panel">
+  <h2>{{ _('Let AI read a CV or a paper application') }}</h2>
+  <form method="post" action="/recruit/candidates/read" enctype="multipart/form-data" class="bar">
+    <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="req" value="{{ req_id }}">
+    <input type="file" name="file" accept="image/*,application/pdf" capture="environment" required style="max-width:320px">
+    <select name="source" style="max-width:200px">{% for k, v in sources.items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select>
+    <button class="primary">{{ _('Read with AI') }}</button>
+  </form>
+  <p class="note">{{ _('Photo or PDF. AI fills in the form below; fields it is unsure of turn yellow for you to check. It does not keep religion, marital status, health or family details.') }}</p>
+</section>
+{% endif %}
+<div class="grid">
+<form method="post" action="{{ '/recruit/candidates/%d' % c.id if c else '/recruit/candidates/new' }}" class="panel {{ 'c8' if c and c.file_path else 'c12' }}">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  {% if checks %}<ul class="find">{% for f in checks %}<li class="{{ f.level }}">{{ rt(f) }}</li>{% endfor %}</ul>{% endif %}
+  <div class="form">
+    {{ fld('full_name_en', 'Full name (EN)') }}{{ fld('full_name_th', 'Full name (TH)') }}{{ fld('nickname', 'Nickname') }}
+    <label class="{% if 'title' in low %}lowc{% endif %}">{{ _('Title') }}<select name="title"><option value=""></option>{% for t in ('Mr.', 'Ms.', 'Mrs.') %}<option {% if c and c.title == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+    <label class="{% if 'gender' in low %}lowc{% endif %}">{{ _('Gender') }}<select name="gender"><option value=""></option>{% for g in ('M', 'F') %}<option {% if c and c.gender == g %}selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+    <label class="{% if 'nationality' in low %}lowc{% endif %}">{{ _('Nationality') }}<select name="nationality">{% for n in nationalities %}<option {% if c and c.nationality == n %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></label>
+    {{ fld('birth_date', 'Birth date', 'date') }}{{ fld('phone', 'Phone') }}{{ fld('line_id', 'LINE ID') }}{{ fld('email', 'Email', 'email') }}
+    {{ fld('id_card_no', 'ID card or passport no.') }}{{ fld('home_area', 'Lives in (district, province)') }}
+    {{ fld('education', 'Education') }}{{ fld('experience_years', 'Years of experience', 'number') }}
+    {{ fld('experience', 'Work history', 'area', 'wide') }}{{ fld('skills', 'Licences and skills', 'area', 'wide') }}
+    <label>{{ _('Source') }}<select name="source">{% for k, v in sources.items() %}<option value="{{ k }}" {% if c and c.source == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+    {{ fld('referred_by', 'Referred by (Employee ID)') }}{{ fld('previous_employee_id', 'Former Employee ID') }}
+    {{ fld('note', 'HR note', 'area', 'wide') }}
+    <fieldset class="wide panel">
+      <legend>{{ _('PDPA') }}</legend>
+      {% if c and c.consent_at %}<p>✓ {{ _('Consent recorded') }} {{ fmt_dt(c.consent_at) }} ({{ _(c.consent_how) }})</p>
+      {% else %}<label>{{ _('The candidate read the privacy notice and agreed that YTRC keeps their data for this recruitment') }}<select name="consent"><option value="">{{ _('Not yet') }}</option><option value="paper">{{ _('Signed on the paper form') }}</option><option value="web">{{ _('Agreed online') }}</option><option value="verbal">{{ _('Agreed by phone, HR noted it') }}</option></select></label>{% endif %}
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="talent_pool" {% if c and c.talent_pool %}checked{% endif %}> {{ _('Also agreed to stay in the talent pool for future jobs') }}</label>
+      {% if c %}<p class="note">{{ _('Data is kept until') }} {{ fmt_date(c.retain_until) }}. {{ _('After that HR erases it.') }}</p>{% endif %}
+    </fieldset>
+    {% if reqs %}<label class="wide">{{ _('Apply for') }}<select name="req_id"><option value="">-</option>{% for r in reqs %}<option value="{{ r.id }}" {% if r.id == req_id %}selected{% endif %}>{{ r.ref }} · {{ r.job.title_en }} · {{ r.org_unit.name_en }}</option>{% endfor %}</select></label>{% endif %}
+  </div>
+  <div class="bar"><button class="primary">{{ _('Save candidate') }}</button>
+    {% if c and c.retain_until and c.retain_until < today %}<button name="do" value="erase" class="danger" data-confirm="{{ _('Erase this person’s data for good?') }}">{{ _('Erase personal data') }}</button>{% endif %}</div>
+</form>
+{% if c and c.file_path %}<section class="panel c4"><h2>{{ _('Document') }}</h2>
+  {% if c.file_mime == 'application/pdf' %}<iframe src="/recruit/candidates/{{ c.id }}/file" style="width:100%;height:640px;border:0"></iframe>{% else %}<a href="/recruit/candidates/{{ c.id }}/file" target="_blank"><img src="/recruit/candidates/{{ c.id }}/file" alt="{{ _('Document') }}" style="width:100%"></a>{% endif %}</section>{% endif %}
+</div>
+{% endif %}
+{% if c and c.applications %}<section class="panel"><h2>{{ _('Applications') }}</h2>
+  <table>{% for a in c.applications %}<tr><td><a href="/recruit/app/{{ a.id }}">{{ a.requisition.ref }}</a></td><td>{{ a.requisition.job.title_en }}</td><td>{{ fmt_date(a.applied_on) }}</td><td>{{ status_tag(a.stage) }}</td></tr>{% endfor %}</table></section>{% endif %}
+{% endblock %}

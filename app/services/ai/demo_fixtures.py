@@ -11,6 +11,15 @@ def f(value, confidence=0.97):
 
 
 def demo_answer(form_type: str, hint: dict) -> dict:
+    if form_type == "CV":
+        return {
+            "full_name_en": f("Somchai Sample (SAMPLE)", 0.95), "full_name_th": f("สมชาย ตัวอย่าง (SAMPLE)", 0.9), "nickname": f("Chai", 0.8),
+            "title": f("Mr.", 0.95), "gender": f("M", 0.9), "nationality": f("Thai", 0.97), "birth_date": f("2001-05-14", 0.66),
+            "phone": f("0890000123", 0.92), "email": f(None, 0.2), "line_id": f("chai.sample", 0.7), "id_card_no": f(None, 0.1),
+            "home_area": f("Mueang, Surat Thani", 0.88), "education": f("Vocational certificate (ปวช.), mechanics", 0.9),
+            "experience_years": f(3, 0.85), "experience": f("2023-2026 Machine operator, a sawmill (SAMPLE)\n2022 Helper, a palm oil mill (SAMPLE)", 0.8),
+            "skills": f("Forklift licence, basic welding, Thai, some English", 0.82), "page_quality": "good",
+        }
     if form_type == "WORK_PERMIT":
         return {
             "full_name": f(hint.get("name", "MG AUNG KYAW (SAMPLE)"), 0.93),
@@ -83,6 +92,17 @@ def demo_classify(hint: dict) -> dict:
     """Exit interview coding for the demo: a few keyword rules stand in for the model."""
     if hint.get("task") == "jd":
         return demo_jd(hint)
+    if hint.get("task") == "ad":
+        t, tt, u, n = hint.get("title") or "Operator", hint.get("title_th") or hint.get("title") or "พนักงาน", hint.get("unit") or "", hint.get("n") or 1
+        return {"title_th": f"รับสมัคร {tt} {n} อัตรา (SAMPLE)",
+                "ad_th": f"แผนก {u}\n• ทำงานตามคู่มือ ดูแลคุณภาพและความปลอดภัย\n• ไม่ต้องมีประสบการณ์ บริษัทสอนงานให้\n• ทำงานเป็นกะ ตามปฏิทินโรงงาน\n"
+                         "ค่าจ้างและสวัสดิการตามนโยบายบริษัท\nสมัครได้ที่ฝ่ายบุคคล วันจันทร์ถึงเสาร์ 08:00-16:00",
+                "title_en": f"We are hiring: {t} x {n} (SAMPLE)",
+                "ad_en": f"Unit: {u}\n• Run the work to the work instruction, quality and safety first\n• No experience needed, we train you\n• Shift work on the factory calendar\n"
+                         "Pay and benefits per company policy\nApply at the HR office, Monday to Saturday 08:00-16:00"}
+    if hint.get("task") == "interview_q":
+        return {"questions": [{"criterion": c["code"], "text": (c.get("q_en") or c["en"]) + " (AI SAMPLE)", "text_th": c.get("q_th") or "",
+                               "listen_for": "A real example with what they did and the result"} for c in hint.get("criteria") or []]}
     if hint.get("task") == "idp":
         from ..growth import ACTION_LIBRARY
 

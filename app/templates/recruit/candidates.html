@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "recruit/_tabs.html" %}
+<form class="bar" method="get"><input name="q" value="{{ q }}" placeholder="{{ _('Name, phone or ref') }}" style="max-width:280px"><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" name="pool" value="1" {% if pool %}checked{% endif %}> {{ _('Talent pool only') }}</label><button class="small">{{ _('Search') }}</button>
+  <a class="btn small primary" href="/recruit/candidates/new">{{ _('New candidate or CV') }}</a></form>
+<section class="panel scroll">
+  <table><tr><th>{{ _('Ref') }}</th><th>{{ _('Name') }}</th><th>{{ _('Source') }}</th><th>{{ _('Applications') }}</th><th>{{ _('Consent') }}</th><th>{{ _('Keep data until') }}</th></tr>
+  {% for c in rows %}
+  <tr class="{% if c.erased_at %}muted{% endif %}"><td><a href="/recruit/candidates/{{ c.id }}" class="mono">{{ c.ref }}</a></td><td>{{ c.full_name_en }}{% if c.talent_pool %} <span class="tag ok">{{ _('talent pool') }}</span>{% endif %}{% if c.previous_employee_id %} <span class="tag">{{ _('former employee') }}</span>{% endif %}</td>
+    <td>{{ _(sources.get(c.source, c.source)) }}</td>
+    <td>{% for a in c.applications %}<a href="/recruit/app/{{ a.id }}">{{ a.requisition.ref }}</a> {{ status_tag(a.stage) }} {% endfor %}</td>
+    <td>{% if c.consent_at %}✓ <span class="note">{{ _(c.consent_how) }}</span>{% elif not c.erased_at %}<span class="tag bad">{{ _('missing') }}</span>{% endif %}</td>
+    <td class="{% if c.retain_until and c.retain_until < today and not c.erased_at %}bad-t{% endif %}">{{ _('erased') if c.erased_at else fmt_date(c.retain_until) }}</td></tr>
+  {% else %}<tr><td colspan="6" class="note">{{ _('No candidates') }}</td></tr>{% endfor %}</table>
+</section>
+{% endblock %}

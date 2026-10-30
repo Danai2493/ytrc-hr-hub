@@ -154,6 +154,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_leave_exit(db, rnd, today, users)
     _demo_skills(db, rnd, today, users)
     _demo_growth(db, rnd, today, users)
+    _demo_recruit(db, rnd, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -447,3 +448,147 @@ def _demo_growth(db: Session, rnd: random.Random, today: date, users: dict) -> N
     if sup and len(done) > 1:
         growth.create_plan(db, sup, done[1].employee, done[1])
     db.flush()
+
+
+def _demo_recruit(db: Session, rnd: random.Random, today: date, users: dict) -> None:
+    """Four manpower requests in different states with SAMPLE candidates at every stage."""
+    from ..models import Application, Candidate, Requisition
+    from ..services import recruit
+
+    hr, mgr = users["hr.officer"], users["hr.manager"]
+
+    def approve_all(req: Requisition) -> None:
+        appr = db.get(ApprovalRequest, req.approval_id)
+        while appr.status == "pending":
+            step = appr.active_step
+            who = next((u for u in users.values() if (step.approver_employee_id and u.employee_id == step.approver_employee_id)
+                        or (not step.approver_employee_id and step.approver_role in (u.roles or []))), None)
+            approvals.decide(db, appr, who, "approved", "OK (SAMPLE)")
+
+    def back(a: Application, days_ago: int) -> None:
+        """Spread the history over the past days so the dashboard has real-looking times."""
+        a.applied_on = today - timedelta(days=days_ago)
+        n = len(a.history)
+        for i, h in enumerate(a.history):
+            d = today - timedelta(days=max(days_ago - i * max(days_ago // max(n, 1), 1), 0))
+            h["at"] = datetime.combine(d, time(9 + i)).isoformat(timespec="minutes")
+        a.history = list(a.history)
+
+    people = [
+        ("Somchai", "สมชาย", "M", "Thai", "walk_in"), ("Malee", "มาลี", "F", "Thai", "facebook"), ("Aung Min", None, "M", "Myanmar", "agency"),
+        ("Suda", "สุดา", "F", "Thai", "referral"), ("Wichai", "วิชัย", "M", "Thai", "job_board"), ("Thida", None, "F", "Myanmar", "agency"),
+        ("Anan", "อนันต์", "M", "Thai", "walk_in"), ("Kanya", "กันยา", "F", "Thai", "facebook"), ("Prasit", "ประสิทธิ์", "M", "Thai", "school"),
+        ("Zaw Lin", None, "M", "Myanmar", "referral"), ("Ratana", "รัตนา", "F", "Thai", "job_board"), ("Boon", "บุญ", "M", "Thai", "walk_in"),
+        ("Nilar", None, "F", "Myanmar", "agency"), ("Kittipong", "กิตติพงษ์", "M", "Thai", "facebook"),
+    ]
+    cands = []
+    for i, (en, th, g, nat, src) in enumerate(people):
+        bd = date(today.year - rnd.randint(19, 42), rnd.randint(1, 12), rnd.randint(1, 28))
+        if i == 6:
+            bd = date(today.year - 17, 3, 3)  # juvenile: flagged
+        c = recruit.save_candidate(db, hr, {
+            "full_name_en": f"{en} Applicant (SAMPLE)", "full_name_th": f"{th} ผู้สมัคร (SAMPLE)" if th else None, "title": "Mr." if g == "M" else "Ms.",
+            "gender": g, "nationality": nat, "birth_date": bd, "phone": f"0899{i:06d}", "home_area": rnd.choice(["Mueang, Surat Thani", "Phunphin, Surat Thani", "Kanchanadit, Surat Thani"]),
+            "education": rnd.choice(["Primary school (Grade 6)", "Lower secondary (Grade 9)", "Vocational certificate (ปวช.)", "High vocational (ปวส.), mechanics"]),
+            "experience_years": rnd.randint(0, 8), "experience": "Factory operator, another company (SAMPLE)", "skills": rnd.choice(["Forklift licence", "Basic Thai reading", "Welding", ""]),
+            "source": src, "referred_by": "YTOP951" if src == "referral" else None,
+        }, consent="paper", talent_pool=(i % 4 == 0))
+        cands.append(c)
+
+    # A: filled earlier, the hire is YTOP984 (onboarding demo)
+    a_req = recruit.request_people(db, hr, {"org_unit_code": "PRD-TRL", "position_id": "POS-0021", "job_code": "OPR-TRL", "employee_group": "Operator",
+                                             "headcount": 1, "reason": "replacement", "replaces_employee_id": "YTOP986", "needed_by": today + timedelta(days=20)})
+    approve_all(a_req)
+    a_req.needed_by = today - timedelta(days=20)
+    a_req.opened_on = today - timedelta(days=55)
+    new = db.get(Employee, "YTOP984")
+    hired_c = recruit.save_candidate(db, hr, {"full_name_en": new.full_name_en, "full_name_th": new.full_name_th, "gender": new.gender, "title": new.title,
+                                               "nationality": new.nationality, "birth_date": new.birth_date, "phone": "0899123456", "source": "walk_in"}, consent="paper")
+    ap = recruit.apply(db, hr, hired_c, a_req)
+    ap.stage, ap.employee_id, ap.offer_status, ap.start_date = "hired", "YTOP984", "accepted", new.join_date
+    ap.history = [*ap.history, {"stage": "screen", "by": hr.label, "note": ""}, {"stage": "interview", "by": hr.label, "note": ""},
+                  {"stage": "offer", "by": hr.label, "note": "Offer accepted"}, {"stage": "hired", "by": hr.label, "note": "YTOP984"}]
+    back(ap, 50)
+    for c, stage, why in ((cands[11], "rejected", "skills"), (cands[13], "withdrawn", "pay")):
+        x = recruit.apply(db, hr, c, a_req)
+        recruit.move(db, hr, x, stage, "", why, force=True)
+        back(x, 48)
+    a_req.hired, a_req.status, a_req.closed_on = 1, "filled", new.join_date
+
+    # B: Drying & Packing, 2 operators (1 seat free: outside budget, GM approved), late
+    sup = users["sup.dry"]
+    b_req = recruit.request_people(db, sup, {"org_unit_code": "PRD-DRY", "position_id": "POS-0017", "job_code": "OPR-DRY", "employee_group": "Operator",
+                                             "headcount": 2, "reason": "new", "needed_by": today + timedelta(days=30),
+                                             "requirements": "Can work night shift; forklift licence is a plus"})
+    approve_all(b_req)
+    b_req.opened_on, b_req.needed_by = today - timedelta(days=38), today - timedelta(days=5)
+    plan = [(0, "applied", 3), (1, "applied", 2), (2, "screen", 9), (3, "interview", 20), (4, "interview", 16), (5, "offer", 25),
+            (6, "screen", 6), (7, "rejected", 30), (8, "withdrawn", 28), (12, "applied", 1)]
+    for idx, stage, ago in plan:
+        x = recruit.apply(db, hr, cands[idx], b_req)
+        if stage == "rejected":
+            recruit.move(db, hr, x, "screen")
+            recruit.move(db, hr, x, "rejected", "Could not do night shift (SAMPLE)", "interview")
+        elif stage == "withdrawn":
+            recruit.move(db, hr, x, "withdrawn", "Found a job closer to home (SAMPLE)", "location")
+        elif stage in ("screen", "interview", "offer"):
+            recruit.move(db, hr, x, "screen")
+        if stage in ("interview", "offer"):
+            iv = recruit.schedule(db, hr, x, datetime.combine(today - timedelta(days=ago - 4), time(10)), "onsite", sup.employee_id)
+            if idx != 4:  # one interview still without a scorecard
+                sc = {q["criterion"]: rnd.choice([3, 3, 4, 4, 5]) for q in iv.questions}
+                ev = {k: "Gave a clear example from the last job (SAMPLE)" for k in sc}
+                recruit.score(db, sup, iv, sc, ev, "hire" if idx == 5 else "maybe", "Ready to start; needs forklift training (SAMPLE)")
+                iv.done_at = iv.when + timedelta(hours=1)
+        if stage == "offer":
+            recruit.offer(db, hr, x, today + timedelta(days=10), "Day shift for the first month (SAMPLE)")
+            x.offer_at = datetime.combine(today - timedelta(days=9), time(14))
+        back(x, ago)
+    db.flush()
+
+    # C: Pre Cleaning replacement, open, an AI-read application form
+    c_req = recruit.request_people(db, users["sup.pcl"], {"org_unit_code": "PRD-PCL", "position_id": "POS-0018", "job_code": "OPR-PCL", "employee_group": "Operator",
+                                                          "headcount": 1, "reason": "replacement", "replaces_employee_id": "YTOP987", "needed_by": today + timedelta(days=20)})
+    approve_all(c_req)
+    c_req.opened_on = today - timedelta(days=6)
+    ai_c = recruit.read_cv(db, hr, _sample_form_png(), "image/png", "application-form.png", "walk_in")
+    x = recruit.apply(db, hr, ai_c, c_req)  # no consent yet: blocked until HR records it
+    back(x, 1)
+    for idx in (9, 10):
+        x = recruit.apply(db, hr, cands[idx], c_req)
+        back(x, 4)
+
+    # D: QA inspector, new headcount, waiting for the GM
+    d_req = recruit.request_people(db, users["qa.head"], {"org_unit_code": "QA", "position_id": "POS-0013", "job_code": "QA-INSP", "employee_group": "Staff",
+                                                           "headcount": 1, "reason": "new", "needed_by": today + timedelta(days=45),
+                                                           "requirements": "Bachelor in science or chemistry; reads English test methods"})
+    appr = db.get(ApprovalRequest, d_req.approval_id)
+    while appr.status == "pending" and appr.active_step.name != "gm":
+        step = appr.active_step
+        who = next(u for u in users.values() if (step.approver_employee_id and u.employee_id == step.approver_employee_id) or (not step.approver_employee_id and step.approver_role in (u.roles or [])))
+        approvals.decide(db, appr, who, "approved", "OK (SAMPLE)")
+
+    # an old candidate past the PDPA retention period
+    old = recruit.save_candidate(db, hr, {"full_name_en": "Old Applicant (SAMPLE)", "nationality": "Thai", "source": "walk_in", "phone": "0899777777"}, consent="paper")
+    old.retain_until = today - timedelta(days=20)
+    db.flush()
+
+
+def _sample_form_png() -> bytes:
+    """A drawn stand-in for a photographed paper application form (SAMPLE)."""
+    import io
+
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (900, 1200), "white")
+    d = ImageDraw.Draw(img)
+    d.rectangle((30, 30, 870, 1170), outline="black", width=3)
+    lines = ["JOB APPLICATION FORM (SAMPLE)", "", "Name: Somchai Sample", "Nickname: Chai", "Birth date: 14/05/2544",
+             "Phone: 089-000-0123   LINE: chai.sample", "Lives in: Mueang, Surat Thani", "Education: Vocational cert., mechanics",
+             "Experience: 3 years", "2023-2026 Machine operator, a sawmill", "2022 Helper, a palm oil mill",
+             "Skills: forklift licence, basic welding", "", "[x] I have read the privacy notice", "Signature: ________________"]
+    for i, t in enumerate(lines):
+        d.text((70, 70 + i * 62), t, fill="black")
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()

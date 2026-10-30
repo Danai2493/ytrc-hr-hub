@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "recruit/_tabs.html" %}
+<div class="phead"><h2>{{ _('Interview scorecard') }} · {{ c.full_name_en }}</h2><span class="note">{{ _(kinds.get(iv.kind, iv.kind)) }} · {{ fmt_dt(iv.when) }} · {{ iv.interviewer }}</span>
+  <div class="end"><a class="btn small" href="/recruit/app/{{ a.id }}">{{ _('Back to the application') }}</a></div></div>
+<p class="note">{{ _('Ask every candidate the same questions. Score what you saw or heard: 1 no example, 3 a fair example, 5 a strong example with a result. Write the evidence for every 1 and 5.') }}
+  {{ _('Never ask about age, marriage, pregnancy, religion, health or family plans.') }}</p>
+<form method="post" class="panel">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <table class="scorecard"><tr><th>{{ _('Point') }}</th><th>{{ _('Question') }}</th><th>{{ _('Score') }}</th><th style="width:34%">{{ _('What the candidate said or did') }}</th></tr>
+  {% for q in iv.questions %}{% set cr = crit.get(q.criterion, {}) %}
+  <tr><td><strong>{{ (cr.th if lang == 'th' else cr.en) or q.criterion }}</strong><div class="note">{{ _('job skill') if cr.kind == 'skill' else _('competency') }}</div></td>
+    <td class="q">{{ q.text_th if lang == 'th' and q.text_th else q.text }}{% if q.listen_for %}<div class="note">{{ _('Listen for') }}: {{ q.listen_for }}</div>{% endif %}</td>
+    <td><select name="s_{{ q.criterion }}" {% if not can_score %}disabled{% endif %}><option value="">-</option>{% for v in range(1, 6) %}<option {% if (iv.scores or {}).get(q.criterion) == v %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></td>
+    <td><textarea name="e_{{ q.criterion }}" rows="2" {% if not can_score %}readonly{% endif %}>{{ (iv.evidence or {}).get(q.criterion, '') }}</textarea></td></tr>
+  {% endfor %}</table>
+  <div class="form">
+    <label>{{ _('Recommendation') }}<select name="recommendation" {% if not can_score %}disabled{% endif %}><option value=""></option>{% for k, v in recommend.items() %}<option value="{{ k }}" {% if iv.recommendation == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Overall note') }}<textarea name="note" rows="2" {% if not can_score %}readonly{% endif %}>{{ iv.note or '' }}</textarea></label>
+  </div>
+  {% if can_score %}<div class="bar"><button class="primary">{{ _('Save scorecard') }}</button>{% if not iv.done_at %}<button name="do" value="suggest">{{ _('Ask AI for questions that fit this candidate') }}</button>{% endif %}</div>{% endif %}
+  {% if iv.ai_questions %}<p class="note">{{ _('Questions suggested by AI from the job and the candidate’s background, checked by the interviewer.') }}</p>{% endif %}
+</form>
+{% endblock %}

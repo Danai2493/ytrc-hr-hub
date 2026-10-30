@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "recruit/_tabs.html" %}
+<div class="phead"><h2>{{ c.full_name_en }} · <a href="/recruit/req/{{ req.id }}" class="mono">{{ req.ref }}</a> {{ req.job.title_th if lang == 'th' and req.job.title_th else req.job.title_en }}</h2>{{ status_tag(a.stage) }}
+  {% if a.employee_id %}<a class="btn small" href="/people/{{ a.employee_id }}">{{ a.employee_id }}</a>{% endif %}</div>
+<div class="grid">
+  <section class="panel c6">
+    <dl class="kv">
+      <dt>{{ _('Candidate') }}</dt><dd>{% if is_hr %}<a href="/recruit/candidates/{{ c.id }}" class="mono">{{ c.ref }}</a>{% else %}<span class="mono">{{ c.ref }}</span>{% endif %} {{ c.full_name_th or '' }}{% if c.nickname %} ({{ c.nickname }}){% endif %}</dd>
+      <dt>{{ _('Age') }}</dt><dd>{{ c.age_on(today) if c.birth_date else '-' }} · {{ c.nationality }}</dd>
+      <dt>{{ _('Education') }}</dt><dd>{{ c.education or '-' }}</dd>
+      <dt>{{ _('Experience') }}</dt><dd>{{ c.experience_years if c.experience_years is not none else '-' }} {{ _('years') }}{% if c.experience %}<div class="note" style="white-space:pre-line">{{ c.experience }}</div>{% endif %}</dd>
+      <dt>{{ _('Licences and skills') }}</dt><dd>{{ c.skills or '-' }}</dd>
+      <dt>{{ _('Lives in') }}</dt><dd>{{ c.home_area or '-' }}</dd>
+      <dt>{{ _('Source') }}</dt><dd>{{ _(sources.get(c.source, c.source)) }}{% if c.referred_by %} · {{ _('referred by') }} {{ c.referred_by }}{% endif %}</dd>
+      {% if is_hr %}<dt>{{ _('Contact') }}</dt><dd>{{ c.phone or '' }} {{ c.line_id or '' }} {{ c.email or '' }}</dd>{% endif %}
+    </dl>
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('Screening checks') }}</h2>
+    {% if a.checks %}<ul class="find">{% for f in a.checks %}<li class="{{ f.level }}">{{ rt(f) }}</li>{% endfor %}</ul>{% else %}<ul class="find"><li class="ok">{{ _('No problems found') }}</li></ul>{% endif %}
+    {% if is_hr and a.stage in active_stages %}<form method="post" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small" name="do" value="recheck">{{ _('Check again') }}</button></form>{% endif %}
+    <h2>{{ _('History') }}</h2>
+    <table>{% for h in a.history %}<tr><td class="note">{{ h.at|replace('T', ' ') }}</td><td>{{ _(stages.get(h.stage, h.stage)) }}</td><td class="note">{{ h.by }}</td><td>{{ h.note }}</td></tr>{% endfor %}</table>
+  </section>
+  <section class="panel c12">
+    <h2>{{ _('Interviews') }}{% if summary.n %} <span class="note">{{ _('average') }} {{ summary.mean }} / 5</span>{% endif %}</h2>
+    <table>{% for iv in a.interviews %}<tr><td>{{ fmt_dt(iv.when) }}</td><td>{{ _(kinds.get(iv.kind, iv.kind)) }}</td><td>{{ iv.interviewer }}</td>
+      <td>{% if iv.done_at %}{% set sc = iv.scores.values()|list %}{{ '%.1f' % (sc|sum / sc|length) }} · <span class="tag {{ 'ok' if iv.recommendation == 'hire' else ('bad' if iv.recommendation == 'no' else 'warn') }}">{{ _(recommend[iv.recommendation]) }}</span>{% else %}<span class="tag warn">{{ _('not scored yet') }}</span>{% endif %}</td>
+      <td><a href="/recruit/interview/{{ iv.id }}">{{ _('Scorecard') }}</a></td></tr>{% else %}<tr><td class="note">{{ _('No interviews yet') }}</td></tr>{% endfor %}</table>
+    {% if a.stage in ('applied', 'screen', 'interview') %}
+    <form method="post" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="interview">
+      <label>{{ _('When') }}<input type="datetime-local" name="when" required></label>
+      <label>{{ _('Type') }}<select name="kind">{% for k, v in kinds.items() %}<option value="{{ k }}" {% if k == 'onsite' %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+      <label>{{ _('Interviewer') }}<select name="interviewer">{% for e in interviewers %}<option value="{{ e.employee_id }}" {% if e.employee_id == user.employee_id %}selected{% endif %}>{{ e.employee_id }} {{ e.full_name_en }}</option>{% endfor %}</select></label>
+      <button class="primary">{{ _('Plan interview') }}</button></form>
+    {% endif %}
+  </section>
+  {% if is_hr %}
+  <section class="panel c12">
+    <h2>{{ _('Next step') }}</h2>
+    {% if a.stage in ('applied', 'screen', 'interview') %}
+    <div class="bar">
+      {% if a.stage == 'applied' %}<form method="post" class="inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="move"><button name="stage" value="screen">{{ _('Move to screening') }}</button></form>{% endif %}
+      {% if a.stage in ('interview', 'screen') %}<form method="post" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="offer">
+        <label>{{ _('Start date') }}<input type="date" name="start_date" required></label><label>{{ _('Offer note (no pay figures)') }}<input name="note" placeholder="{{ _('e.g. day shift first month, uniform size L') }}"></label>
+        <button class="primary">{{ _('Make offer') }}</button></form>{% endif %}
+    </div>
+    {% elif a.stage == 'offer' %}
+    <p>{{ _('Offer made') }} {{ fmt_dt(a.offer_at) }} · {{ _('start') }} {{ fmt_date(a.start_date) }} · {{ status_tag(a.offer_status) }}{% if a.offer_note %} · {{ a.offer_note }}{% endif %}</p>
+    <p class="note">{{ _('Pay is agreed in the contract and set in Bplus. It is not stored here.') }}</p>
+    {% if a.offer_status == 'pending' %}
+    <form method="post" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}">
+      <button class="primary" name="do" value="accept">{{ _('Candidate accepted') }}</button>
+      <select name="reason" style="max-width:220px">{% for k, v in withdraw_reasons.items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select><input name="note" placeholder="{{ _('Note') }}" style="max-width:220px">
+      <button name="do" value="decline">{{ _('Candidate declined') }}</button></form>
+    {% elif hire %}
+    {% if hire_appr and hire_appr.status == 'pending' %}<p>{{ _('New-employee request waiting for approval') }}: <a href="/approvals/{{ hire_appr.id }}">{{ hire_appr.title }}</a></p>
+    {% else %}
+    <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="hire">
+      <p class="note wide">{{ _('This creates the employee record request with everything from the application. A second HR person approves it; onboarding and the probation review open on their own.') }}</p>
+      <label>{{ _('Employee ID') }}<input name="employee_id" value="{{ hire.employee_id }}" class="mono"></label>
+      <label>{{ _('Title') }}<select name="title">{% for t in ('Mr.', 'Ms.', 'Mrs.') %}<option {% if hire.title == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+      <label>{{ _('Gender') }}<select name="gender">{% for g in ('M', 'F') %}<option {% if hire.gender == g %}selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+      <label>{{ _('Full name (EN)') }}<input name="full_name_en" value="{{ hire.full_name_en }}"></label>
+      <label>{{ _('Full name (TH)') }}<input name="full_name_th" value="{{ hire.full_name_th or '' }}"></label>
+      <label>{{ _('Nickname') }}<input name="nickname" value="{{ hire.nickname or '' }}"></label>
+      <label>{{ _('Pay type') }}<select name="pay_type">{% for p in ('Daily', 'Monthly') %}<option {% if hire.pay_type == p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+      <label>{{ _('Join date') }}<input type="date" name="join_date" value="{{ hire.join_date }}"></label>
+      <label>{{ _('Probation ends (day 119)') }}<input type="date" name="probation_end_date" value="{{ hire.probation_end_date }}"></label>
+      <p class="wide note">{{ units[hire.org_unit_code].name_en }} · {{ hire.position_id or _('no position') }} · {{ hire.job_code }} · {{ hire.grade_code or '-' }} · {{ hire.employee_group }}</p>
+      <div class="bar wide"><button class="primary">{{ _('Send new-employee request') }}</button></div>
+    </form>{% endif %}
+    {% endif %}
+    {% endif %}
+    {% if a.stage in active_stages %}
+    <details><summary>{{ _('Close this application') }}</summary>
+      <form method="post" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="move">
+        <label>{{ _('Not selected because') }}<select name="reason">{% for k, v in reject_reasons.items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select></label>
+        <label>{{ _('Note') }}<input name="note"></label><button name="stage" value="rejected">{{ _('Not selected') }}</button></form>
+      <form method="post" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="move">
+        <label>{{ _('Withdrew because') }}<select name="reason">{% for k, v in withdraw_reasons.items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select></label>
+        <label>{{ _('Note') }}<input name="note"></label><button name="stage" value="withdrawn">{{ _('Withdrew') }}</button></form>
+    </details>
+    {% elif a.stage in ('rejected', 'withdrawn') %}<form method="post" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="move"><button name="stage" value="screen" class="small">{{ _('Reopen') }}</button></form>{% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

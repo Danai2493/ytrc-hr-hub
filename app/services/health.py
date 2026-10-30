@@ -3,7 +3,7 @@ Run nightly and on demand. Issues close themselves once the data is fixed."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Iterator, Optional
 
 from sqlalchemy import func, select
@@ -47,6 +47,10 @@ RULES = {
     "SKILL_COVERAGE": ("flag", "dept_head", "Critical skill has too few people at U/O"),
     "LICENCE_LAPSED": ("block", "dept_head", "Licence or safety refresher lapsed"),
     "ONBOARD_LATE": ("flag", "hr", "Onboarding item overdue"),
+    "REQ_LATE": ("flag", "hr", "Manpower request open past the needed date"),
+    "OFFER_WAITING": ("flag", "hr", "Offer with no answer"),
+    "INTERVIEW_NO_SCORE": ("flag", "dept_head", "Interview held but no scorecard"),
+    "CAND_RETENTION": ("flag", "hr", "Candidate data kept past the PDPA retention period"),
     "PROBATION_LATE": ("block", "dept_head", "Probation review not decided before the end date"),
 }
 
@@ -162,6 +166,26 @@ def _hrdev(db: Session, today: date) -> Iterator[Hit]:
                       r.employee_id, r.employee.org_unit_code, r.end_date + timedelta(days=7))
 
 
+def _recruit(db: Session, today: date) -> Iterator[Hit]:
+    from ..models import Application, Candidate, Interview, Requisition
+
+    for r in db.scalars(select(Requisition).where(Requisition.status == "open", Requisition.needed_by < today)):
+        yield Hit("REQ_LATE", "requisition", r.ref, f"{r.ref}: {r.open_seats} of {r.headcount} {r.job_code} still to hire, needed by {r.needed_by}",
+                  org_unit=r.org_unit_code, due=today + timedelta(days=7))
+    days = int(get_setting(db, "recruit_offer_days") or 7)
+    for a in db.scalars(select(Application).where(Application.stage == "offer", Application.offer_status == "pending")):
+        if a.offer_at and a.offer_at.date() < today - timedelta(days=days):
+            yield Hit("OFFER_WAITING", "application", str(a.id), f"{a.candidate.ref} {a.requisition.ref}: offer of {a.offer_at:%d/%m} not answered",
+                      org_unit=a.requisition.org_unit_code)
+    for iv in db.scalars(select(Interview).where(Interview.done_at.is_(None), Interview.when < datetime.combine(today - timedelta(days=1), time(0)))):
+        if iv.application.stage in ("interview", "screen", "applied"):
+            yield Hit("INTERVIEW_NO_SCORE", "interview", str(iv.id), f"{iv.application.candidate.ref} {iv.application.requisition.ref}: interview of {iv.when:%d/%m} by {iv.interviewer} has no scorecard",
+                      iv.interviewer_employee_id, iv.application.requisition.org_unit_code, today + timedelta(days=3))
+    for c in db.scalars(select(Candidate).where(Candidate.erased_at.is_(None), Candidate.retain_until < today)):
+        if not any(a.stage in ("applied", "screen", "interview", "offer", "hired") for a in c.applications):
+            yield Hit("CAND_RETENTION", "candidate", c.ref, f"{c.ref}: kept until {c.retain_until}; erase the personal data", due=today + timedelta(days=14))
+
+
 def _develop(db: Session, today: date) -> Iterator[Hit]:
     from ..models import EmployeeSkill, OnboardingCase, ProbationReview, Skill
     from .skills import matrix, required
@@ -198,7 +222,7 @@ def run(db: Session, today: Optional[date] = None) -> dict:
     sync_reviews(db, today)
     generate_needs(db, today)
     hits: dict[tuple[str, str, str], Hit] = {}
-    for gen in (_employees, _org, _time, _hrdev, _develop):
+    for gen in (_employees, _org, _time, _hrdev, _develop, _recruit):
         for h in gen(db, today):
             hits[(h.rule, h.entity, h.entity_id)] = h
     open_issues = {

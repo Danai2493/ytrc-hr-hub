@@ -280,6 +280,10 @@ def request_event(db: Session, user: User, emp: Employee, event_type: str, data:
 @approvals.on_close("EMP_CHANGE")
 def _apply_change(db: Session, appr: ApprovalRequest, outcome: str, user: User) -> None:
     if outcome != "approved":
+        if (appr.payload or {}).get("application_id"):
+            from .recruit import on_hire_rejected
+
+            on_hire_rejected(db, appr)
         return
     p = appr.payload or {}
     if p.get("action") == "create":
@@ -314,6 +318,10 @@ def _apply_change(db: Session, appr: ApprovalRequest, outcome: str, user: User) 
         from .newstaff import open_onboarding
 
         open_onboarding(db, emp, user)
+        if p.get("application_id"):
+            from .recruit import on_hired
+
+            on_hired(db, appr, emp, user)
     elif p.get("action") == "update":
         emp = db.get(Employee, appr.entity_id)
         changes = p["changes"]

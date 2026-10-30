@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "recruit/_tabs.html" %}
+<h2>{{ _('Ask for people (manpower request)') }}</h2>
+<p class="lead">{{ _('Your Department Head and the HR Manager approve. The GM also approves new headcount and anything outside the budget. After approval, HR posts the ad and sends you candidates to interview.') }}</p>
+<form method="post" action="/recruit/new" class="panel" data-check="/recruit/check" data-check-out="#checks">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <div class="form">
+    <label>{{ _('Unit') }}<select name="org_unit_code" required>{% for u in units %}<option value="{{ u.code }}" {% if pos and pos.org_unit_code == u.code %}selected{% endif %}>{{ u.name_en }}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Position') }}<select name="position_id"><option value="">{{ _('No position yet (outside the budget)') }}</option>
+      {% for p in positions %}<option value="{{ p.position_id }}" {% if pos and pos.position_id == p.position_id %}selected{% endif %}>{{ p.position_id }} · {{ p.title }} · {{ p.filled }}/{{ p.seats }} {{ _('filled') }}{% if free[p.position_id] > 0 %} · {{ free[p.position_id] }} {{ _('free') }}{% endif %}</option>{% endfor %}</select></label>
+    <label>{{ _('Job') }}<select name="job_code" required><option value=""></option>{% for j in jobs %}<option value="{{ j.code }}" {% if pos and pos.job_code == j.code %}selected{% endif %}>{{ j.code }} · {{ j.title_th if lang == 'th' and j.title_th else j.title_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('Employee group') }}<select name="employee_group">{% for g in groups %}<option {% if g == 'Operator' %}selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
+    <label>{{ _('How many people') }}<input type="number" name="headcount" value="1" min="1" max="50" class="w-num"></label>
+    <label>{{ _('Reason') }}<select name="reason">{% for k, v in reasons.items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select></label>
+    <label>{{ _('Replaces (for a replacement)') }}<select name="replaces_employee_id"><option value=""></option>{% for e in leavers %}<option value="{{ e.employee_id }}">{{ e.employee_id }} {{ e.full_name_en }}{% if e.exit_date %} · {{ _('left') }} {{ fmt_date(e.exit_date) }}{% endif %}</option>{% endfor %}</select></label>
+    <label>{{ _('Needed by') }}<input type="date" name="needed_by" required></label>
+    <label class="wide">{{ _('What else the person needs (adds to the job description)') }}<textarea name="requirements" rows="2" placeholder="{{ _('e.g. forklift licence, can work night shift, reads Thai') }}"></textarea></label>
+    <label class="wide">{{ _('Note for HR') }}<input name="note"></label>
+  </div>
+  <div id="checks" class="panel" aria-live="polite"><p class="note">{{ _('Checks appear here.') }}</p></div>
+  <div class="bar"><button class="primary">{{ _('Send for approval') }}</button><a class="btn" href="/recruit">{{ _('Cancel') }}</a></div>
+</form>
+{% endblock %}

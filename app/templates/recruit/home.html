@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag, hbar, columns %}
+{% block content %}
+{% include "recruit/_tabs.html" %}
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Open requests') }}</span><span class="v">{{ st.open_reqs }}</span><span class="d">{{ st.open_seats }} {{ _('seats to fill') }}{% if st.pending_reqs %} · {{ st.pending_reqs }} {{ _('waiting for approval') }}{% endif %}</span></div>
+  <div class="kpi"><span class="k">{{ _('Past the needed date') }}</span><span class="v {% if st.late_reqs %}bad-t{% endif %}">{{ st.late_reqs }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Candidates in progress') }}</span><span class="v">{{ st.active_apps }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Hired, last 12 months') }}</span><span class="v">{{ st.hires }}</span><span class="d">{% if st.avg_days_to_fill is not none %}{{ st.avg_days_to_fill }} {{ _('days to fill on average') }}{% endif %}</span></div>
+  <div class="kpi"><span class="k">{{ _('Offers accepted') }}</span><span class="v">{{ st.offer_accept if st.offer_accept is not none else '-' }}{% if st.offer_accept is not none %}%{% endif %}</span></div>
+</div>
+{% if my_interviews %}
+<section class="panel"><h2>{{ _('My interviews') }}</h2>
+  <table>{% for iv in my_interviews %}<tr><td>{{ fmt_dt(iv.when) }}</td><td>{{ iv.application.candidate.full_name_en }}</td><td>{{ iv.application.requisition.job.title_en }}</td><td><a class="btn small primary" href="/recruit/interview/{{ iv.id }}">{{ _('Scorecard') }}</a></td></tr>{% endfor %}</table>
+</section>
+{% endif %}
+<section class="panel scroll">
+  <h2>{{ _('Manpower requests') }}</h2>
+  <table><tr><th>{{ _('Ref') }}</th><th>{{ _('Job') }}</th><th>{{ _('Unit') }}</th><th class="n">{{ _('People') }}</th><th>{{ _('Reason') }}</th><th>{{ _('Needed by') }}</th><th>{{ _('Pipeline') }}</th><th>{{ _('Status') }}</th></tr>
+  {% for r in reqs %}
+  <tr><td><a href="/recruit/req/{{ r.id }}" class="mono">{{ r.ref }}</a></td><td>{{ r.job.title_th if lang == 'th' and r.job.title_th else r.job.title_en }}</td><td>{{ r.org_unit.name_en }}</td>
+    <td class="n">{{ r.hired }}/{{ r.headcount }}</td><td>{{ _(reasons[r.reason]) }}{% if not r.within_budget %} <span class="tag warn">{{ _('outside budget') }}</span>{% endif %}</td>
+    <td class="{% if r.status == 'open' and r.needed_by < today %}bad-t{% endif %}">{{ fmt_date(r.needed_by) }}</td>
+    <td class="note">{% for s in active_stages %}{% set n = r.applications|selectattr('stage', 'equalto', s)|list|length %}{% if n %}{{ _(stages[s]) }} {{ n }} {% endif %}{% endfor %}</td>
+    <td>{{ status_tag(r.status) }}</td></tr>
+  {% else %}<tr><td colspan="8" class="note">{{ _('No requests yet') }}</td></tr>{% endfor %}</table>
+</section>
+<div class="grid">
+  <section class="panel c6"><h2>{{ _('Candidates reaching each stage') }}</h2>{{ hbar(funnel_rows) }}<p class="note">{{ _('Applications in the last 12 months.') }}</p></section>
+  <section class="panel c6"><h2>{{ _('Where candidates come from') }}</h2>
+    <table><tr><th>{{ _('Source') }}</th><th class="n">{{ _('Candidates') }}</th><th class="n">{{ _('Hired') }}</th><th class="n">%</th></tr>
+    {% for k, n, h in st.sources %}<tr><td>{{ _(sources.get(k, k)) }}</td><td class="n">{{ n }}</td><td class="n">{{ h }}</td><td class="n">{{ (h / n * 100)|round|int if n else 0 }}</td></tr>{% endfor %}</table>
+  </section>
+  <section class="panel c6"><h2>{{ _('Why candidates were not selected') }}</h2>{{ hbar(notsel_rows, color='var(--s3)') }}</section>
+  <section class="panel c6"><h2>{{ _('Why candidates withdrew') }}</h2>{{ hbar(withdrew_rows, color='var(--s4)') }}<p class="note">{{ _('Pay is the most common reason in most factories. Look at shift and travel too: they can be changed.') }}</p></section>
+</div>
+{% endblock %}
