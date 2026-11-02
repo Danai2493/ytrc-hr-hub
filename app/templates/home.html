@@ -1,40 +1,40 @@
 {% extends "base.html" %}
 {% from "partials/charts.html" import hbar, columns, status_tag %}
 {% block content %}
-<div class="phead"><h1>{{ _('Good day, {name}', name=user.display_name) }}</h1><span class="note">{{ fmt_date(today) }}</span></div>
+<div class="phead"><div><h1>{{ _('Good day, {name}', name=user.display_name) }}</h1><span class="note">{{ fmt_date(today) }}</span></div>
+  <div class="end"><a class="btn primary" href="/ot/new">{{ _('New OT request') }}</a><a class="btn" href="/leave/new">{{ _('Ask for leave') }}</a></div></div>
 
+
+
+<div class="grid">
+  <section class="panel c6">
+    <div class="phead"><h2>{{ _('Waiting for your approval') }}</h2>{% if inbox %}<span class="count">{{ inbox|length }}</span>{% endif %}<a class="end btn small" href="/approvals">{{ _('All approvals') }}</a></div>
+    {% if inbox %}
+    <ul class="list">
+      {% for r in inbox[:8] %}<li><a href="/approvals/{{ r.id }}">{{ r.title }}</a><span class="meta">{{ _(r.active_step.name) }} · {{ r.submitted_by }} · {{ fmt_dt(r.created_at) }}</span></li>{% endfor %}
+    </ul>
+    {% else %}<p class="note">{{ _('Nothing waiting. Well done.') }}</p>{% endif %}
+  </section>
+  <section class="panel c6">
+    <div class="phead"><h2>{{ _('What you submitted') }}</h2></div>
+    {% if mine %}
+    <ul class="list">
+      {% for r in mine %}<li><a href="/approvals/{{ r.id }}">{{ r.title }}</a>{{ status_tag(r.status) }}</li>{% endfor %}
+    </ul>
+    {% else %}<p class="note">{{ _('No requests yet.') }}</p>{% endif %}
+  </section>
 {% if hc is defined %}
-<div class="kpis">
+<div class="kpis c12">
   <a class="kpi" href="/people"><span class="k">{{ _('Active headcount') }}</span><span class="v">{{ hc.total }}</span>
     <span class="d">{% for g, n in hc.by_group.items() %}{{ _(g) }} {{ n }}{% if not loop.last %} · {% endif %}{% endfor %}</span></a>
   <a class="kpi" href="/dash/ot"><span class="k">{{ _('Staff OT this period') }}</span><span class="v">{{ ot_staff.total_hours }} h</span>
     <span class="d">{{ fmt_date(staff_period[0]) }} – {{ fmt_date(staff_period[1]) }} · {{ ot_staff.people }} {{ _('people') }}</span></a>
   <a class="kpi" href="/dash/ot"><span class="k">{{ _('Operator OT this half-month') }}</span><span class="v">{{ ot_ops.total_hours }} h</span>
     <span class="d">{{ fmt_date(op_period[0]) }} – {{ fmt_date(op_period[1]) }} · {{ ot_ops.people }} {{ _('people') }}</span></a>
-  <a class="kpi" href="/approvals"><span class="k">{{ _('Waiting for you') }}</span><span class="v {% if inbox %}warn-t{% endif %}">{{ inbox|length }}</span><span class="d">{{ _('approvals') }}</span></a>
   <a class="kpi" href="/health"><span class="k">{{ _('Open data issues') }}</span><span class="v">{{ issues }}</span><span class="d">{{ overdue|length }} {{ _('past due date') }}</span></a>
   {% if queue is not none %}<a class="kpi" href="/capture"><span class="k">{{ _('Paper forms to review') }}</span><span class="v">{{ queue }}</span><span class="d">{{ _('AI read, HR checks') }}</span></a>{% endif %}
 </div>
 {% endif %}
-
-<div class="grid">
-  <section class="panel c6">
-    <div class="phead"><h2>{{ _('Waiting for your approval') }}</h2><a class="end btn small" href="/approvals">{{ _('All approvals') }}</a></div>
-    {% if inbox %}
-    <div class="scroll"><table>
-      <tr><th>{{ _('Request') }}</th><th>{{ _('Step') }}</th><th>{{ _('Submitted') }}</th></tr>
-      {% for r in inbox[:10] %}<tr><td><a href="/approvals/{{ r.id }}">{{ r.title }}</a></td><td>{{ _(r.active_step.name) }}</td><td class="note">{{ r.submitted_by }} · {{ fmt_dt(r.created_at) }}</td></tr>{% endfor %}
-    </table></div>
-    {% else %}<p class="note">{{ _('Nothing waiting. Well done.') }}</p>{% endif %}
-  </section>
-  <section class="panel c6">
-    <div class="phead"><h2>{{ _('What you submitted') }}</h2><a class="end btn small primary" href="/ot/new">{{ _('New OT request') }}</a></div>
-    {% if mine %}
-    <div class="scroll"><table>
-      {% for r in mine %}<tr><td><a href="/approvals/{{ r.id }}">{{ r.title }}</a></td><td>{{ status_tag(r.status) }}</td></tr>{% endfor %}
-    </table></div>
-    {% else %}<p class="note">{{ _('No requests yet.') }}</p>{% endif %}
-  </section>
 
   {% if weeks is defined %}
   <section class="panel c7">

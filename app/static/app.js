@@ -37,4 +37,54 @@
   document.querySelectorAll("[data-confirm]").forEach((el) => {
     el.addEventListener("click", (e) => { if (!confirm(el.dataset.confirm)) e.preventDefault(); });
   });
+  // Any wide table scrolls inside its own box instead of pushing the page sideways.
+  document.querySelectorAll("main table").forEach((t) => {
+    if (t.closest(".scroll")) return;
+    const box = document.createElement("div");
+    box.className = "scroll";
+    t.parentNode.insertBefore(box, t);
+    box.appendChild(t);
+  });
+  // On phones, read-only lists become stacked cards: each cell shows its column name.
+  document.querySelectorAll("main table").forEach((t) => {
+    if (t.matches(".matrix,.likert,.kpitab,.nocards") || t.querySelector("input:not([type=checkbox]),select,textarea,svg")) return;
+    const rows = [...t.rows];
+    const head = rows.find((r) => r.querySelector("th") && !r.querySelector("td"));
+    if (!head || head.cells.length < 3) return;
+    const names = [...head.cells].map((c) => c.textContent.trim());
+    rows.forEach((r) => {
+      if (r === head) return;
+      let i = 0;
+      [...r.cells].forEach((c) => { if (names[i]) c.dataset.label = names[i]; i += c.colSpan || 1; });
+    });
+    head.classList.add("head");
+    t.classList.add("cards");
+  });
+  // Side menu on phones and tablets.
+  const setMenu = (open) => {
+    document.body.classList.toggle("menu-open", open);
+    document.querySelectorAll("[data-menu-open]").forEach((b) => b.setAttribute("aria-expanded", open));
+    if (open) document.querySelector(".side a[aria-current]")?.focus();
+  };
+  document.querySelectorAll("[data-menu-open]").forEach((b) => b.addEventListener("click", () => setMenu(true)));
+  document.querySelectorAll("[data-menu-close]").forEach((b) => b.addEventListener("click", () => setMenu(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
+  // Messages can be closed; good news closes itself.
+  document.querySelectorAll(".flash").forEach((f) => {
+    f.querySelector("[data-dismiss]")?.addEventListener("click", () => f.remove());
+    if (f.classList.contains("ok")) setTimeout(() => f.remove(), 6000);
+  });
+  // The row of links under a page title works as tabs: mark the page we are on.
+  document.querySelectorAll(".phead > .end.no-print").forEach((row) => {
+    const links = [...row.querySelectorAll(":scope > a.btn")];
+    const here = location.pathname + location.search;
+    let best = null, len = -1;
+    links.forEach((a) => {
+      const u = new URL(a.href, location.href);
+      const p = u.pathname + u.search;
+      if (here === p || location.pathname === u.pathname) { if (p.length > len) { best = a; len = p.length + 1000; } }
+      else if (location.pathname.startsWith(u.pathname + "/") && u.pathname.length > len) { best = a; len = u.pathname.length; }
+    });
+    if (best) best.setAttribute("aria-current", "page");
+  });
 })();

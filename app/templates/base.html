@@ -2,47 +2,71 @@
 <html lang="{{ lang }}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e3a8a">
 <title>{% block title %}{{ _('YTRC HR Hub') }}{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Myanmar:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+Myanmar:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/static/app.css">
 <meta name="csrf" content="{{ csrf }}">
 </head>
-<body>
+{% macro icon(name) %}<svg class="ic" aria-hidden="true"><use href="#i-{{ name }}"/></svg>{% endmacro %}
+<body class="{% if user %}app{% else %}public{% endif %}">
+{% include "partials/icons.html" %}
 {% if user %}
-<header class="top">
-  <div class="wrap">
-    <div class="brand">
-      <a class="home" href="/">YTRC HR Hub</a>
-      <span class="sub">{{ _('People, time and pay input in one place') }}</span>
-      {% if settings.demo_mode %}<span class="stamp">{{ _('Demo, SAMPLE data only') }}</span>{% endif %}
-      <div class="right">
-        <form class="inline" method="post" action="/lang">
-          <input type="hidden" name="_csrf" value="{{ csrf }}">
-          <input type="hidden" name="next" value="{{ path }}">
-          <select name="lang" aria-label="Language" onchange="this.form.submit()">
-            {% for code, name in langs.items() %}<option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>{% endfor %}
-          </select>
-        </form>
-        <span class="note">{{ user.display_name }}{% if user.employee_id %} · <span class="mono">{{ user.employee_id }}</span>{% endif %}</span>
-        <form class="inline" method="post" action="/logout"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small">{{ _('Sign out') }}</button></form>
-      </div>
-    </div>
-    <nav class="tabs" aria-label="Main">
-      {% for href, label in nav %}
-      <a href="{{ href }}" class="{% if (href == '/' and path == '/') or (href != '/' and path.startswith(href)) %}on{% endif %}">{{ label }}</a>
+<a class="skip" href="#main">{{ _('Skip to content') }}</a>
+<aside class="side" id="side" aria-label="{{ _('Main menu') }}">
+  <div class="side-head">
+    <a class="logo" href="/"><span class="mark" aria-hidden="true">Y</span><span><b>YTRC HR Hub</b><small>{{ _('People, time and pay input in one place') }}</small></span></a>
+    <button class="icon-btn only-m" data-menu-close aria-label="{{ _('Close menu') }}">{{ icon('x') }}</button>
+  </div>
+  <nav class="side-nav">
+    {% for group, items in nav_groups %}
+    <div class="nav-group">
+      {% if group %}<div class="nav-label">{{ group }}</div>{% endif %}
+      {% for href, label, ic, g in items %}
+      <a href="{{ href }}" {% if href == nav_active %}aria-current="page"{% endif %}>{{ icon(ic) }}<span>{{ label }}</span>{% if href == '/approvals' and inbox_count %}<span class="count">{{ inbox_count }}</span>{% endif %}</a>
       {% endfor %}
-    </nav>
+    </div>
+    {% endfor %}
+  </nav>
+  {% if settings.demo_mode %}<div class="side-foot" title="{{ _('Salaries and bank data stay in Bplus.') }} {{ _('Every change is logged.') }}">
+    {% if settings.demo_mode %}<span class="stamp">{{ _('Demo, SAMPLE data only') }}</span>{% endif %}
+  </div>{% endif %}
+</aside>
+<div class="scrim" data-menu-close></div>
+<header class="topbar">
+  <button class="icon-btn only-m" data-menu-open aria-label="{{ _('Menu') }}" aria-controls="side" aria-expanded="false">{{ icon('menu') }}</button>
+  <a class="logo only-m" href="/"><span class="mark" aria-hidden="true">Y</span><b>HR Hub</b></a>
+  <div class="top-right">
+    <form class="inline lang" method="post" action="/lang">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <input type="hidden" name="next" value="{{ path }}">
+      <label class="sr" for="lang-pick">{{ _('Language') }}</label>
+      {{ icon('globe') }}
+      <select id="lang-pick" name="lang" onchange="this.form.submit()">
+        {% for code, name in langs.items() %}<option value="{{ code }}" {% if code == lang %}selected{% endif %}>{{ name }}</option>{% endfor %}
+      </select>
+    </form>
+    <div class="me" title="{{ user.display_name }}">
+      <span class="avatar" aria-hidden="true">{{ user.display_name[:1] }}</span>
+      <span class="me-text"><b>{{ user.display_name }}</b>{% if user.employee_id %}<small class="mono">{{ user.employee_id }}</small>{% endif %}</span>
+    </div>
+    <form class="inline" method="post" action="/logout"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="icon-btn" aria-label="{{ _('Sign out') }}" title="{{ _('Sign out') }}">{{ icon('signout') }}</button></form>
   </div>
 </header>
 {% endif %}
-<main class="wrap">
-  {% for f in flashes %}<div class="flash {{ f.kind }}" role="status">{{ _(f.msg) }}</div>{% endfor %}
+<main id="main" class="content">
+  {% if flashes %}<div class="toasts" role="status" aria-live="polite">{% for f in flashes %}<div class="flash {{ f.kind }}">{{ icon('ok' if f.kind == 'ok' else 'alert') }}<span>{{ _(f.msg) }}</span><button class="icon-btn" data-dismiss aria-label="{{ _('Close') }}">{{ icon('x') }}</button></div>{% endfor %}</div>{% endif %}
   {% block content %}{% endblock %}
 </main>
 {% if user %}
-<footer class="wrap">YTRC HR Hub · {{ _('Salaries and bank data stay in Bplus.') }} · {{ _('Every change is logged.') }}</footer>
+<nav class="bottom-nav" aria-label="{{ _('Quick menu') }}">
+  {% for href, label, ic, g in mobile_nav %}
+  <a href="{{ href }}" {% if href == nav_active %}aria-current="page"{% endif %}>{{ icon(ic) }}<span>{{ label }}</span>{% if href == '/approvals' and inbox_count %}<span class="count">{{ inbox_count }}</span>{% endif %}</a>
+  {% endfor %}
+  <button data-menu-open aria-controls="side">{{ icon('menu') }}<span>{{ _('Menu') }}</span></button>
+</nav>
 {% endif %}
 <script src="/static/app.js"></script>
 </body>
