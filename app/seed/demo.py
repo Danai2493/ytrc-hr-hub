@@ -161,6 +161,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_relations(db, today, users)
     _demo_pulse(db, rnd, today, users)
     _demo_grading(db, users)
+    _demo_plan(db, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -863,4 +864,40 @@ def _demo_grading(db: Session, users: dict) -> None:
         ev.evaluated_by = users["hr.officer"].label
         if n % 4 == 0 and ev.suggested_grade == j.default_grade_code:
             G.agree(db, hrm, j, ev.suggested_grade, "")
+    db.flush()
+
+
+def _demo_plan(db: Session, today: date, users: dict) -> None:
+    """Plan ahead: critical positions with successors, two fixed-term contracts ending,
+    one technician near retirement age, and a stay talk."""
+    from ..models import Position, StayTalk
+    from ..services import plan as P
+
+    hr, hrm = users["hr.officer"], users["hr.manager"]
+    for pid in ("POS-0005", "POS-0006", "POS-0007", "POS-0008", "POS-0009", "POS-0014", "POS-0015"):
+        db.get(Position, pid).critical = True
+    # SAMPLE: make the maintenance technician near retirement age, and two operators on fixed-term contracts
+    tech = db.get(Employee, "YTR815")
+    tech.birth_date = date(today.year - P.retire_age(db) + 1, 3, 8)
+    for eid, days in (("YTOP983", 45), ("YTOP984", 75)):
+        db.get(Employee, eid).contract_end_date = today + timedelta(days=days)
+    db.flush()
+    plans = {
+        "POS-0005": ([("YTR806", "1_2y", "Budget and planning; lead a cost project"), ("YTR807", "3y", "People management course")],
+                     "high", "Drying supervisor acts as manager"),
+        "POS-0006": ([("YTOP961", "1_2y", "Supervisor training; GMP auditing"), ("YTOP951", "now", None)], "medium", None),
+        "POS-0007": ([("YTOP964", "now", "Shift reporting in the app")], "medium", None),
+        "POS-0008": ([("YTR813", "3y", "ISO 22000 lead auditor; team leading")], "high", None),
+        "POS-0014": ([("YTR813", "now", None)], "medium", "QA inspector covers lab tests"),
+        "POS-0015": ([("YTOP980", "3y", "Electrical licence; boiler course")], "high", "Outside contractor on call"),
+    }
+    for pid, (succ, impact, cover) in plans.items():
+        pos = db.get(Position, pid)
+        for eid, ready, gaps in succ:
+            P.add_successor(db, hr, pos, eid, ready, gaps or "")
+        P.save_plan(db, hr, pos, {"impact": impact, "cover": cover or "", "note": ""})
+    db.flush()
+    db.add(StayTalk(employee_id="YTOP964", on=today - timedelta(days=12), by=hrm.label,
+                    note="SAMPLE. Feels stuck after 3 years; wants to lead a shift. Agreed: acting shift leader on night shift from next month, review in 3 months.",
+                    follow_up_on=today + timedelta(days=78)))
     db.flush()

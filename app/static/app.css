@@ -351,3 +351,8 @@ fieldset.qblock{border:0;border-bottom:1px solid var(--line);margin:0;padding:12
 label.chip.lvl{flex-direction:column;align-items:flex-start;border-radius:var(--r-sm);padding:8px 10px;font-size:12.5px;line-height:1.35;gap:4px}
 label.chip.lvl b{font-size:15px}
 @media (max-width:900px){.levels{grid-template-columns:1fr}label.chip.lvl{flex-direction:row;align-items:center}}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0 0 16px}
+.tabs a{padding:8px 14px;border-radius:8px 8px 0 0;color:var(--ink-3);text-decoration:none;font-weight:600;border:1px solid transparent;border-bottom:0;margin-bottom:-1px;min-height:40px;display:inline-flex;align-items:center}
+.tabs a.on{color:var(--accent);background:var(--panel);border-color:var(--line)}
+.sig{margin:0;padding-left:18px}.sig li{margin:2px 0}.sig b{font-variant-numeric:tabular-nums;color:var(--ink-3);font-weight:600}
+td.neg{color:var(--bad);font-weight:600}td.pos{color:var(--ok)}

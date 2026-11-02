@@ -34,6 +34,7 @@ from .recruit import Application, Candidate, Interview, Requisition
 from .talent import TalentReview
 from .relations import ErCase
 from .grading import JobEvaluation
+from .plan import StayTalk, SuccessionPlan, Successor
 from .pulse import PulseInvite, PulseResponse, PulseSurvey
 from .system import (
     ApprovalRequest,
@@ -114,6 +115,9 @@ __all__ = [
     "Setting",
     "Shift",
     "Skill",
+    "StayTalk",
+    "SuccessionPlan",
+    "Successor",
     "TalentReview",
     "TrainingNeed",
     "TrainingRecord",

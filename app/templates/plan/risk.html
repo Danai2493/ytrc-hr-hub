@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "plan/_tabs.html" %}
+<div class="callout"><strong>{{ _('For a supportive talk only.') }}</strong> {{ _('These flags come from simple rules on data the app already has. They are a reason to sit down and listen, never a reason for discipline, pay or a worse appraisal. Only HR, the HR Manager and the GM see this page.') }}</div>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('High') }}</span><span class="v">{{ high }}</span><span class="d">{{ _('score 6 or more') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Watch') }}</span><span class="v">{{ watch }}</span><span class="d">{{ _('score 4 to 5') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('High with no stay talk yet') }}</span><span class="v">{{ no_talk }}</span></div>
+</div>
+<form class="filters">
+  <label>{{ _('Department') }}<select name="unit"><option value="">{{ _('All departments') }}</option>{% for d in depts %}<option value="{{ d }}" {% if d == unit %}selected{% endif %}>{{ units[d].name_en if d in units else d }}</option>{% endfor %}</select></label>
+  <label>{{ _('Show') }}<select name="show"><option value="watch">{{ _('High and watch') }}</option><option value="all" {% if show == 'all' %}selected{% endif %}>{{ _('Everyone') }}</option></select></label>
+  <button>{{ _('Show') }}</button>
+</form>
+<section class="panel"><h2>{{ _('People to talk to') }} <span class="note">{{ rows|length }}</span></h2>
+{% if not rows %}<p class="note">{{ _('Nobody flagged.') }}</p>{% else %}
+<div class="scroll"><table><tr><th>{{ _('Employee') }}</th><th>{{ _('Department') }}</th><th>{{ _('Level') }}</th><th>{{ _('Why') }}</th><th>{{ _('Last stay talk') }}</th><th></th></tr>
+{% for r in rows %}{% set e = r.employee %}{% set d = dept_of(e.org_unit_code) %}<tr>
+  <td><span class="mono">{{ e.employee_id }}</span> {{ e.full_name_en }}<br><span class="note">{{ _(e.employee_group) }}</span></td>
+  <td>{{ units[d].name_en if d in units else d }}</td>
+  <td><span class="tag {{ {'high': 'bad', 'watch': 'warn', 'low': 'ok'}[r.level] }}">{{ _(r.level|capitalize) }} · {{ r.score }}</span></td>
+  <td><ul class="sig">{% for s in r.signals %}<li><b>+{{ s.weight }}</b> {{ rt(s) }}</li>{% else %}<li class="note">-</li>{% endfor %}</ul></td>
+  <td>{% if r.last_talk %}{{ fmt_date(r.last_talk.on) }}{% if r.last_talk.follow_up_on %}<br><span class="note">{{ _('follow up') }} {{ fmt_date(r.last_talk.follow_up_on) }}</span>{% endif %}{% else %}<span class="note">{{ _('None') }}</span>{% endif %}</td>
+  <td><a class="btn small {% if r.level == 'high' and not r.last_talk %}primary{% endif %}" href="/plan/risk/{{ e.employee_id }}">{{ _('Open') }}</a></td>
+</tr>{% endfor %}</table></div>{% endif %}
+</section>
+<details class="panel"><summary><h2 style="display:inline">{{ _('How the score works') }}</h2></summary>
+<table><tr><th>{{ _('Points') }}</th><th>{{ _('Signal') }}</th></tr>{% for c, (w, t) in signals.items() %}<tr><td>+{{ w }}</td><td>{{ _(how[c]) }}</td></tr>{% endfor %}</table>
+<p class="note">{{ _('High = 6 points or more, watch = 4 to 5. The rules are a starting point: HR can tune the points once real leavers show which signals matter at YTRC.') }}</p>
+</details>
+{% endblock %}

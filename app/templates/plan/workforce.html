@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import columns %}
+{% block content %}
+{% include "plan/_tabs.html" %}
+<p class="lead">{{ _('Headcount month by month if nothing changes: people known to leave (retirement age, contract end, approved exit), the usual number of resignations, and open job requests. Compared with the budgeted seats.') }}</p>
+<form class="filters">
+  <label>{{ _('Department') }}<select name="dept"><option value="">{{ _('Whole company') }}</option>{% for d in f.rows %}<option value="{{ d }}" {% if d == dept %}selected{% endif %}>{{ units[d].name_en if d in units else d }}</option>{% endfor %}</select></label>
+  <label>{{ _('Months') }}<select name="months"><option value="12">12</option><option value="24" {% if months == 24 %}selected{% endif %}>24</option></select></label>
+  <label>{{ _('Resignations a year, %') }}<input name="turnover" value="{{ turnover }}" inputmode="decimal" placeholder="{{ _('last 12 months') }}" style="width:9em"></label>
+  <label>{{ _('Budget change, %') }}<input name="growth" value="{{ growth }}" inputmode="decimal" style="width:6em"></label>
+  <button>{{ _('Show') }}</button>
+</form>
+{% set last = view.projected[-1] %}
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Headcount today') }}</span><span class="v">{{ view.start }}</span><span class="d">{{ _('budget') }} {{ view.budget }}</span></div>
+  <div class="kpi"><span class="k">{{ _('In') }} {{ months }} {{ _('months') }}</span><span class="v">{{ '%g' % (last|round|int) }}</span><span class="d">{{ _('gap to budget') }} {{ '%+g' % ((view.budget - last)|round|int) }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Known to leave') }}</span><span class="v">{{ view.known|sum }}</span><span class="d">{{ _('retirement, contract end, approved exit') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Expected resignations') }}</span><span class="v">{{ '%g' % ((view.expected|sum)|round|int) }}</span>{% if dept %}<span class="d">{{ view.rate }}% {{ _('a year') }}</span>{% endif %}</div>
+</div>
+<section class="panel"><h2>{{ _('Projected headcount') }}{% if dept %} · {{ units[dept].name_en if dept in units else dept }}{% endif %}</h2>
+  {{ columns(labels, [(_('Projected headcount'), 'var(--s1)', view.projected)], line=[view.budget] * months, line_label=_('Budgeted seats')) }}
+  <div class="scroll"><table class="nocards"><tr><th></th>{% for m in f.months %}<th class="n">{{ m.strftime('%m/%y') }}</th>{% endfor %}</tr>
+    <tr><td>{{ _('Known to leave') }}</td>{% for v in view.known %}<td class="n">{{ v or '' }}</td>{% endfor %}</tr>
+    <tr><td>{{ _('Expected resignations') }}</td>{% for v in view.expected %}<td class="n">{{ '%g' % v if v else '' }}</td>{% endfor %}</tr>
+    <tr><td>{{ _('Planned hires') }}</td>{% for v in view.hires %}<td class="n">{{ v or '' }}</td>{% endfor %}</tr>
+    <tr><td><b>{{ _('Projected headcount') }}</b></td>{% for v in view.projected %}<td class="n"><b>{{ '%g' % v }}</b></td>{% endfor %}</tr>
+    <tr><td>{{ _('Gap to budget') }}</td>{% for v in view.gap %}<td class="n {{ 'neg' if v >= 1 else '' }}">{{ '%g' % v }}</td>{% endfor %}</tr>
+  </table></div>
+  <p class="note">{{ _('Expected resignations are spread evenly: last 12 months\' resignations (retirements and contract ends left out) divided by the average headcount, at most 100%. Planned hires come from open job requests by their needed-by month.') }}</p>
+</section>
+<div class="grid">
+<section class="panel c7"><h2>{{ _('By department') }}</h2>
+  <div class="scroll"><table><tr><th>{{ _('Department') }}</th><th class="n">{{ _('Today') }}</th><th class="n">{{ _('Budget') }}</th><th class="n">{{ _('Resign %/yr') }}</th><th class="n">{{ _('In') }} {{ months }} {{ _('months') }}</th><th>{{ _('Start hiring by') }}</th></tr>
+  {% for d, r in f.rows.items() %}{% set s = starts[d] %}<tr>
+    <td><a href="?dept={{ d }}&months={{ months }}&turnover={{ turnover }}&growth={{ growth }}">{{ units[d].name_en if d in units else d }}</a></td>
+    <td class="n">{{ r.start }}</td><td class="n">{{ r.budget }}</td><td class="n">{{ r.rate }}</td>
+    <td class="n {{ 'neg' if r.gap[-1] >= 1 else '' }}">{{ '%g' % (r.projected[-1]|round|int) }}</td>
+    <td>{% if s %}{% if s[0] <= today %}<span class="tag bad">{{ _('Now') }}</span>{% else %}{{ s[0].strftime('%m/%Y') }}{% endif %} <span class="note">{{ s[1] }} {{ _('short') }}</span>{% else %}<span class="tag ok">{{ _('No gap') }}</span>{% endif %}</td>
+  </tr>{% endfor %}</table></div>
+  <p class="note">{{ _('Start hiring by = the month the gap reaches one person, minus the hiring lead time') }} ({{ f.lead_months }} {{ _('months') }}).</p>
+</section>
+<section class="panel c5"><h2>{{ _('Known leavers') }}</h2>
+  {% if f.known %}<ul class="timeline">{% for when, e, why in f.known %}<li>{{ fmt_date(when) }} · <span class="mono">{{ e.employee_id }}</span> {{ e.full_name_en }}<br><span class="note">{{ _(why) }}</span></li>{% endfor %}</ul>{% else %}<p class="note">{{ _('Nobody in this period.') }}</p>{% endif %}
+</section>
+</div>
+{% endblock %}

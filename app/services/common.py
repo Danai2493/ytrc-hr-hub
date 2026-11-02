@@ -39,6 +39,8 @@ DEFAULT_SETTINGS: dict[str, tuple[Any, str]] = {
                          "Benefits the job ad may mention (no pay figures)"),
     "recruit_apply_how": ("Walk in Monday to Saturday 08:00-16:00 at the HR office, or send name and phone by LINE",
                           "How to apply, printed on every job ad"),
+    "retire_age": (60, "Retirement age in the work rules (used by succession and the workforce plan)"),
+    "hire_lead_months": (2, "Months from opening a job to the person starting (workforce plan)"),
     "juvenile_age": (18, "Workers under this age: no OT, no holiday work, no night work"),
     "bplus_export_columns": (
         ["employee_id", "pay_code", "hours", "period_start", "period_end"],

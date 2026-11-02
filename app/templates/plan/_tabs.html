@@ -1,0 +1,6 @@
+<div class="phead"><h1>{{ _('Plan ahead') }}</h1></div>
+<nav class="tabs" aria-label="{{ _('Plan ahead') }}">
+  <a href="/plan" {% if tab == 'succession' %}class="on" aria-current="page"{% endif %}>{{ _('Succession') }}</a>
+  {% if can_risk %}<a href="/plan/risk" {% if tab == 'risk' %}class="on" aria-current="page"{% endif %}>{{ _('Might leave') }}</a>{% endif %}
+  <a href="/plan/workforce" {% if tab == 'workforce' %}class="on" aria-current="page"{% endif %}>{{ _('Headcount plan') }}</a>
+</nav>

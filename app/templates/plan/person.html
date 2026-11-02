@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "plan/_tabs.html" %}
+<div class="phead"><h2><span class="mono">{{ e.employee_id }}</span> · {{ e.full_name_en }}</h2><span class="tag {{ {'high': 'bad', 'watch': 'warn', 'low': 'ok'}[level] }}">{{ _(level|capitalize) }} · {{ score }}</span><span class="end"><a class="btn" href="/plan/risk">{{ _('Back to the list') }}</a></span></div>
+<div class="grid">
+<section class="panel c5"><h2>{{ _('Why the app flags this person') }}</h2>
+  {% if sig %}<ul class="find">{% for s in sig %}<li class="{{ s.level }}"><b>+{{ s.weight }}</b> {{ rt(s) }}</li>{% endfor %}</ul>{% else %}<p class="note">{{ _('No signals right now.') }}</p>{% endif %}
+  <p class="note">{{ _('Ask open questions: what keeps you here, what would make you leave, what one thing should change. Listen first. Agree one action you can really deliver.') }}</p>
+  <p><a href="/people/{{ e.employee_id }}">{{ _('Open the employee record') }}</a></p>
+</section>
+<section class="panel c7"><h2>{{ _('Stay talks') }}</h2>
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+    <label>{{ _('Date') }}<input type="date" name="on" value="{{ today }}" max="{{ today }}" required></label>
+    <label>{{ _('Follow up on') }}<input type="date" name="follow_up_on" min="{{ today }}"></label>
+    <label class="wide">{{ _('What was said and what was agreed') }}<textarea name="note" rows="4" required minlength="10"></textarea></label>
+    <div class="bar wide"><button class="primary">{{ _('Record the talk') }}</button></div>
+  </form>
+  {% if talks %}<ol class="timeline" style="margin-top:16px">{% for t in talks %}<li><b>{{ fmt_date(t.on) }}</b> · <span class="note">{{ t.by }}{% if t.follow_up_on %} · {{ _('follow up') }} {{ fmt_date(t.follow_up_on) }}{% endif %}</span><br><span style="white-space:pre-line">{{ t.note }}</span></li>{% endfor %}</ol>{% else %}<p class="note">{{ _('No stay talk recorded yet.') }}</p>{% endif %}
+</section>
+</div>
+{% endblock %}

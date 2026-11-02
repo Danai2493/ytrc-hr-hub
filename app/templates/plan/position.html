@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "plan/_tabs.html" %}
+<div class="phead"><h2><span class="mono">{{ pos.position_id }}</span> · {{ pos.title }}</h2><span class="end"><a class="btn" href="/plan">{{ _('All critical positions') }}</a></span></div>
+<div class="grid">
+<section class="panel c7">
+  <dl class="kv">
+    <dt>{{ _('Unit') }}</dt><dd>{{ units[pos.org_unit_code].name_en if pos.org_unit_code in units else pos.org_unit_code }}</dd>
+    <dt>{{ _('Grade') }}</dt><dd>{{ pos.grade_code or '-' }}</dd>
+    <dt>{{ _('Holder') }}</dt><dd>{% if pos.seats > 1 %}<div>{{ incumbents|length }} / {{ pos.seats }} {{ _('seats filled') }}</div>{% endif %}{% for e, r, t in incumbents %}<div><a href="/people/{{ e.employee_id }}"><span class="mono">{{ e.employee_id }}</span> {{ e.full_name_en }}</a>{% if r %} · {{ _('retirement age on') }} {{ fmt_date(r) }}{% endif %}{% if t and t.risk %} · <span class="tag {{ {'high': 'bad', 'medium': 'warn', 'low': 'ok'}[t.risk] }}">{{ _('Retention risk') }}: {{ _(t.risk|capitalize) }}</span>{% endif %}</div>{% else %}<span class="tag bad">{{ _('Vacant') }}</span>{% endfor %}</dd>
+    {% if plan.reviewed_on %}<dt>{{ _('Last reviewed') }}</dt><dd>{{ fmt_date(plan.reviewed_on) }} · {{ plan.reviewed_by }}</dd>{% endif %}
+  </dl>
+  {% if flags %}<ul class="find">{% for f in flags %}<li class="{{ f.level }}">{{ rt(f) }}</li>{% endfor %}</ul>{% endif %}
+
+  <h2 style="margin-top:20px">{{ _('Successors') }}</h2>
+  {% if plan.successors %}
+  <div class="scroll"><table><tr><th>#</th><th>{{ _('Employee') }}</th><th>{{ _('Ready') }}</th><th>{{ _('Talent review') }}</th><th>{{ _('Gaps to close') }}</th>{% if can_edit %}<th></th>{% endif %}</tr>
+  {% for s in plan.successors %}{% set t = talent[s.employee_id] %}<tr>
+    <td>{{ loop.index }}</td>
+    <td><span class="mono">{{ s.employee_id }}</span> {{ s.employee.full_name_en }}{% if s.employee.status != 'Active' %} <span class="tag bad">{{ _('Left') }}</span>{% endif %}</td>
+    <td><span class="tag {{ {'now': 'ok', '1_2y': 'warn', '3y': 'info'}[s.readiness] }}">{{ _(readiness[s.readiness]) }}</span></td>
+    <td>{% if t and t.box %}{{ _('Box') }} {{ t.box }}{% else %}<span class="note">-</span>{% endif %}</td>
+    <td>{{ s.gaps or '-' }}</td>
+    {% if can_edit %}<td><form method="post" onsubmit="return confirm('{{ _('Remove from the list?') }}')"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="remove"><input type="hidden" name="sid" value="{{ s.id }}"><button class="small">{{ _('Remove') }}</button></form></td>{% endif %}
+  </tr>{% endfor %}</table></div>
+  {% else %}<p class="note">{{ _('Nobody named yet.') }}</p>{% endif %}
+
+  {% if can_edit %}
+  <h2 style="margin-top:20px">{{ _('Add a successor') }}</h2>
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="add">
+    <label>{{ _('Employee ID') }}<input name="employee_id" required placeholder="YTR8xx" list="ideas" autocomplete="off"></label>
+    <datalist id="ideas">{% for e, why in ideas %}<option value="{{ e.employee_id }}">{{ e.full_name_en }}</option>{% endfor %}</datalist>
+    <label>{{ _('How ready') }}<select name="readiness">{% for k, v in readiness.items() %}<option value="{{ k }}" {% if k == '1_2y' %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Gaps to close (skills, experience, training)') }}<input name="gaps" maxlength="300"></label>
+    <div class="bar wide"><button class="primary">{{ _('Add') }}</button></div>
+  </form>
+  {% endif %}
+</section>
+<section class="panel c5">
+  {% if can_edit and ideas %}
+  <h2>{{ _('People worth a look') }}</h2>
+  <p class="note">{{ _('From talent review results and career paths, in the same department or job family, in a lower grade. A suggestion only: the manager decides.') }}</p>
+  <ul class="timeline">{% for e, why in ideas %}<li><span class="mono">{{ e.employee_id }}</span> {{ e.full_name_en }}<br><span class="note">{% for w in why %}{{ _(w) }}{% if not loop.last %} · {% endif %}{% endfor %}</span></li>{% endfor %}</ul>
+  {% endif %}
+  <h2 {% if can_edit and ideas %}style="margin-top:20px"{% endif %}>{{ _('If the job were empty tomorrow') }}</h2>
+  {% if can_edit %}
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="save">
+    <label class="wide">{{ _('Impact on the plant') }}<select name="impact"><option value="">-</option>{% for k, v in impacts.items() %}<option value="{{ k }}" {% if plan.impact == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Who covers in the meantime') }}<input name="cover" value="{{ plan.cover or '' }}" maxlength="300"></label>
+    <label class="wide">{{ _('Notes') }}<textarea name="note" rows="3">{{ plan.note or '' }}</textarea></label>
+    <div class="bar wide"><button>{{ _('Save') }}</button></div>
+  </form>
+  {% else %}
+  <dl class="kv"><dt>{{ _('Impact on the plant') }}</dt><dd>{{ _(impacts[plan.impact]) if plan.impact else '-' }}</dd>
+  <dt>{{ _('Who covers in the meantime') }}</dt><dd>{{ plan.cover or '-' }}</dd><dt>{{ _('Notes') }}</dt><dd style="white-space:pre-line">{{ plan.note or '-' }}</dd></dl>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

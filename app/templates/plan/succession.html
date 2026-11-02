@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "plan/_tabs.html" %}
+<p class="lead">{{ _('Critical positions are jobs the plant cannot run without, or that take long to fill. For each one, name who could step in and how ready they are. Mark a position critical on its page under Org & positions.') }}</p>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Critical positions') }}</span><span class="v">{{ bench.positions }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Someone ready now') }}</span><span class="v">{{ bench.covered_now }}</span><span class="d">{% if bench.positions %}{{ (100 * bench.covered_now / bench.positions)|round|int }}%{% endif %}</span></div>
+  <div class="kpi"><span class="k">{{ _('Ready within 2 years') }}</span><span class="v">{{ bench.covered_2y }}</span></div>
+  <div class="kpi"><span class="k">{{ _('No successor at all') }}</span><span class="v">{{ bench.none }}</span></div>
+</div>
+<section class="panel"><h2>{{ _('Critical positions') }}</h2>
+{% if not rows %}<p class="note">{{ _('No critical positions in your area yet.') }}</p>{% else %}
+<div class="scroll"><table><tr><th>{{ _('Position') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Holder') }}</th><th>{{ _('Successors') }}</th><th>{{ _('Needs attention') }}</th><th></th></tr>
+{% for pos, plan, flags in rows %}<tr>
+  <td><span class="mono">{{ pos.position_id }}</span> {{ pos.title }}</td>
+  <td>{{ units[pos.org_unit_code].name_en if pos.org_unit_code in units else pos.org_unit_code }}</td>
+  <td>{% if pos.seats > 1 %}{{ pos.incumbents|length }} / {{ pos.seats }} {{ _('seats filled') }}{% else %}{% for e in pos.incumbents %}{{ e.full_name_en }}{% if not loop.last %}, {% endif %}{% else %}<span class="tag bad">{{ _('Vacant') }}</span>{% endfor %}{% endif %}</td>
+  <td>{% for s in plan.successors %}<span class="tag {{ {'now': 'ok', '1_2y': 'warn', '3y': 'info'}[s.readiness] }}" title="{{ _(readiness[s.readiness]) }}">{{ s.employee.full_name_en }}</span> {% else %}<span class="note">-</span>{% endfor %}</td>
+  <td>{% if flags %}<ul class="find">{% for f in flags[:2] %}<li class="{{ f.level }}">{{ rt(f) }}</li>{% endfor %}</ul>{% else %}<span class="tag ok">{{ _('Covered') }}</span>{% endif %}</td>
+  <td><a class="btn small" href="/plan/position/{{ pos.position_id }}">{{ _('Open') }}</a></td>
+</tr>{% endfor %}</table></div>{% endif %}
+<p class="note">{{ _('Green: ready now. Amber: ready in 1-2 years. Grey: 3+ years.') }}</p>
+</section>
+{% endblock %}
