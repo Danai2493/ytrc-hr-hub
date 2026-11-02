@@ -57,5 +57,5 @@
 
 {% macro status_tag(s) -%}
 {% set cls = {'approved':'ok','verified':'ok','paid':'ok','accepted':'ok','ok':'ok','imported':'ok','fixed':'ok','extracted':'ok','pending':'warn','review':'warn','needs_review':'warn','draft':'warn','checked':'warn','sent':'ok','open':'warn','rejected':'bad','failed':'bad','cancelled':'','dropped':'','ignored':'','block':'bad','flag':'warn','info':''} %}
-<span class="tag {{ cls.get(s, '') }}">{{ s | replace('_', ' ') }}</span>
+<span class="tag {{ cls.get(s, '') }}">{{ _({'checked': 'Second check done', 'ok': 'OK'}.get(s) or (s or '') | replace('_', ' ') | capitalize) }}</span>
 {%- endmacro %}

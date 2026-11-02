@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextvars import ContextVar
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -14,28 +15,34 @@ from ..models.time import DAY_CODES, PAY_CODES
 from ..security import csrf_token
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+_lang: ContextVar[str] = ContextVar("lang", default=settings.default_language)
+# Shared macros (partials/charts.html) are imported without the page context; they translate through this.
+templates.env.globals["_"] = lambda text, **kw: gettext(_lang.get(), text, **kw)
 
 # (path, label, roles allowed; None = everyone signed in)
 NAV = [
-    ("/", "Home", None),
-    ("/people", "People", ("hr", "hr_manager", "gm", "dept_head", "supervisor", "auditor")),
-    ("/org", "Org & positions", ("hr", "hr_manager", "gm", "dept_head", "auditor")),
-    ("/ot", "OT", None),
-    ("/leave", "Leave", None),
-    ("/attendance", "Attendance", ("hr", "hr_manager", "gm", "dept_head", "supervisor")),
-    ("/approvals", "Approvals", None),
-    ("/recruit", "Recruitment", ("hr", "hr_manager", "gm", "dept_head", "supervisor")),
-    ("/newstaff", "New employees", ("hr", "hr_manager", "dept_head", "supervisor", "admin")),
-    ("/skills", "Skills & training", ("hr", "hr_manager", "gm", "dept_head", "supervisor")),
-    ("/perform", "Performance", None),
-    ("/growth", "Growth", None),
-    ("/exit", "Exit", ("hr", "hr_manager", "dept_head", "admin")),
-    ("/capture", "Paper forms (AI)", ("hr", "hr_manager", "supervisor")),
-    ("/pay", "Pay input", ("hr", "hr_manager")),
-    ("/health", "Data health", ("hr", "hr_manager", "gm", "dept_head")),
-    ("/dash", "Dashboards", ("hr", "hr_manager", "gm", "dept_head", "auditor")),
-    ("/admin", "Admin", ("admin", "hr_manager")),
+    # (path, label, roles allowed or None = everyone signed in, icon, menu group)
+    ("/", "Home", None, "home", ""),
+    ("/approvals", "Approvals", None, "check", ""),
+    ("/people", "People", ("hr", "hr_manager", "gm", "dept_head", "supervisor", "auditor"), "users", "People"),
+    ("/org", "Org & positions", ("hr", "hr_manager", "gm", "dept_head", "auditor"), "org", "People"),
+    ("/recruit", "Recruitment", ("hr", "hr_manager", "gm", "dept_head", "supervisor"), "user-plus", "People"),
+    ("/newstaff", "New employees", ("hr", "hr_manager", "dept_head", "supervisor", "admin"), "clipboard", "People"),
+    ("/exit", "Exit", ("hr", "hr_manager", "dept_head", "admin"), "log-out", "People"),
+    ("/ot", "OT", None, "clock", "Time and pay"),
+    ("/leave", "Leave", None, "calendar", "Time and pay"),
+    ("/attendance", "Attendance", ("hr", "hr_manager", "gm", "dept_head", "supervisor"), "scan", "Time and pay"),
+    ("/capture", "Paper forms (AI)", ("hr", "hr_manager", "supervisor"), "camera", "Time and pay"),
+    ("/pay", "Pay input", ("hr", "hr_manager"), "wallet", "Time and pay"),
+    ("/skills", "Skills & training", ("hr", "hr_manager", "gm", "dept_head", "supervisor"), "cap", "Develop"),
+    ("/perform", "Performance", None, "target", "Develop"),
+    ("/growth", "Growth", None, "sprout", "Develop"),
+    ("/dash", "Dashboards", ("hr", "hr_manager", "gm", "dept_head", "auditor"), "chart", "Insight"),
+    ("/health", "Data health", ("hr", "hr_manager", "gm", "dept_head"), "shield", "Insight"),
+    ("/admin", "Admin", ("admin", "hr_manager"), "settings", "System"),
 ]
+# Phone bottom bar: the four places people go most, plus the full menu
+MOBILE_NAV = ("/", "/approvals", "/ot", "/leave")
 
 
 def lang_of(request: Request) -> str:
@@ -68,12 +75,20 @@ def hours(minutes: Optional[int]) -> str:
 
 def render(request: Request, name: str, ctx: Optional[dict] = None, status: int = 200) -> HTMLResponse:
     lang = lang_of(request)
+    _lang.set(lang)
     user = getattr(request.state, "user", None)
 
     def _(text: str, **kw) -> str:
         return gettext(lang, text, **kw)
 
-    nav = [(p, _(label)) for p, label, roles in NAV if user and (roles is None or user.has(*roles))]
+    nav = [(p, _(label), icon, group) for p, label, roles, icon, group in NAV if user and (roles is None or user.has(*roles))]
+    path = request.url.path
+    active = max((p for p, *_x in nav if path == p or (p != "/" and path.startswith(p))), key=len, default="")
+    groups: list[tuple[str, list]] = []
+    for item in nav:
+        if not groups or groups[-1][0] != item[3]:
+            groups.append((item[3], []))
+        groups[-1][1].append(item)
     flashes = request.session.pop("flash", []) if "flash" in request.session else []
     base = {
         "request": request,
@@ -85,7 +100,11 @@ def render(request: Request, name: str, ctx: Optional[dict] = None, status: int 
         "csrf": csrf_token(request),
         "settings": settings,
         "nav": nav,
-        "path": request.url.path,
+        "nav_groups": [(_(g) if g else "", items) for g, items in groups],
+        "nav_active": active,
+        "mobile_nav": [n for n in nav if n[0] in MOBILE_NAV],
+        "inbox_count": _inbox_count(user),
+        "path": path,
         "flashes": flashes,
         "fmt_date": fmt_date,
         "fmt_dt": fmt_dt,
@@ -97,6 +116,22 @@ def render(request: Request, name: str, ctx: Optional[dict] = None, status: int 
     }
     base.update(ctx or {})
     return templates.TemplateResponse(request, name, base, status_code=status)
+
+
+def _inbox_count(user) -> int:
+    """Approvals waiting for this person, for the badge in the menu."""
+    if not user:
+        return 0
+    from ..db import SessionLocal
+    from ..services.approvals import inbox
+
+    db = SessionLocal()
+    try:
+        return len(inbox(db, user))
+    except Exception:  # the badge must never break a page
+        return 0
+    finally:
+        db.close()
 
 
 def flash(request: Request, msg: str, kind: str = "ok") -> None:
