@@ -37,6 +37,14 @@
   document.querySelectorAll("[data-confirm]").forEach((el) => {
     el.addEventListener("click", (e) => { if (!confirm(el.dataset.confirm)) e.preventDefault(); });
   });
+  // Any wide table scrolls inside its own box instead of pushing the page sideways.
+  document.querySelectorAll("main table").forEach((t) => {
+    if (t.closest(".scroll")) return;
+    const box = document.createElement("div");
+    box.className = "scroll";
+    t.parentNode.insertBefore(box, t);
+    box.appendChild(t);
+  });
   // Side menu on phones and tablets.
   const setMenu = (open) => {
     document.body.classList.toggle("menu-open", open);

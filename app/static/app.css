@@ -100,7 +100,7 @@ body.public .content{max-width:none;min-height:100vh;align-content:center}
 
 /* ---------- type ---------- */
 h1{font-family:var(--f-display);font-size:24px;font-weight:700;letter-spacing:-.015em;line-height:1.25;margin:0;text-wrap:balance}
-h2{font-family:var(--f-display);font-size:17px;font-weight:600;line-height:1.35;margin:0;text-wrap:balance}
+h2{overflow-wrap:anywhere;font-family:var(--f-display);font-size:17px;font-weight:600;line-height:1.35;margin:0;text-wrap:balance}
 h3{font-family:var(--f-display);font-size:15px;font-weight:600;margin:0}
 .lead{max-width:78ch;color:var(--ink-2);margin:0}
 .note{color:var(--ink-3);font-size:13px;margin:0}
