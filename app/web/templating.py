@@ -37,6 +37,7 @@ NAV = [
     ("/skills", "Skills & training", ("hr", "hr_manager", "gm", "dept_head", "supervisor"), "cap", "Develop"),
     ("/perform", "Performance", None, "target", "Develop"),
     ("/growth", "Growth", None, "sprout", "Develop"),
+    ("/talent", "Talent review", ("hr", "hr_manager", "gm", "dept_head", "supervisor", "auditor"), "grid", "Develop"),
     ("/dash", "Dashboards", ("hr", "hr_manager", "gm", "dept_head", "auditor"), "chart", "Insight"),
     ("/health", "Data health", ("hr", "hr_manager", "gm", "dept_head"), "shield", "Insight"),
     ("/admin", "Admin", ("admin", "hr_manager"), "settings", "System"),

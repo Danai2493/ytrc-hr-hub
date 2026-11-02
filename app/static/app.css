@@ -315,3 +315,24 @@ table.kpitab td{vertical-align:top}
   .side-nav{gap:6px}
   .side-nav a{min-height:34px;padding:6px 10px}
 }
+
+/* Talent review: 9-box grid. Potential up, performance right. Colour by suggested action, not by worth. */
+.nine{display:grid;grid-template-columns:28px 64px repeat(3,minmax(0,1fr));gap:8px;align-items:stretch}
+.nine-y{grid-row:1/4;writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.nine-x{grid-column:3/6;text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-3)}
+.nine-lvl{align-self:center;font-size:12.5px;color:var(--ink-3)}.nine-lvl.x{text-align:center}
+.nine > div:empty{display:block}
+.nine .cell{display:grid;align-content:start;gap:6px;min-height:118px;padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--line);text-decoration:none;color:var(--ink);background:var(--panel);transition:box-shadow .15s var(--ease)}
+.nine .cell:hover{box-shadow:var(--shadow)}
+.nine .cell.on{outline:2px solid var(--accent);outline-offset:1px}
+.cell-h{display:flex;justify-content:space-between;gap:6px;align-items:baseline}.cell-h b{font-size:13.5px}
+.cell-h .count{font-size:20px;font-weight:700;background:none;color:var(--ink);padding:0;min-width:0}
+.cell-p{display:flex;flex-wrap:wrap;gap:4px;font-size:12px}.cell-p > span{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:1px 8px}
+.b9,.b8,.b6{background:var(--ok-bg)!important}.b7,.b5,.b3{background:var(--accent-soft)!important}.b4,.b2{background:var(--warn-bg)!important}.b1{background:var(--bad-bg)!important}
+i.risk{font-style:normal;font-weight:700;color:var(--bad)}
+.box-badge{display:flex;gap:12px;align-items:center;padding:12px 14px;border-radius:var(--r-sm);margin-bottom:8px}.box-badge b{font-size:34px;line-height:1}.box-badge span{font-weight:600}
+fieldset.likert-row{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:8px}
+fieldset.likert-row legend{font-weight:500;margin-bottom:6px;padding:0}
+label.chip{display:inline-flex;align-items:center;gap:6px;min-width:auto;padding:6px 12px;border:1px solid var(--line);border-radius:999px;cursor:pointer;flex-direction:row}
+label.chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+@media (max-width:640px){.nine{grid-template-columns:18px 44px repeat(3,minmax(0,1fr));gap:5px}.nine .cell{min-height:84px;padding:7px}.cell-p{display:none}.cell-h{flex-direction:column}.cell-h b{font-size:11.5px}}

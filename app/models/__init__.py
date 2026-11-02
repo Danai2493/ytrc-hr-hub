@@ -31,6 +31,7 @@ from .develop import (
 from .hrdev import ExitCase, LeaveRequest, LeaveType
 from .perform import Appraisal, Goal, KpiDefinition, PerformanceCycle
 from .recruit import Application, Candidate, Interview, Requisition
+from .talent import TalentReview
 from .system import (
     ApprovalRequest,
     ApprovalStep,
@@ -105,6 +106,7 @@ __all__ = [
     "Setting",
     "Shift",
     "Skill",
+    "TalentReview",
     "TrainingNeed",
     "TrainingRecord",
     "User",

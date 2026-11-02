@@ -157,6 +157,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_growth(db, rnd, today, users)
     _demo_recruit(db, rnd, today, users)
     _demo_perform(db, rnd, today, users)
+    _demo_talent(db, rnd, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -729,3 +730,40 @@ def _sample_form_png() -> bytes:
     buf = io.BytesIO()
     img.save(buf, "PNG")
     return buf.getvalue()
+
+
+def _demo_talent(db: Session, rnd: random.Random, today: date, users: dict) -> None:
+    """Last year's talent review: most people proposed by their manager, about half agreed in the meeting."""
+    from ..models import Appraisal, PerformanceCycle, TalentReview
+    from ..models.talent import BOXES, box_of, perf_level
+
+    by_emp = {u.employee_id: u for u in users.values() if u.employee_id}
+    old = db.scalar(select(PerformanceCycle).where(PerformanceCycle.released_at.is_not(None)).order_by(PerformanceCycle.period_end.desc()))
+    if old is None:
+        return
+    reasons = ["Offered a job nearer home (SAMPLE)", "Wants a team leader role soon (SAMPLE)", "Pay gap with nearby factories (SAMPLE)"]
+    for a in db.scalars(select(Appraisal).where(Appraisal.cycle_id == old.id, Appraisal.final_rating.is_not(None)).order_by(Appraisal.employee_id)):
+        if a.form == "operator" and rnd.random() < 0.6:
+            continue  # not every operator reviewed yet
+        roll = rnd.random()
+        if roll < 0.12:
+            continue  # not started
+        perf = perf_level(a.final_rating)
+        lean = {3: [2, 3, 3], 2: [1, 2, 2, 3], 1: [1, 1, 2]}[perf]
+        ans = {k: rnd.choice(lean) for k in ("learn", "scope", "lead")}
+        avg = sum(ans.values()) / 3
+        pot = 3 if avg >= 2.5 else 2 if avg >= 1.5 else 1
+        risk = rnd.choice(["low", "low", "low", "medium", "medium", "high"])
+        who = by_emp.get(a.reviewer_employee_id)
+        t = TalentReview(year=old.period_end.year, employee_id=a.employee_id, org_unit_code=a.org_unit_code, appraisal_id=a.id, rating=a.final_rating,
+                         performance=perf, answers=ans, potential=pot, box=box_of(perf, pot)[0], risk=risk,
+                         risk_reason=rnd.choice(reasons) if risk == "high" else None,
+                         next_move={3: "ready_2y", 2: "stay", 1: "stay"}[pot] if not (perf == 3 and pot == 3) else rnd.choice(["ready_now", "ready_2y"]),
+                         action=BOXES[(perf, pot)][2] + " (SAMPLE)", status="proposed" if roll < 0.55 else "agreed",
+                         proposed_by=who.label if who else "hr.manager", proposed_at=datetime(today.year, 2, 20, 10))
+        if roll < 0.2:
+            t.status, t.proposed_at = "draft", None
+        if t.status == "agreed":
+            t.agreed_by, t.agreed_at = users["hr.manager"].label, datetime(today.year, 3, 3, 14)
+        db.add(t)
+    db.flush()

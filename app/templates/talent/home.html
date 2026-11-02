@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead"><h1>{{ _('Talent review') }}</h1>
+  {% if years|length > 1 %}<form class="end"><select name="year" onchange="this.form.submit()">{% for x in years %}<option value="{{ x }}" {% if x == y %}selected{% endif %}>{{ x }}</option>{% endfor %}</select></form>{% endif %}</div>
+<p class="lead">{{ _('Once a year, after appraisal results are out, each manager places their people on this grid. Performance comes from the released rating. Potential is a separate judgement about the future, agreed in the review meeting. It is confidential and never used for pay.') }}</p>
+{% if not y %}<p class="lead">{{ _('No released appraisal results yet. The review opens once a performance year is released.') }}</p>{% else %}
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('People to review') }} {{ y }}</span><span class="v">{{ rows|length }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Proposed or agreed') }}</span><span class="v">{{ done }}</span><span class="d">{{ _('agreed') }} {{ agreed }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Strong people at high risk of leaving') }}</span><span class="v">{{ risky|length }}</span><span class="d">{{ _('boxes 6, 8, 9 with high retention risk') }}</span></div>
+</div>
+<form class="filters">
+  <input type="hidden" name="year" value="{{ y }}">
+  <label>{{ _('Unit') }}<select name="unit"><option value="">{{ _('All units') }}</option>{% for u in unit_codes %}<option value="{{ u }}" {% if u == unit %}selected{% endif %}>{{ units[u].name_en if u in units else u }}</option>{% endfor %}</select></label>
+  <label>{{ _('Group') }}<select name="group"><option value="">{{ _('All groups') }}</option>{% for g in ['Operator', 'Staff', 'Manager'] %}<option value="{{ g }}" {% if g == group %}selected{% endif %}>{{ _(g) }}</option>{% endfor %}</select></label>
+  <button>{{ _('Show') }}</button>
+</form>
+<section class="panel"><h2>{{ _('9-box grid') }} {{ y }}</h2>
+<div class="nine" role="table" aria-label="{{ _('9-box grid') }}">
+  <div class="nine-y">{{ _('Potential') }} →</div>
+  {% for row in [(3, 6, 9), (2, 5, 8), (1, 4, 7)] %}
+    <div class="nine-lvl">{{ _(levels[boxes[row[0]].pot]) }}</div>
+    {% for n in row %}{% set b = boxes[n] %}
+    <a class="cell b{{ n }}{% if box == n %} on{% endif %}" href="?year={{ y }}&unit={{ unit }}&group={{ group }}&box={{ n if box != n else 0 }}#list">
+      <span class="cell-h"><b>{{ _(b.name) }}</b><span class="count">{{ grid[n]|length }}</span></span>
+      <span class="cell-p">{% for e, t in grid[n][:6] %}<span>{{ e.full_name_en }}{% if t.risk == 'high' %} <i class="risk" title="{{ _('High retention risk') }}">!</i>{% endif %}</span>{% endfor %}{% if grid[n]|length > 6 %}<span class="note">+{{ grid[n]|length - 6 }}</span>{% endif %}</span>
+    </a>{% endfor %}
+  {% endfor %}
+  <div></div><div></div>{% for p in (1, 2, 3) %}<div class="nine-lvl x">{{ _(levels[p]) }}</div>{% endfor %}
+  <div class="nine-x">{{ _('Performance (appraisal rating)') }} →</div>
+</div>
+{% if box %}<p class="note"><strong>{{ _(boxes[box].name) }}:</strong> {{ _(boxes[box].action) }}</p>{% endif %}
+</section>
+<section class="panel" id="list"><h2>{{ _('People') }} <span class="note">{{ shown|length }}</span></h2>
+  <table><tr><th>{{ _('Employee') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Rating') }}</th><th>{{ _('Box') }}</th><th>{{ _('Retention risk') }}</th><th>{{ _('Status') }}</th><th></th></tr>
+  {% for e, a, t in shown %}<tr><td><span class="mono">{{ e.employee_id }}</span> {{ e.full_name_en }}</td><td>{{ units[e.org_unit_code].name_en if e.org_unit_code in units else e.org_unit_code }}</td>
+    <td><strong>{{ letter(a.final_rating) if a else '-' }}</strong></td><td>{% if t and t.box %}{{ t.box }} · {{ _(boxes[t.box].name) }}{% else %}<span class="note">{{ _('Not placed') }}</span>{% endif %}</td>
+    <td>{% if t and t.risk %}<span class="tag {{ {'high': 'bad', 'medium': 'warn', 'low': 'ok'}[t.risk] }}">{{ _(risks[t.risk]) }}</span>{% endif %}</td>
+    <td>{{ _(statuses[t.status]) if t else _('Not started') }}</td><td><a class="btn small {% if not t or t.status == 'draft' %}primary{% endif %}" href="/talent/{{ y }}/{{ e.employee_id }}">{{ _('Open') }}</a></td></tr>{% endfor %}</table>
+</section>
+{% endif %}
+{% endblock %}

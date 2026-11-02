@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Talent review') }} {{ year }}</h1><div class="end no-print"><a class="btn" href="/talent?year={{ year }}">{{ _('Back to the grid') }}</a></div></div>
+<div class="phead"><h2><span class="mono">{{ e.employee_id }}</span> {{ e.full_name_en }}</h2><span class="tag">{{ _(statuses[t.status]) }}</span>
+  <span class="note">{{ unit.name_en if unit else e.org_unit_code }} · {{ _(e.employee_group) }}{% if e.join_date %} · {{ _('joined') }} {{ fmt_date(e.join_date) }}{% endif %}</span></div>
+<p class="note">{{ _('Confidential: HR, the GM and this person\'s own managers only. Not used for pay.') }}</p>
+<div class="grid">
+<section class="panel c7">
+<form method="post" class="form" id="tr"><input type="hidden" name="_csrf" value="{{ csrf }}">
+  <h2 class="wide">{{ _('Performance') }}</h2>
+  <p class="wide">{% if t.performance %}{{ _('Released rating') }} <strong>{{ letter(t.rating) }}</strong> {{ _(ratings[t.rating][1]) }} → <strong>{{ _(levels[t.performance]) }}</strong>{% else %}<span class="tag warn">{{ _('No released appraisal rating for this year, so the person cannot be placed yet') }}</span>{% endif %}</p>
+  <h2 class="wide">{{ _('Potential') }}</h2>
+  <p class="wide note">{{ _('Think about the next 2-3 years, not this year\'s results. 1 = not yet, 2 = sometimes, 3 = clearly and often.') }}</p>
+  {% for k, q in questions.items() %}
+  <fieldset class="wide likert-row"><legend>{{ _(q) }}</legend>
+    {% for v in (1, 2, 3) %}<label class="chip"><input type="radio" name="q_{{ k }}" value="{{ v }}" {% if t.answers.get(k) == v %}checked{% endif %} {% if not can_edit %}disabled{% endif %}> {{ v }} {{ _({1: 'Not yet', 2: 'Sometimes', 3: 'Clearly'}[v]) }}</label>{% endfor %}
+  </fieldset>{% endfor %}
+  <label>{{ _('Retention risk') }}<select name="risk" {% if not can_edit %}disabled{% endif %}><option value=""></option>{% for k, v in risks.items() %}<option value="{{ k }}" {% if t.risk == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+  <label>{{ _('Next step') }}<select name="next_move" {% if not can_edit %}disabled{% endif %}><option value=""></option>{% for k, v in moves.items() %}<option value="{{ k }}" {% if t.next_move == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+  <label class="wide">{{ _('Why might they leave? (needed when the risk is high)') }}<input name="risk_reason" value="{{ t.risk_reason or '' }}" maxlength="300" {% if not can_edit %}disabled{% endif %}></label>
+  <label class="wide">{{ _('Agreed action') }}<textarea name="action" rows="3" {% if not can_edit %}disabled{% endif %} placeholder="{{ _(boxes[t.box].action) if t.box else '' }}">{{ t.action or '' }}</textarea></label>
+  {% if can_edit and t.status == 'agreed' %}<div class="bar wide"><button name="do" value="propose">{{ _('Save changes') }}</button></div>
+  {% elif can_edit %}<div class="bar wide"><button name="do" value="save">{{ _('Save draft') }}</button><button class="primary" name="do" value="propose">{{ _('Propose for the review meeting') }}</button></div>{% endif %}
+</form>
+{% if can_agree %}
+<form method="post" class="form" style="margin-top:16px"><input type="hidden" name="_csrf" value="{{ csrf }}">
+  <h2 class="wide">{{ _('Review meeting') }}</h2>
+  <label>{{ _('Potential agreed in the meeting') }}<select name="potential">{% for v in (1, 2, 3) %}<option value="{{ v }}" {% if t.potential == v %}selected{% endif %}>{{ _(levels[v]) }}</option>{% endfor %}</select></label>
+  <label class="wide">{{ _('Meeting note (needed if the potential changes)') }}<input name="note" maxlength="300"></label>
+  <div class="bar wide"><button class="primary" name="do" value="agree">{{ _('Agree') }}</button></div>
+</form>{% endif %}
+{% if t.status == 'agreed' %}<p class="note">{{ _('Agreed by') }} {{ t.agreed_by }} · {{ fmt_date(t.agreed_at) }}{% if t.review_note %} · {{ t.review_note }}{% endif %}</p>{% endif %}
+</section>
+<section class="panel c5">
+  <h2>{{ _('Box') }}</h2>
+  {% if t.box %}{% set b = boxes[t.box] %}<div class="box-badge b{{ t.box }}"><b>{{ t.box }}</b><span>{{ _(b.name) }}</span></div><p>{{ _(b.action) }}</p>
+  {% else %}<p class="note">{{ _('The box appears when performance and all three potential answers are in.') }}</p>{% endif %}
+  <h2>{{ _('Facts') }}</h2>
+  <table class="nocards">{% for a in history %}<tr><td>{{ a.cycle.name }}</td><td><strong>{{ letter(a.final_rating) }}</strong> {{ _(ratings[a.final_rating][1]) if a.final_rating else '' }}</td></tr>{% endfor %}
+  {% for p in past %}<tr><td>{{ _('Talent review') }} {{ p.year }}</td><td>{{ p.box or '-' }}{% if p.box %} · {{ _(boxes[p.box].name) }}{% endif %}</td></tr>{% endfor %}
+  {% if plan %}<tr><td>{{ _('Development plan') }}</td><td><a href="/growth">{{ plan.title }}</a>{% if plan.career_interest %} · {{ _('career interest') }} {{ plan.career_interest }}{% endif %}</td></tr>{% endif %}
+  </table>
+</section>
+</div>
+{% endblock %}
