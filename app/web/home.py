@@ -51,4 +51,6 @@ def home(request: Request, db: Session = Depends(get_db), user=Depends(current_u
         ctx["overdue"] = db.scalars(
             select(DataIssue).where(DataIssue.status == "open", DataIssue.due_date < today).limit(200)
         ).all()
+    from ..services.pulse import my_open
+    ctx["pulse"] = my_open(db, user)
     return render(request, "home.html", ctx)

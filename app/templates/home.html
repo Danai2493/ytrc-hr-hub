@@ -3,6 +3,7 @@
 {% block content %}
 <div class="phead"><div><h1>{{ _('Good day, {name}', name=user.display_name) }}</h1><span class="note">{{ fmt_date(today) }}</span></div>
   <div class="end"><a class="btn primary" href="/ot/new">{{ _('New OT request') }}</a><a class="btn" href="/leave/new">{{ _('Ask for leave') }}</a></div></div>
+{% for p in pulse %}<div class="callout"><div><strong>{{ p.title }}</strong> · {{ _('8 short questions, about 2 minutes. Anonymous: nobody sees who answered what.') }}</div><a class="btn primary" href="/pulse/{{ p.id }}/answer">{{ _('Answer now') }}</a></div>{% endfor %}
 
 
 

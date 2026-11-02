@@ -27,7 +27,7 @@
   <h2 class="wide">{{ _('Review meeting') }}</h2>
   <label>{{ _('Potential agreed in the meeting') }}<select name="potential">{% for v in (1, 2, 3) %}<option value="{{ v }}" {% if t.potential == v %}selected{% endif %}>{{ _(levels[v]) }}</option>{% endfor %}</select></label>
   <label class="wide">{{ _('Meeting note (needed if the potential changes)') }}<input name="note" maxlength="300"></label>
-  <div class="bar wide"><button class="primary" name="do" value="agree">{{ _('Agree') }}</button></div>
+  <div class="bar wide"><button class="primary" name="do" value="agree">{{ _('Agree the review') }}</button></div>
 </form>{% endif %}
 {% if t.status == 'agreed' %}<p class="note">{{ _('Agreed by') }} {{ t.agreed_by }} · {{ fmt_date(t.agreed_at) }}{% if t.review_note %} · {{ t.review_note }}{% endif %}</p>{% endif %}
 </section>

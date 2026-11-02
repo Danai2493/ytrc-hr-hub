@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Pulse survey') }}</h1>
+  {% if see and surveys|length > 1 %}<form class="end"><select name="survey" onchange="this.form.submit()">{% for x in surveys %}<option value="{{ x.id }}" {% if s and x.id == s.id %}selected{% endif %}>{{ x.title }}</option>{% endfor %}</select></form>{% endif %}</div>
+<p class="lead">{{ _('A few short questions a few times a year, to see how people feel and what to fix first. Answers are anonymous: the app keeps only the department and group, never the name. Groups with fewer than {n} answers are not shown.', n=min_group) }}</p>
+{% for p in mine %}<div class="callout"><div><strong>{{ p.title }}</strong> · {{ _('open until') }} {{ fmt_date(p.closes_on) }}</div><a class="btn primary" href="/pulse/{{ p.id }}/answer">{{ _('Answer now') }}</a></div>{% endfor %}
+{% if s %}
+<div class="phead"><h2>{{ s.title }}</h2><span class="tag {% if s.status == 'open' %}warn{% else %}ok{% endif %}">{{ _('Open') if s.status == 'open' else _('Closed') }}</span><span class="note">{{ fmt_date(s.opens_on) }} – {{ fmt_date(s.closes_on) }}</span>
+  {% if user.has('hr', 'hr_manager') %}<div class="end no-print"><a class="btn" href="/pulse/{{ s.id }}/paper">{{ _('Type in paper answers') }}</a>{% if s.status == 'open' %}<form method="post" action="/pulse/{{ s.id }}/close" style="display:inline"><input type="hidden" name="_csrf" value="{{ csrf }}"><button data-confirm="{{ _('Close the survey?') }}">{{ _('Close the survey') }}</button></form>{% endif %}</div>{% endif %}</div>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Answers') }}</span><span class="v">{{ r.n }}</span><span class="d">{{ _('web and paper') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Answered on the web') }}</span><span class="v">{{ (100 * r.answered / r.invited)|round|int if r.invited else 0 }}%</span><span class="d">{{ r.answered }} / {{ r.invited }}</span></div>
+  {% if r.fav is not none %}<div class="kpi"><span class="k">{{ _('Favourable overall') }}</span><span class="v">{{ r.fav }}%</span><span class="d">{{ _('agree or strongly agree') }}</span></div>{% endif %}
+</div>
+{% if r.n < min_group %}<p class="note">{{ _('Fewer than {n} answers so far: results appear when there are enough to keep people anonymous.', n=min_group) }}</p>
+{% else %}
+<section class="panel"><h2>{{ _('By question') }}</h2>
+  <table><tr><th>{{ _('Question') }}</th><th>{{ _('Favourable') }}</th><th class="n">{{ _('Average (1-5)') }}</th>{% if r.prev %}<th class="n">{{ _('Change') }}</th>{% endif %}</tr>
+  {% for q in s.questions %}{% set x = r.by_q[q.id] %}<tr><td>{{ q.th if lang == 'th' else q.en }}</td>
+    <td><div class="favbar"><i class="{% if x.fav is not none and x.fav < 60 %}low{% endif %}" style="width:{{ (x.fav or 0) * 1.2 }}px"></i>{{ x.fav if x.fav is not none else '-' }}%</div></td>
+    <td class="n">{{ x.avg or '-' }}</td>{% if r.prev %}<td class="n">{% if r.prev.get(q.id) is not none and x.fav is not none %}{% set d = x.fav - r.prev[q.id] %}<span class="{% if d < 0 %}bad{% elif d > 0 %}ok{% endif %}">{{ '%+d' % d }}</span>{% endif %}</td>{% endif %}</tr>{% endfor %}
+  </table>
+  {% if r.prev %}<p class="note">{{ _('Change in favourable points vs') }} {{ r.prev_title }}</p>{% endif %}
+</section>
+<section class="panel"><h2>{{ _('By department') }}</h2>
+  {% if r.by_dept %}<table><tr><th>{{ _('Department') }}</th><th class="n">{{ _('Answers') }}</th><th class="n">{{ _('Answered on the web') }}</th><th>{{ _('Favourable') }}</th><th>{{ _('Lowest question') }}</th></tr>
+  {% for d, x in r.by_dept.items() %}{% set low = x.by_q.items()|selectattr('1.fav', 'ne', none)|sort(attribute='1.fav')|first %}<tr><td>{{ names.get(d, d) }}</td><td class="n">{{ x.n }}</td><td class="n">{{ x.rate if x.rate is not none else '-' }}%</td>
+    <td><div class="favbar"><i class="{% if x.fav < 60 %}low{% endif %}" style="width:{{ x.fav * 1.2 }}px"></i>{{ x.fav }}%</div></td>
+    <td class="note">{% if low %}{% for q in s.questions if q.id == low[0] %}{{ q.th if lang == 'th' else q.en }}{% endfor %} ({{ low[1].fav }}%){% endif %}</td></tr>{% endfor %}</table>{% endif %}
+  {% if r.hidden %}<p class="note">{{ _('{n} small department(s) not shown: fewer than {m} answers. They still count in the totals.', n=r.hidden, m=min_group) }}</p>{% endif %}
+</section>
+{% if r.comments %}<section class="panel"><h2>{{ _('Comments') }} <span class="note">{{ r.comments|length }} · {{ _('HR only, sorted A-Z') }}</span></h2>
+  <ul class="list">{% for c in r.comments %}<li>{{ c }}</li>{% endfor %}</ul></section>{% endif %}
+{% endif %}
+{% elif not mine %}<p class="note">{{ _('No survey open for you right now.') }}</p>{% endif %}
+{% if user.has('hr', 'hr_manager') %}
+<details class="panel" id="new" {% if not surveys %}open{% endif %}><summary>{{ _('Start a new pulse survey') }}</summary>
+  <form method="post" action="/pulse" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+    <label>{{ _('Survey name') }}<input name="title" value="{{ defaults.title }}" maxlength="80"></label>
+    <label>{{ _('Opens') }}<input type="date" name="opens" value="{{ defaults.opens }}"></label><label>{{ _('Closes') }}<input type="date" name="closes" value="{{ defaults.closes }}"></label>
+    <label class="wide">{{ _('Who is asked') }}<span>{% for g in groups %}<label style="display:inline;min-width:auto"><input type="checkbox" name="groups" value="{{ g }}" {% if g != 'Japanese Management' %}checked{% endif %}> {{ _(g) }}</label> {% endfor %}</span></label>
+    <div class="bar wide"><button class="primary">{{ _('Start the survey') }}</button></div>
+  </form>
+  <p class="note">{{ _('People with a login answer on the web. For operators without a login, print the sheet, collect it in a closed box, and HR types it in with only the department and group.') }}</p>
+</details>{% endif %}
+{% endblock %}

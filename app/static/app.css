@@ -336,3 +336,13 @@ fieldset.likert-row legend{font-weight:500;margin-bottom:6px;padding:0}
 label.chip{display:inline-flex;align-items:center;gap:6px;min-width:auto;padding:6px 12px;border:1px solid var(--line);border-radius:999px;cursor:pointer;flex-direction:row}
 label.chip:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
 @media (max-width:640px){.nine{grid-template-columns:18px 44px repeat(3,minmax(0,1fr));gap:5px}.nine .cell{min-height:84px;padding:7px}.cell-p{display:none}.cell-h{flex-direction:column}.cell-h b{font-size:11.5px}}
+
+/* Call-to-action strip (e.g. an open pulse survey on Home) */
+.callout{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:14px 16px;border-radius:var(--r);background:var(--accent-soft);border:1px solid var(--accent-line);margin-bottom:16px}
+/* Pulse: favourable-share bars and the answer scale */
+.favbar{display:flex;align-items:center;gap:8px;min-width:160px}.favbar i{display:block;height:10px;border-radius:5px;background:var(--accent)}.favbar i.low{background:var(--warn)}
+.scale5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.scale5 label.chip{justify-content:center;text-align:center;font-size:13px;padding:8px 4px;flex-direction:column;gap:2px;border-radius:var(--r-sm)}
+.scale5 label.chip b{font-size:17px}
+fieldset.qblock{border:0;border-bottom:1px solid var(--line);margin:0;padding:12px 0;min-width:0;font:inherit}.qblock p{margin:0 0 8px;font-weight:500}
+@media (max-width:480px){.scale5 label.chip span{display:none}}

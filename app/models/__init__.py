@@ -33,6 +33,7 @@ from .perform import Appraisal, Goal, KpiDefinition, PerformanceCycle
 from .recruit import Application, Candidate, Interview, Requisition
 from .talent import TalentReview
 from .relations import ErCase
+from .pulse import PulseInvite, PulseResponse, PulseSurvey
 from .system import (
     ApprovalRequest,
     ApprovalStep,
@@ -100,6 +101,9 @@ __all__ = [
     "PayTotal",
     "PerformanceCycle",
     "Position",
+    "PulseInvite",
+    "PulseResponse",
+    "PulseSurvey",
     "ProbationReview",
     "Requisition",
     "ScanImport",

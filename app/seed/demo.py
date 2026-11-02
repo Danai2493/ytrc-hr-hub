@@ -159,6 +159,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_perform(db, rnd, today, users)
     _demo_talent(db, rnd, today, users)
     _demo_relations(db, today, users)
+    _demo_pulse(db, rnd, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -810,4 +811,36 @@ def _demo_relations(db: Session, today: date, users: dict) -> None:
          reasons="Talked with the line leader about calm communication; explained to the employee. (SAMPLE)", proposed_by=hro,
          proposed_at=datetime.combine(d(60), datetime.min.time()), decided_by=hrm, decided_at=datetime.combine(d(58), datetime.min.time()),
          letter_given_on=d(57), closed_at=datetime.combine(d(57), datetime.min.time()))
+    db.flush()
+
+
+def _demo_pulse(db: Session, rnd: random.Random, today: date, users: dict) -> None:
+    """Two pulse surveys: one closed six months ago, one open now (demo logins have not answered yet)."""
+    from ..models import PulseInvite, PulseResponse
+    from ..services import pulse as P
+
+    hrm = users["hr.manager"]
+    logins = {u.employee_id for u in users.values() if u.employee_id}
+    comments = ["More fans in the drying area in the hot months (SAMPLE)", "Tell us the OT plan earlier in the week (SAMPLE)",
+                "Lockers are too few for the night shift (SAMPLE)", "Training for new machines before they start (SAMPLE)",
+                "Canteen food is good, thank you (SAMPLE)", "Line leaders should explain changes, not only order (SAMPLE)"]
+    tilt = {"ot": -0.8, "noticed": -0.5, "grow": -0.4, "safe": 0.4}
+    for title, opens, closes, share, shift in ((f"Pulse {(today - timedelta(days=185)).strftime('%b %Y')}", today - timedelta(days=190), today - timedelta(days=176), 0.75, -0.2),
+                                               (f"Pulse {today.strftime('%b %Y')}", today - timedelta(days=5), today + timedelta(days=9), 0.6, 0.0)):
+        sv = P.open_survey(db, hrm, title, opens, closes, ["Operator", "Staff", "Manager"])
+        sv.title = title + " (SAMPLE)"
+        for inv in db.scalars(select(PulseInvite).where(PulseInvite.survey_id == sv.id)):
+            if inv.employee_id in logins and closes >= today:
+                continue  # leave the demo logins to try it
+            if rnd.random() > share:
+                continue
+            emp = db.get(Employee, inv.employee_id)
+            base = 3.6 + shift + (0.3 if emp.employee_group != "Operator" else 0)
+            ans = {q["id"]: max(1, min(5, round(rnd.gauss(base + tilt.get(q["id"], 0), 0.9)))) for q in sv.questions}
+            inv.done = emp.employee_group != "Operator" or rnd.random() < 0.3  # most operators answer on paper
+            db.add(PulseResponse(survey_id=sv.id, dept_code=inv.dept_code, employee_group=emp.employee_group, answers=ans,
+                                 comment=rnd.choice(comments) if rnd.random() < 0.3 else None, on=opens + timedelta(days=rnd.randint(0, 4)),
+                                 source="web" if inv.done else "paper"))
+        if closes < today:
+            sv.status = "closed"
     db.flush()

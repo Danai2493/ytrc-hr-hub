@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ s.title }}</h1><div class="end no-print"><a class="btn" href="/pulse">{{ _('Back') }}</a>{% if paper %}<button onclick="print()">{{ _('Print blank sheet') }}</button>{% endif %}</div></div>
+{% if paper %}<p class="lead">{{ _('Type in one paper sheet at a time. Only the department and group are kept.') }}</p>
+{% else %}<p class="lead">{{ _('Anonymous: your name is not stored with your answers. Your manager never sees your answers.') }}</p>{% endif %}
+<section class="panel">
+<form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+  {% if paper %}
+  <label>{{ _('Department') }}<select name="dept" required><option value=""></option>{% for d in depts %}<option value="{{ d }}">{{ names.get(d, d) }}</option>{% endfor %}</select></label>
+  <label>{{ _('Group') }}<select name="group">{% for g in groups %}<option value="{{ g }}">{{ _(g) }}</option>{% endfor %}</select></label>
+  {% endif %}
+  <p class="wide note">{{ _('1 = Strongly disagree') }} · 3 = {{ _('Not sure') }} · {{ _('5 = Strongly agree') }}</p>
+  {% for q in s.questions %}
+  <fieldset class="wide qblock"><p>{{ loop.index }}. {{ q.th if lang == 'th' else q.en }}{% if lang == 'th' %}<br><span class="note">{{ q.en }}</span>{% endif %}</p>
+    <div class="scale5">{% for v in (1, 2, 3, 4, 5) %}<label class="chip"><input type="radio" name="q_{{ q.id }}" value="{{ v }}"><b>{{ v }}</b><span>{{ _(scale[v]) }}</span></label>{% endfor %}</div>
+  </fieldset>{% endfor %}
+  <label class="wide">{{ comment_q.th if lang == 'th' else comment_q.en }}<textarea name="comment" rows="3" maxlength="500"></textarea></label>
+  <p class="note wide">{{ _('Please do not write names in the comment.') }}</p>
+  <div class="bar wide"><button class="primary">{{ _('Save paper answer') if paper else _('Send my answers') }}</button></div>
+</form>
+</section>
+{% endblock %}
