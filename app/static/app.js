@@ -88,3 +88,13 @@
     if (best) best.setAttribute("aria-current", "page");
   });
 })();
+
+// A link to #id of a closed <details> opens it (e.g. "Open a case" jumps to the form)
+(function () {
+  function openHash() {
+    var el = location.hash && document.getElementById(location.hash.slice(1));
+    if (el && el.tagName === 'DETAILS') el.open = true;
+  }
+  window.addEventListener('hashchange', openHash);
+  openHash();
+})();

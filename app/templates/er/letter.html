@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ c.ref }}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600&display=swap">
+<style>
+body{font-family:"IBM Plex Sans Thai",system-ui,sans-serif;font-size:15px;line-height:1.75;color:#111;background:#fff;max-width:720px;margin:24px auto;padding:0 24px}
+h1{font-size:20px;text-align:center;margin:8px 0 18px}.r{text-align:right}.sample{color:#b45309;font-weight:600;text-align:center}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:48px}.sign div{text-align:center}.line{border-top:1px solid #111;margin-top:46px;padding-top:4px}
+.box{border:1px solid #999;padding:10px 14px;white-space:pre-line}@media print{.noprint{display:none}body{margin:0}}
+</style></head><body>
+<p class="noprint"><button onclick="print()">พิมพ์ / Print</button></p>
+<p class="sample">ตัวอย่าง ข้อมูล SAMPLE เท่านั้น · ร่างจากระบบ HR ตรวจทานก่อนใช้จริง</p>
+<p class="r">{{ company }}<br>เลขที่ {{ c.ref }}<br>วันที่ {{ fmt_date(c.decided_at) }}</p>
+<h1>{% if c.outcome == 'written' %}หนังสือเตือน{% elif c.outcome == 'suspension' %}คำสั่งพักงาน{% else %}หนังสือเลิกจ้าง{% endif %}</h1>
+<p>เรียน {{ c.employee.full_name_th or c.employee.full_name_en }} รหัสพนักงาน {{ c.employee_id }} หน่วยงาน {{ unit.name_th or unit.name_en if unit else '' }}</p>
+<p>เมื่อวันที่ {{ fmt_date(c.incident_on) }} บริษัทพบว่าท่านได้กระทำการดังต่อไปนี้ ซึ่งฝ่าฝืนข้อบังคับเกี่ยวกับการทำงานของบริษัท</p>
+<div class="box">{{ c.reasons }}</div>
+<p>บริษัทได้ให้ท่านชี้แจงข้อเท็จจริงแล้วเมื่อวันที่ {{ fmt_date(c.statement_on) if c.statement_on else '-' }}</p>
+{% if c.outcome == 'written' %}
+<p>บริษัทจึงตักเตือนเป็นหนังสือฉบับนี้ หนังสือเตือนมีผลหนึ่งปีนับแต่วันที่กระทำผิด (ถึงวันที่ {{ fmt_date(c.warning_until) }}) หากท่านกระทำผิดซ้ำคำเตือนภายในระยะเวลาดังกล่าว บริษัทอาจเลิกจ้างโดยไม่จ่ายค่าชดเชยตามมาตรา 119 (4) แห่งพระราชบัญญัติคุ้มครองแรงงาน พ.ศ. 2541</p>
+{% elif c.outcome == 'suspension' %}
+<p>บริษัทจึงลงโทษพักงานท่านโดยไม่ได้รับค่าจ้างเป็นเวลา {{ c.suspension_days }} วัน ตั้งแต่วันที่ {{ fmt_date(c.suspension_from) }} ตามข้อบังคับเกี่ยวกับการทำงานของบริษัท</p>
+{% else %}
+<p>บริษัทจึงเลิกจ้างท่าน โดยมีเหตุผลตามที่ระบุไว้ข้างต้นทั้งหมด (มาตรา 17/1) ทั้งนี้ HR และที่ปรึกษากฎหมายต้องตรวจสอบสิทธิค่าชดเชยและค่าจ้างค้างจ่ายก่อนส่งหนังสือ</p>
+{% endif %}
+<div class="sign">
+  <div><div class="line">ผู้มีอำนาจลงนาม<br>{{ c.decided_by }}</div></div>
+  <div><div class="line">ผู้รับทราบ (พนักงาน)<br>วันที่ ........................</div></div>
+  <div><div class="line">พยาน 1</div></div><div><div class="line">พยาน 2</div></div>
+</div>
+<p style="font-size:13px;color:#555;margin-top:28px">หากพนักงานไม่ลงนามรับทราบ ให้อ่านให้ฟังต่อหน้าพยานสองคนและให้พยานลงนาม</p>
+</body></html>

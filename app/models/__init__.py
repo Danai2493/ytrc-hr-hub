@@ -32,6 +32,7 @@ from .hrdev import ExitCase, LeaveRequest, LeaveType
 from .perform import Appraisal, Goal, KpiDefinition, PerformanceCycle
 from .recruit import Application, Candidate, Interview, Requisition
 from .talent import TalentReview
+from .relations import ErCase
 from .system import (
     ApprovalRequest,
     ApprovalStep,
@@ -77,6 +78,7 @@ __all__ = [
     "EmployeeRestricted",
     "EmployeeSkill",
     "EmploymentEvent",
+    "ErCase",
     "ExitCase",
     "FormCapture",
     "Goal",

@@ -12,6 +12,17 @@ DIR = Path(__file__).parent / "i18n"
 
 # Messages for rule findings (timecalc.Finding codes and capture issue codes).
 RULE_TEXT = {
+    "er_no_statement": "The employee has not explained their side yet: record their statement first",
+    "er_no_reasons": "Write the reasons: facts, date, which work rule was broken",
+    "er_dismiss_reasons": "LPA s.17/1: the dismissal letter must state every reason; reasons not written cannot be used later",
+    "er_repeat": "Written warning {ref} for the same kind of offence is in force until {until}: a repeat may allow dismissal without severance (LPA s.119(4)); HR Manager and GM decide",
+    "er_no_warning": "No written warning in force for this kind of offence: dismissal without severance is usually not possible, a written warning fits first",
+    "er_serious": "Serious offence ({cat}): LPA s.119 may allow dismissal without a warning; check the facts and work rules with a lawyer",
+    "er_susp_days": "Suspension without pay: 1 to 7 days, as set in the work rules",
+    "er_susp_pay": "Confirm the work rules list suspension without pay as a penalty (LPA s.108); without that rule it cannot be used",
+    "er_susp_from": "Give the suspension start date",
+    "er_old_offence": "The offence was {days} days ago: act promptly, an old offence is hard to rely on",
+    "er_active_warnings": "{n} warning(s) in force: {refs}",
     "kpi_none": "Add at least one KPI",
     "kpi_weights": "Weights add up to {total}, they must add up to 100",
     "kpi_count": "{n} KPIs: 3 to 7 works best",

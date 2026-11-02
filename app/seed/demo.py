@@ -158,6 +158,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_recruit(db, rnd, today, users)
     _demo_perform(db, rnd, today, users)
     _demo_talent(db, rnd, today, users)
+    _demo_relations(db, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -766,4 +767,47 @@ def _demo_talent(db: Session, rnd: random.Random, today: date, users: dict) -> N
         if t.status == "agreed":
             t.agreed_by, t.agreed_at = users["hr.manager"].label, datetime(today.year, 3, 3, 14)
         db.add(t)
+    db.flush()
+
+
+def _demo_relations(db: Session, today: date, users: dict) -> None:
+    """Employee relations cases at every step (SAMPLE stories)."""
+    from ..models import ErCase
+    from ..services.common import next_ref
+
+    hro, hrm, gm = users["hr.officer"].label, users["hr.manager"].label, users["gm"].label
+    d = lambda n: today - timedelta(days=n)  # noqa: E731
+
+    def case(kind, cat, emp, inc, summary, status, other=None, **kw):
+        c = ErCase(ref=next_ref(db, "ER", d(inc).year), kind=kind, category=cat, employee_id=emp, other_employee_id=other,
+                   org_unit_code=db.get(Employee, emp).org_unit_code, incident_on=d(inc), reported_on=d(inc - 1), reported_by=kw.pop("by", hro),
+                   summary=summary, confidential=kind == "harassment", status=status,
+                   reply_due=d(inc - 1) + timedelta(days=15) if kind != "discipline" else None,
+                   log=[{"at": d(inc - 1).isoformat() + "T09:00", "by": hro, "text": "Case opened"}], **kw)
+        db.add(c)
+        return c
+
+    case("discipline", "attendance", "YTOP955", 120, "Absent without leave 3 working days in a row; no call to the supervisor. (SAMPLE)", "closed",
+         statement="Family emergency in Myanmar, phone had no signal. (SAMPLE)", statement_on=d(116), findings="Scan records confirm 3 days absent; no leave request. (SAMPLE)",
+         outcome="written", reasons="Absent without leave on 3 working days, breaking work rule 5.2 on reporting absence. (SAMPLE)",
+         proposed_by=hro, proposed_at=datetime.combine(d(112), datetime.min.time()), decided_by=hrm, decided_at=datetime.combine(d(110), datetime.min.time()),
+         warning_until=d(120) + timedelta(days=365), letter_given_on=d(109), employee_signed=True, closed_at=datetime.combine(d(109), datetime.min.time()))
+    case("discipline", "attendance", "YTOP955", 6, "Absent without leave again for 2 days after the written warning. (SAMPLE)", "investigating",
+         statement="Was sick but did not inform anyone. No medical certificate. (SAMPLE)", statement_on=d(3))
+    case("discipline", "safety", "YTOP963", 14, "Worked on the cutter without the guard in place, seen by the safety officer. (SAMPLE)", "decision",
+         statement="The guard was slowing the line; did not think it was dangerous. (SAMPLE)", statement_on=d(10),
+         findings="Safety officer photo and line leader witness. Work rule 7.1 machine guards. (SAMPLE)", outcome="written",
+         reasons="Ran the cutter with the guard removed on the date above, breaking work rule 7.1. (SAMPLE)", proposed_by=hro,
+         proposed_at=datetime.combine(d(2), datetime.min.time()))
+    case("discipline", "quality", "YTOP970", 3, "Bales packed without weighing for one lot; 4 bales under weight found by QA. (SAMPLE)", "open",
+         by=users["sup.pcl"].label)
+    case("grievance", "workload", "YTOP975", 25, "Says OT is always given to the same people and asked to explain how OT is shared. (SAMPLE)", "investigating",
+         findings="OT records for 3 months pulled; checking the rotation list with the line leader. (SAMPLE)")
+    case("harassment", "harassment", "YTR813", 9, "Complaint about repeated unwanted comments by a colleague. (SAMPLE)", "investigating",
+         other="YTR808", by=hrm, statement="Interviewed both people separately. (SAMPLE)", statement_on=d(6))
+    case("grievance", "treatment", "YTOP980", 70, "Felt shouted at by the line leader during a breakdown. (SAMPLE)", "closed",
+         findings="Two witnesses: voice raised once during the breakdown, apology given. (SAMPLE)", outcome="partly",
+         reasons="Talked with the line leader about calm communication; explained to the employee. (SAMPLE)", proposed_by=hro,
+         proposed_at=datetime.combine(d(60), datetime.min.time()), decided_by=hrm, decided_at=datetime.combine(d(58), datetime.min.time()),
+         letter_given_on=d(57), closed_at=datetime.combine(d(57), datetime.min.time()))
     db.flush()

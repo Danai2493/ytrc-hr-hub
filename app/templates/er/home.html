@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead"><h1>{{ _('Employee relations') }}</h1><div class="end no-print"><a class="btn primary" href="#new">{{ _('Open a case') }}</a></div></div>
+<p class="lead">{{ _('Discipline, complaints by employees and harassment complaints in one place. The app checks the Labour Protection Act points: the employee explains first, written reasons, warnings in force for one year, suspension without pay only as the work rules allow. People in a case never see its file here.') }}</p>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Open cases') }}</span><span class="v">{{ open_n }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Complaint replies overdue') }}</span><span class="v">{{ late|length }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Written warnings in force') }}</span><span class="v">{{ in_force|length }}</span><span class="d">{{ _('for one year from the offence') }}</span></div>
+</div>
+<form class="filters">
+  <label>{{ _('Kind') }}<select name="kind"><option value="">{{ _('All') }}</option>{% for k, v in kinds.items() %}<option value="{{ k }}" {% if k == kind %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+  <label>{{ _('Status') }}<select name="status"><option value="">{{ _('All') }}</option>{% for k, v in statuses.items() %}<option value="{{ k }}" {% if k == status %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+  <button>{{ _('Show') }}</button>
+</form>
+<section class="panel"><h2>{{ _('Cases') }} <span class="note">{{ rows|length }}</span></h2>
+{% if rows %}
+<table><tr><th>{{ _('Case') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Kind') }}</th><th>{{ _('Category') }}</th><th>{{ _('Incident') }}</th><th>{{ _('Outcome') }}</th><th>{{ _('Status') }}</th></tr>
+{% for c in rows %}<tr><td><a class="mono" href="/er/{{ c.id }}">{{ c.ref }}</a>{% if c.confidential %} <span class="tag bad">{{ _('Confidential') }}</span>{% endif %}</td>
+  <td><span class="mono">{{ c.employee_id }}</span> {{ people[c.employee_id].full_name_en if c.employee_id in people else '' }}</td>
+  <td>{{ _(kinds[c.kind]) }}</td><td class="note">{{ _(cats[c.category]) }}</td><td>{{ fmt_date(c.incident_on) }}</td>
+  <td>{{ _(outcomes[c.kind][c.outcome]) if c.outcome else '' }}</td>
+  <td><span class="tag {% if c.status == 'closed' %}ok{% elif c.reply_due and c.reply_due < today %}bad{% else %}warn{% endif %}">{{ _(statuses[c.status]) }}</span>{% if c.reply_due and c.status != 'closed' %}<div class="note">{{ _('reply by') }} {{ fmt_date(c.reply_due) }}</div>{% endif %}</td></tr>{% endfor %}
+</table>
+{% else %}<p class="note">{{ _('No cases.') }}</p>{% endif %}
+</section>
+<details class="panel" id="new"><summary>{{ _('Open a case') }}</summary>
+  <form method="post" action="/er" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+    <label>{{ _('Kind') }}<select name="kind">{% for k, v in kinds.items() %}{% if k == 'discipline' or user.has('hr', 'hr_manager') %}<option value="{{ k }}">{{ _(v) }}</option>{% endif %}{% endfor %}</select></label>
+    <label>{{ _('Category') }}<select name="category">{% for k, v in cats.items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select></label>
+    <label>{{ _('Employee ID (discipline: the employee; complaint: who raised it)') }}<input name="employee_id" required placeholder="YTOP951" autocomplete="off"></label>
+    <label>{{ _('Person complained about (complaints only)') }}<input name="other_employee_id" autocomplete="off"></label>
+    <label>{{ _('Date of the incident') }}<input type="date" name="incident_on" required max="{{ today }}"></label>
+    <label>{{ _('Reported on') }}<input type="date" name="reported_on" value="{{ today }}" max="{{ today }}"></label>
+    <label class="wide">{{ _('What happened: who, what, when, where, witnesses') }}<textarea name="summary" rows="4" required minlength="20"></textarea></label>
+    {% if user.has('hr', 'hr_manager') %}<label class="wide"><span><input type="checkbox" name="confidential" value="1"> {{ _('Confidential: HR Manager and GM only') }}</span></label>{% endif %}
+    <div class="bar wide"><button class="primary">{{ _('Open the case') }}</button></div>
+  </form>
+  <p class="note">{{ _('Harassment complaints are always confidential and handled by the HR Manager (LPA s.16). Complaints get a reply date; the employee must not be treated worse for complaining.') }}</p>
+</details>
+{% endblock %}

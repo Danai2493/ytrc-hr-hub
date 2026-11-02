@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Employee relations') }}</h1><div class="end no-print"><a class="btn" href="/er">{{ _('All cases') }}</a>{% if c.decided_at and c.kind == 'discipline' and c.outcome in ('written', 'suspension', 'dismissal') and user.has('hr', 'hr_manager', 'gm') %}<a class="btn" href="/er/{{ c.id }}/letter" target="_blank">{{ _('Print the letter') }}</a>{% endif %}</div></div>
+<div class="phead"><h2><span class="mono">{{ c.ref }}</span> · {{ _(kinds[c.kind]) }}</h2><span class="tag {% if c.status == 'closed' %}ok{% else %}warn{% endif %}">{{ _(statuses[c.status]) }}</span>{% if c.confidential %}<span class="tag bad">{{ _('Confidential') }}</span>{% endif %}</div>
+<div class="grid">
+<section class="panel c7">
+  <dl class="kv">
+    <dt>{{ _('Employee') }}</dt><dd><a href="/people/{{ c.employee_id }}"><span class="mono">{{ c.employee_id }}</span> {{ c.employee.full_name_en }}</a> · {{ unit.name_en if unit else '' }}</dd>
+    {% if other %}<dt>{{ _('Person complained about') }}</dt><dd><span class="mono">{{ other.employee_id }}</span> {{ other.full_name_en }}</dd>{% endif %}
+    <dt>{{ _('Category') }}</dt><dd>{{ _(cats[c.category]) }}</dd>
+    <dt>{{ _('Incident') }}</dt><dd>{{ fmt_date(c.incident_on) }} · {{ _('reported') }} {{ fmt_date(c.reported_on) }} {{ _('by') }} {{ c.reported_by }}</dd>
+    {% if c.reply_due %}<dt>{{ _('Reply to the employee by') }}</dt><dd>{{ fmt_date(c.reply_due) }}{% if c.status != 'closed' and c.reply_due < today %} <span class="tag bad">{{ _('Overdue') }}</span>{% endif %}</dd>{% endif %}
+    <dt>{{ _('What happened') }}</dt><dd style="white-space:pre-line">{{ c.summary }}</dd>
+  </dl>
+  {% if in_force %}<ul class="find">{% for w in in_force %}<li class="flag">{{ _('Written warning in force') }}: <a href="/er/{{ w.id }}">{{ w.ref }}</a> · {{ _(cats[w.category]) }} · {{ _('until') }} {{ fmt_date(w.warning_until) }}</li>{% endfor %}</ul>{% endif %}
+
+  <h2 style="margin-top:20px">{{ _('1. Hear the employee and find the facts') }}</h2>
+  {% if can_work and c.status in ('open', 'investigating') %}
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="work">
+    <label class="wide">{{ _('The employee\'s own explanation (statement)') }}<textarea name="statement" rows="3">{{ c.statement or '' }}</textarea></label>
+    <label>{{ _('Statement taken on') }}<input type="date" name="statement_on" value="{{ c.statement_on or today }}" max="{{ today }}"></label>
+    <label class="wide">{{ _('Findings: evidence, witnesses, which work rule') }}<textarea name="findings" rows="3">{{ c.findings or '' }}</textarea></label>
+    <div class="bar wide"><button>{{ _('Save') }}</button></div>
+  </form>
+  {% else %}
+  <dl class="kv"><dt>{{ _('Statement') }}</dt><dd style="white-space:pre-line">{{ c.statement or '-' }}{% if c.statement_on %} <span class="note">({{ fmt_date(c.statement_on) }})</span>{% endif %}</dd>
+  <dt>{{ _('Findings') }}</dt><dd style="white-space:pre-line">{{ c.findings or '-' }}</dd></dl>
+  {% endif %}
+
+  <h2 id="decide" style="margin-top:20px">{{ _('2. Outcome') }}</h2>
+  {% if found %}<ul class="find">{% for f in found %}<li class="{{ f.level }}">{{ rt(f) }}</li>{% endfor %}</ul>{% endif %}
+  {% if can_work and c.status in ('open', 'investigating') %}
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="propose">
+    <label>{{ _('Proposed outcome') }}<select name="outcome">{% for k, v in outcomes[c.kind].items() %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Reasons in writing: facts, dates, which rule was broken') }}<textarea name="reasons" rows="3">{{ c.reasons or '' }}</textarea></label>
+    {% if c.kind == 'discipline' %}
+    <label>{{ _('Suspension from') }}<input type="date" name="suspension_from"></label>
+    <label>{{ _('Suspension days (max 7)') }}<input type="number" name="suspension_days" min="1" max="7"></label>
+    <label class="wide"><span><input type="checkbox" name="suspension_pay_ok" value="1"> {{ _('Our work rules list suspension without pay as a penalty') }}</span></label>
+    {% endif %}
+    <div class="bar wide"><button class="primary">{{ _('Check and propose') }}</button></div>
+  </form>
+  {% elif c.outcome %}
+  <p><strong>{{ _(outcomes[c.kind][c.outcome]) }}</strong>{% if c.suspension_days %} · {{ c.suspension_days }} {{ _('days from') }} {{ fmt_date(c.suspension_from) }}{% endif %}{% if c.warning_until %} · {{ _('in force until') }} {{ fmt_date(c.warning_until) }}{% endif %}</p>
+  {% if c.reasons %}<p style="white-space:pre-line">{{ c.reasons }}</p>{% endif %}
+  <p class="note">{{ _('Proposed by') }} {{ c.proposed_by }}{% if c.decided_by %} · {{ _('decided by') }} {{ c.decided_by }} {{ fmt_date(c.decided_at) }}{% endif %}</p>
+  {% endif %}
+  {% if c.status == 'decision' and not c.decided_at %}
+    {% if can_decide %}
+    <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label class="wide">{{ _('Note (needed to send back)') }}<input name="note" maxlength="300"></label>
+      <div class="bar wide"><button class="primary" name="do" value="agree">{{ _('Agree the decision') }}</button><button name="do" value="send_back">{{ _('Send back') }}</button></div>
+    </form>
+    {% else %}<p class="note">{{ _('Waiting for the decision by') }}: {% for r in deciders %}{{ _({'hr_manager': 'HR Manager', 'gm': 'GM'}[r]) }}{% if not loop.last %} / {% endif %}{% endfor %}</p>{% endif %}
+  {% endif %}
+
+  {% if c.decided_at and c.status != 'closed' and can_work %}
+  <h2 style="margin-top:20px">{{ _('3. Tell the employee and close') }}</h2>
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="close">
+    <label>{{ _('Told or given the letter on') }}<input type="date" name="letter_on" value="{{ today }}" max="{{ today }}"></label>
+    <label>{{ _('Employee signed') }}<select name="signed"><option value="yes">{{ _('Yes') }}</option><option value="no">{{ _('Refused: two witnesses signed') }}</option><option value="">{{ _('Not needed') }}</option></select></label>
+    <div class="bar wide"><button class="primary">{{ _('Close the case') }}</button></div>
+  </form>{% endif %}
+  {% if c.letter_given_on %}<p class="note">{{ _('Told or given the letter on') }} {{ fmt_date(c.letter_given_on) }}{% if c.employee_signed == false %} · {{ _('Refused: two witnesses signed') }}{% endif %}</p>{% endif %}
+</section>
+<section class="panel c5">
+  <h2>{{ _('Timeline') }}</h2>
+  <ol class="timeline">{% for l in c.log|reverse %}<li><b>{{ _(l.text) if ':' not in l.text else l.text }}</b><br><span class="note">{{ l.at|replace('T', ' ') }} · {{ l.by }}</span></li>{% endfor %}</ol>
+  {% if history %}<h2>{{ _('Earlier cases for this employee') }}</h2>
+  <table class="nocards">{% for h in history %}<tr><td><a class="mono" href="/er/{{ h.id }}">{{ h.ref }}</a></td><td>{{ fmt_date(h.incident_on) }}</td><td>{{ _(outcomes[h.kind][h.outcome]) if h.outcome else _(statuses[h.status]) }}</td></tr>{% endfor %}</table>{% endif %}
+</section>
+</div>
+{% endblock %}
