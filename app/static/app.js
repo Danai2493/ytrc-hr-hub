@@ -45,6 +45,21 @@
     t.parentNode.insertBefore(box, t);
     box.appendChild(t);
   });
+  // On phones, read-only lists become stacked cards: each cell shows its column name.
+  document.querySelectorAll("main table").forEach((t) => {
+    if (t.matches(".matrix,.likert,.kpitab,.nocards") || t.querySelector("input:not([type=checkbox]),select,textarea,svg")) return;
+    const rows = [...t.rows];
+    const head = rows.find((r) => r.querySelector("th") && !r.querySelector("td"));
+    if (!head || head.cells.length < 3) return;
+    const names = [...head.cells].map((c) => c.textContent.trim());
+    rows.forEach((r) => {
+      if (r === head) return;
+      let i = 0;
+      [...r.cells].forEach((c) => { if (names[i]) c.dataset.label = names[i]; i += c.colSpan || 1; });
+    });
+    head.classList.add("head");
+    t.classList.add("cards");
+  });
   // Side menu on phones and tablets.
   const setMenu = (open) => {
     document.body.classList.toggle("menu-open", open);

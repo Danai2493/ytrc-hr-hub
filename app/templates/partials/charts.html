@@ -23,7 +23,10 @@
 {% set n = labels | length %}
 {% set totals = [] %}
 {% for i in range(n) %}{% set t = namespace(v=0) %}{% for s in series %}{% set t.v = t.v + (s[2][i] or 0) %}{% endfor %}{% set _ = totals.append(t.v) %}{% endfor %}
-{% set maxv = [(totals | max) if totals else 0, (line | max) if line else 0, 1] | max %}
+{% set rawmax = [(totals | max) if totals else 0, (line | max) if line else 0, 1] | max %}
+{# round the top of the axis up to a tidy number so the 4 gridlines get distinct, readable labels #}
+{% set nice = namespace(step=0) %}{% for c in [0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000] %}{% if not nice.step and c * 4 >= rawmax %}{% set nice.step = c %}{% endif %}{% endfor %}
+{% set maxv = (nice.step * 4) if nice.step else rawmax %}
 {% set pad_l = 40 %}{% set pad_b = 26 %}{% set plot_h = height - pad_b - 8 %}
 {% set bw = ((width - pad_l) / (n if n else 1)) %}
 <div class="chart">
@@ -31,7 +34,7 @@
   <g class="grid">
     {% for k in range(5) %}{% set y = 8 + plot_h * k / 4 %}
     <line x1="{{ pad_l }}" x2="{{ width }}" y1="{{ y }}" y2="{{ y }}"/>
-    <text x="{{ pad_l - 5 }}" y="{{ y + 4 }}" text-anchor="end">{{ '%g' % ((maxv * (4 - k) / 4) | round(0)) }}</text>
+    <text x="{{ pad_l - 5 }}" y="{{ y + 4 }}" text-anchor="end">{{ '%g' % ((maxv * (4 - k) / 4) | round(2)) }}</text>
     {% endfor %}
   </g>
   {% for i in range(n) %}
@@ -40,7 +43,7 @@
       <rect x="{{ pad_l + i * bw + bw * 0.18 }}" y="{{ acc.y - hh }}" width="{{ bw * 0.64 }}" height="{{ hh }}" fill="{{ s[1] }}"><title>{{ labels[i] }} · {{ s[0] }}: {{ '%g' % (v | round(1)) }}{{ unit }}</title></rect>
       {% set acc.y = acc.y - hh %}
     {% endfor %}
-    <text x="{{ pad_l + i * bw + bw / 2 }}" y="{{ height - 8 }}" text-anchor="middle">{{ labels[i] }}</text>
+    {% if bw >= 44 or i % 2 == (n - 1) % 2 %}<text x="{{ pad_l + i * bw + bw / 2 }}" y="{{ height - 8 }}" text-anchor="middle">{{ labels[i] }}</text>{% endif %}
   {% endfor %}
   {% if line %}
     {% set pts = [] %}{% for i in range(n) %}{% set _ = pts.append(((pad_l + i * bw + bw / 2) | round(1)) ~ ',' ~ ((8 + plot_h - plot_h * (line[i] or 0) / maxv) | round(1))) %}{% endfor %}
