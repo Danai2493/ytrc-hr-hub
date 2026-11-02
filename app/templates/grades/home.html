@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Job grades') }}</h1><div class="end no-print"><a class="btn" href="/org">{{ _('Org & positions') }}</a></div></div>
+<p class="lead">{{ _('Each job gets points on five factors. The points suggest a grade; the HR Manager agrees it. Grades hold a band label only: pay ranges stay in Bplus. The factors and the points ladder are a DRAFT to agree with management.') }}</p>
+{% if found %}<ul class="find">{% for f in found[:12] %}<li class="{{ f.level }}">{{ rt(f) }}</li>{% endfor %}{% if found|length > 12 %}<li class="info">+{{ found|length - 12 }}</li>{% endif %}</ul>{% endif %}
+<div class="grid" style="margin-top:16px">
+<section class="panel c5" style="min-width:0"><h2>{{ _('Grade ladder') }}</h2>
+  <form method="post" action="/org/grades/ladder"><input type="hidden" name="_csrf" value="{{ csrf }}">
+  <div class="scroll"><table class="nocards"><tr><th>{{ _('Grade') }}</th><th class="n">{{ _('From points') }}</th><th>{{ _('Band label') }}</th><th class="n">{{ _('Jobs') }}</th><th class="n">{{ _('People') }}</th></tr>
+  {% for g in grades %}<tr><td><strong>{{ g.code }}</strong></td>
+    <td class="n">{% if user.has('hr_manager') %}<input class="w-num" name="min_{{ g.code }}" value="{{ g.min_points if g.min_points is not none else '' }}" inputmode="numeric">{% else %}{{ g.min_points or '-' }}{% endif %}</td>
+    <td>{% if user.has('hr_manager') %}<input name="band_{{ g.code }}" value="{{ g.band_label or '' }}" maxlength="40" style="width:100%;min-width:60px">{% else %}{{ g.band_label or '' }}{% endif %}</td>
+    <td class="n">{{ jobs_in.get(g.code, 0) }}</td><td class="n">{{ people.get(g.code, 0) }}</td></tr>{% endfor %}
+  </table></div>
+  {% if user.has('hr_manager') %}<div class="bar" style="margin-top:10px"><button class="primary">{{ _('Save the ladder') }}</button></div>{% endif %}
+  </form>
+</section>
+<section class="panel c7"><h2>{{ _('Jobs') }} <span class="note">{{ jobs|length }}</span></h2>
+  <table><tr><th>{{ _('Job') }}</th><th>{{ _('Family') }}</th><th>{{ _('Grade now') }}</th><th class="n">{{ _('Points') }}</th><th>{{ _('Suggested') }}</th><th>{{ _('Status') }}</th></tr>
+  {% for j in jobs %}{% set e = evs.get(j.code) %}<tr><td><a href="/org/grades/job/{{ j.code }}">{{ j.title_en }}</a> <span class="mono note">{{ j.code }}</span></td><td class="note">{{ j.job_family or '' }}</td>
+    <td>{{ j.default_grade_code or '-' }}</td><td class="n">{{ e.points if e and e.points else '' }}</td>
+    <td>{% if e and e.suggested_grade %}{{ e.suggested_grade }}{% if e.suggested_grade != j.default_grade_code %} <span class="tag warn">{{ _('differs') }}</span>{% endif %}{% endif %}</td>
+    <td>{% if e %}<span class="tag {% if e.status == 'agreed' %}ok{% endif %}">{{ _(statuses[e.status]) }}</span>{% else %}<span class="note">{{ _('Not started') }}</span>{% endif %}</td></tr>{% endfor %}
+  </table>
+</section>
+</div>
+{% endblock %}

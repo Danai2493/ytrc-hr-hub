@@ -12,6 +12,10 @@ DIR = Path(__file__).parent / "i18n"
 
 # Messages for rule findings (timecalc.Finding codes and capture issue codes).
 RULE_TEXT = {
+    "gr_not_agreed": "{n} of {total} jobs have no agreed grade yet",
+    "gr_inversion": "{a} has fewer points ({pa}) but a higher grade ({ga}) than {b} ({pb} points, {gb}): check both",
+    "gr_pos_differs": "Position {pos} is graded {g}, but job {job} is now {jg}",
+    "gr_emp_differs": "{n} people in job {job} are grade {g}, the job is now {jg} ({emp}): a grade change needs an approved employment event, nothing changes automatically",
     "er_no_statement": "The employee has not explained their side yet: record their statement first",
     "er_no_reasons": "Write the reasons: facts, date, which work rule was broken",
     "er_dismiss_reasons": "LPA s.17/1: the dismissal letter must state every reason; reasons not written cannot be used later",

@@ -160,6 +160,7 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_talent(db, rnd, today, users)
     _demo_relations(db, today, users)
     _demo_pulse(db, rnd, today, users)
+    _demo_grading(db, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -843,4 +844,23 @@ def _demo_pulse(db: Session, rnd: random.Random, today: date, users: dict) -> No
                                  source="web" if inv.done else "paper"))
         if closes < today:
             sv.status = "closed"
+    db.flush()
+
+
+def _demo_grading(db: Session, users: dict) -> None:
+    """Job grading under way: about half the jobs rated with AI help, a few agreed."""
+    from ..models import Job
+    from ..services import grading as G
+
+    hrm = users["hr.manager"]
+    jobs = list(db.scalars(select(Job).where(Job.active.is_(True)).order_by(Job.code)))
+    for n, j in enumerate(jobs):
+        if n % 2:
+            continue
+        G.ai_suggest(db, j)
+        db.flush()
+        ev = G.evaluation(db, j)
+        ev.evaluated_by = users["hr.officer"].label
+        if n % 4 == 0 and ev.suggested_grade == j.default_grade_code:
+            G.agree(db, hrm, j, ev.suggested_grade, "")
     db.flush()

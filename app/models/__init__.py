@@ -33,6 +33,7 @@ from .perform import Appraisal, Goal, KpiDefinition, PerformanceCycle
 from .recruit import Application, Candidate, Interview, Requisition
 from .talent import TalentReview
 from .relations import ErCase
+from .grading import JobEvaluation
 from .pulse import PulseInvite, PulseResponse, PulseSurvey
 from .system import (
     ApprovalRequest,
@@ -88,6 +89,7 @@ __all__ = [
     "Holiday",
     "Interview",
     "Job",
+    "JobEvaluation",
     "JobSkill",
     "KpiDefinition",
     "LeaveRequest",

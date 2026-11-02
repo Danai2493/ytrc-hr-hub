@@ -119,6 +119,18 @@ def demo_classify(hint: dict) -> dict:
         for it, x in zip(items, w):
             it["weight"] = x
         return {"items": items, "review": []}
+    if hint.get("task") == "jobeval":
+        # the demo aims a little above the job's current grade instead of reading the JD
+        target = (hint.get("points") or 200) + 8
+        base = max(1, min(5, int(target // 100)))
+        lv = {k: base for k in ("know", "impact", "solve", "people", "work")}
+        rest = target - 100 * base
+        for k, w in (("know", 25), ("impact", 25), ("solve", 20), ("people", 15), ("work", 15)):
+            if rest >= w / 2 and lv[k] < 5:
+                lv[k] += 1
+                rest -= w
+        return {"levels": lv,
+                "rationale": "Read from the job description and grade (AI SAMPLE): check each level with the Department Head."}
     if hint.get("task") == "interview_q":
         return {"questions": [{"criterion": c["code"], "text": (c.get("q_en") or c["en"]) + " (AI SAMPLE)", "text_th": c.get("q_th") or "",
                                "listen_for": "A real example with what they did and the result"} for c in hint.get("criteria") or []]}

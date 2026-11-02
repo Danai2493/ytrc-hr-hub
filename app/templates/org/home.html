@@ -12,7 +12,7 @@
 {% endmacro %}
 {% block content %}
 <div class="phead"><h1>{{ _('Org & positions') }}</h1>
-  <div class="end">{% if user.has('hr_manager') %}<a class="btn" href="/org/unit/new">{{ _('New Org Unit') }}</a>{% endif %}{% if user.has('hr','hr_manager') %}<a class="btn primary" href="/org/position/new">{{ _('New Position') }}</a>{% endif %}</div>
+  <div class="end"><a class="btn" href="/org/grades">{{ _('Job grades') }}</a>{% if user.has('hr_manager') %}<a class="btn" href="/org/unit/new">{{ _('New Org Unit') }}</a>{% endif %}{% if user.has('hr','hr_manager') %}<a class="btn primary" href="/org/position/new">{{ _('New Position') }}</a>{% endif %}</div>
 </div>
 <p class="lead">{{ _('Org chart SP-HRM-01. Approvals look up the Department Head here, walking up the tree when a unit has no head. Position control: every person sits on a budgeted seat.') }}</p>
 <div class="kpis">

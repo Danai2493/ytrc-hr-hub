@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Job grades') }}</h1><div class="end no-print"><a class="btn" href="/org/grades">{{ _('All jobs') }}</a></div></div>
+<div class="phead"><h2>{{ j.title_en }} <span class="mono note">{{ j.code }}</span></h2>{% if ev.id %}<span class="tag {% if ev.status == 'agreed' %}ok{% endif %}">{{ _(statuses[ev.status]) }}</span>{% endif %}
+  <span class="note">{{ j.job_family or '' }} · {{ _('Grade now') }} <strong>{{ j.default_grade_code or '-' }}</strong> · {{ positions|length }} {{ _('positions') }} · {{ people|length }} {{ _('people') }}</span></div>
+<div class="grid">
+<section class="panel c8">
+<form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+  <p class="wide note">{{ _('Rate the job, not the person doing it. Read the job description first.') }}{% if j.purpose %} <a href="/skills/jobs">{{ _('Job description') }}</a>{% endif %}</p>
+  {% for k, f in factors.items() %}
+  <fieldset class="wide qblock"><p>{{ _(f[1]) }} <span class="note">· {{ _('weight') }} {{ f[0] }}%</span></p>
+    <div class="levels">{% for d in f[2] %}<label class="chip lvl"><input type="radio" name="f_{{ k }}" value="{{ loop.index }}" {% if ev.levels.get(k) == loop.index %}checked{% endif %} {% if not user.has('hr', 'hr_manager') %}disabled{% endif %}><b>{{ loop.index }}</b><span>{{ _(d) }}</span></label>{% endfor %}</div>
+  </fieldset>{% endfor %}
+  <label class="wide">{{ _('Why these levels') }}<textarea name="rationale" rows="3" {% if not user.has('hr', 'hr_manager') %}disabled{% endif %}>{{ ev.rationale or '' }}</textarea></label>
+  {% if user.has('hr', 'hr_manager') %}<div class="bar wide"><button name="do" value="ai">{{ _('AI: suggest levels from the job description') }}</button><button class="primary" name="do" value="save">{{ _('Save') }}</button></div>{% endif %}
+</form>
+</section>
+<section class="panel c4">
+  <h2>{{ _('Result') }}</h2>
+  {% if ev.points %}<div class="box-badge b5"><b>{{ ev.points }}</b><span>{{ _('points') }} → {{ ev.suggested_grade or '-' }}</span></div>
+  {% if ev.suggested_grade and ev.suggested_grade != j.default_grade_code %}<ul class="find"><li class="flag">{{ _('The points suggest {s}, the job is {g} today', s=ev.suggested_grade, g=j.default_grade_code or '-') }}</li></ul>{% endif %}
+  {% else %}<p class="note">{{ _('Rate all five factors to see the points.') }}</p>{% endif %}
+  {% if ev.ai_used %}<p class="note">{{ _('AI helped with this draft.') }}</p>{% endif %}
+  {% if user.has('hr_manager') and ev.points %}
+  <form method="post" class="form" style="margin-top:12px"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="agree">
+    <label class="wide">{{ _('Agreed grade') }}<select name="grade">{% for g in grades %}<option value="{{ g.code }}" {% if g.code == (ev.agreed_grade or ev.suggested_grade) %}selected{% endif %}>{{ g.code }}{% if g.min_points %} ({{ g.min_points }}+){% endif %}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Reason (needed if not the suggested grade)') }}<input name="reason" maxlength="200"></label>
+    <div class="bar wide"><button class="primary">{{ _('Agree the job grade') }}</button></div>
+  </form>
+  <p class="note">{{ _('Agreeing changes the job\'s grade. People and positions are not changed automatically: HR raises the changes through the normal approval.') }}</p>
+  {% endif %}
+  {% if ev.agreed_by %}<p class="note">{{ _('Agreed by') }} {{ ev.agreed_by }} · {{ fmt_date(ev.agreed_at) }}</p>{% endif %}
+</section>
+</div>
+{% endblock %}

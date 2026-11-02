@@ -114,7 +114,7 @@ main.content > .phead:first-child,main.content > .toasts + .phead{padding-bottom
 .grid{display:grid;gap:18px;grid-template-columns:repeat(12,minmax(0,1fr))}
 .c12{grid-column:span 12}.c8{grid-column:span 8}.c7{grid-column:span 7}.c6{grid-column:span 6}.c5{grid-column:span 5}.c4{grid-column:span 4}.c3{grid-column:span 3}
 @media (max-width:1100px){.c8,.c7,.c6,.c5,.c4,.c3{grid-column:span 12}}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0;display:grid;gap:14px;align-content:start;box-shadow:var(--shadow)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-content:start;box-shadow:var(--shadow)}
 @media (max-width:640px){.panel{padding:14px}}
 .phead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
 .phead .end,.phead > .end{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
@@ -346,3 +346,8 @@ label.chip:has(input:checked){border-color:var(--accent);background:var(--accent
 .scale5 label.chip b{font-size:17px}
 fieldset.qblock{border:0;border-bottom:1px solid var(--line);margin:0;padding:12px 0;min-width:0;font:inherit}.qblock p{margin:0 0 8px;font-weight:500}
 @media (max-width:480px){.scale5 label.chip span{display:none}}
+/* Job grading: five described levels per factor */
+.levels{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+label.chip.lvl{flex-direction:column;align-items:flex-start;border-radius:var(--r-sm);padding:8px 10px;font-size:12.5px;line-height:1.35;gap:4px}
+label.chip.lvl b{font-size:15px}
+@media (max-width:900px){.levels{grid-template-columns:1fr}label.chip.lvl{flex-direction:row;align-items:center}}

@@ -105,6 +105,12 @@ def seed_reference(db: Session) -> None:
         if not db.get(Grade, g):
             db.add(Grade(code=g, name=g, rank=len(GRADES) - i))
     db.flush()
+    from ..services.grading import DEFAULT_MIN_POINTS  # DRAFT points ladder, HR Manager adjusts it
+    for g in GRADES:
+        gr = db.get(Grade, g)
+        if gr.min_points is None and g in DEFAULT_MIN_POINTS:
+            gr.min_points = DEFAULT_MIN_POINTS[g]
+    db.flush()
     for code, en, th, fam, grade in JOBS:
         if not db.get(Job, code):
             db.add(Job(code=code, title_en=en, title_th=th, job_family=fam, default_grade_code=grade))

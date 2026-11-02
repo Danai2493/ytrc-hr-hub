@@ -111,6 +111,8 @@ class Grade(Timestamps, Base):
     rank: Mapped[int] = mapped_column(Integer, default=0)  # higher = more senior
     # Salary band stays in Bplus / HR practice. Only the band label lives here.
     band_label: Mapped[Optional[str]] = mapped_column(String(40))
+    # Job evaluation: the lowest points a job needs for this grade (None = not on the points ladder)
+    min_points: Mapped[Optional[int]] = mapped_column(Integer)
 
 
 class Job(Timestamps, Base):
