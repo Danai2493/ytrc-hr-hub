@@ -356,3 +356,7 @@ label.chip.lvl b{font-size:15px}
 .tabs a.on{color:var(--accent);background:var(--panel);border-color:var(--line)}
 .sig{margin:0;padding-left:18px}.sig li{margin:2px 0}.sig b{font-variant-numeric:tabular-nums;color:var(--ink-3);font-weight:600}
 td.neg{color:var(--bad);font-weight:600}td.pos{color:var(--ok)}
+.bar-meter{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:6px 0 4px}.bar-meter i{display:block;height:100%;background:var(--ok)}
+fieldset.checklist{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px;max-height:320px;overflow:auto}
+fieldset.checklist legend{font-weight:600;padding:0 4px}
+.rowform{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rowform select{width:auto;flex:0 0 auto}.rowform input{flex:1 1 140px;min-width:120px;width:auto}.rowform button{flex:0 0 auto}

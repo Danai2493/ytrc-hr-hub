@@ -82,6 +82,7 @@ class Course(Timestamps, Base):
     skill_code: Mapped[Optional[str]] = mapped_column(ForeignKey("skill.code"))
     skill_level: Mapped[Optional[int]] = mapped_column(Integer)  # level reached when passed (OJT sign-off)
     for_new_staff: Mapped[bool] = mapped_column(Boolean, default=False)  # part of induction
+    cost_per_person: Mapped[Optional[float]] = mapped_column(Float)  # usual fee per person (THB), for the plan budget
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -104,6 +105,14 @@ class TrainingRecord(Timestamps, Base):
     source: Mapped[str] = mapped_column(String(10), default="web")  # web / paper / import
     capture_id: Mapped[Optional[int]] = mapped_column(Integer)
     recorded_by: Mapped[Optional[str]] = mapped_column(String(160))
+    # effectiveness (Kirkpatrick levels 1 to 3) and cost
+    cost: Mapped[Optional[float]] = mapped_column(Float)  # THB for this person (session cost shared)
+    level_before: Mapped[Optional[int]] = mapped_column(Integer)  # skill level just before the class
+    l1_score: Mapped[Optional[float]] = mapped_column(Float)  # 1-5: how useful the class felt
+    l3_result: Mapped[Optional[str]] = mapped_column(String(10))  # applied / partly / not_yet, supervisor 1-3 months later
+    l3_note: Mapped[Optional[str]] = mapped_column(String(300))
+    l3_by: Mapped[Optional[str]] = mapped_column(String(160))
+    l3_on: Mapped[Optional[date]] = mapped_column(Date)
 
     employee: Mapped[Employee] = relationship()
     course: Mapped[Course] = relationship()
@@ -112,6 +121,30 @@ class TrainingRecord(Timestamps, Base):
 NEED_REASONS = {"gap": "Skill below the job's level", "expiry": "Licence or refresher due", "legal": "Required by law",
                 "new_staff": "Induction for new staff", "coverage": "Too few people at U/O", "manual": "Asked by supervisor",
                 "idp": "Development plan"}
+
+
+L3_RESULTS = {"applied": "Uses it on the job", "partly": "Partly", "not_yet": "Not yet"}
+PLAN_SOURCES = {"needs": "Training needs", "legal": "Legal refresher", "idp": "Development plans", "manual": "Added by HR"}
+
+
+class TrainingPlanItem(Timestamps, Base):
+    """One line of the annual training plan: a course in a month for a number of people."""
+
+    __tablename__ = "training_plan_item"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    year: Mapped[int] = mapped_column(Integer, index=True)
+    month: Mapped[int] = mapped_column(Integer)
+    course_code: Mapped[str] = mapped_column(ForeignKey("course.code"))
+    org_unit_code: Mapped[Optional[str]] = mapped_column(String(20))
+    people: Mapped[int] = mapped_column(Integer, default=1)
+    budget: Mapped[Optional[float]] = mapped_column(Float)
+    source: Mapped[str] = mapped_column(String(10), default="manual")
+    status: Mapped[str] = mapped_column(String(10), default="planned")  # planned / done / cancelled
+    note: Mapped[Optional[str]] = mapped_column(String(300))
+    created_by: Mapped[Optional[str]] = mapped_column(String(160))
+
+    course: Mapped["Course"] = relationship()
 
 
 class TrainingNeed(Timestamps, Base):

@@ -68,6 +68,36 @@
     <h2>{{ _('Requests about this person') }}</h2>
     <table>{% for r in reqs %}<tr><td><a href="/approvals/{{ r.id }}">{{ r.title }}</a></td><td>{{ status_tag(r.status) }}</td></tr>{% else %}<tr><td class="note">{{ _('None') }}</td></tr>{% endfor %}</table>
   </section>
+  {% if docs is not none %}
+  <section class="panel c12" id="docs">
+    <div class="phead"><h2>{{ _('Documents') }}</h2>{% if user.has('hr','hr_manager') %}<span class="tag info">{{ _('HR only, every scan opened is logged') }}</span>{% endif %}</div>
+    {% set have = docs|map(attribute='doc_type')|list %}
+    {% set miss = doc_needed|reject('in', have)|list %}
+    {% if miss %}<ul class="find">{% for t in miss %}<li class="info">{{ _('Not on file') }}: {{ _(doc_types[t][0]) }}</li>{% endfor %}</ul>{% endif %}
+    <div class="scroll"><table><tr><th>{{ _('Document') }}</th><th>{{ _('No.') }}</th><th>{{ _('Issued') }}</th><th>{{ _('Expires') }}</th><th>{{ _('Copy') }}</th>{% if user.has('hr','hr_manager') %}<th></th>{% endif %}</tr>
+    {% for d in docs %}{% set st = doc_state(d, today, doc_days) %}<tr>
+      <td>{{ _(doc_types[d.doc_type][0]) }}{% if d.title %} · {{ d.title }}{% endif %}</td>
+      <td class="mono">{{ '…' ~ d.number_tail if d.number_tail else '' }}</td>
+      <td>{{ fmt_date(d.issued_on) if d.issued_on else '' }}</td>
+      <td>{% if d.expires_on %}{% if st == 'expired' %}<span class="tag bad">{{ fmt_date(d.expires_on) }}</span>{% elif st == 'soon' %}<span class="tag warn">{{ fmt_date(d.expires_on) }}</span>{% else %}{{ fmt_date(d.expires_on) }}{% endif %}{% endif %}</td>
+      <td>{% if d.file_path and user.has('hr','hr_manager') %}<a href="/people/docs/{{ d.id }}/file" target="_blank">{{ _('Open scan') }}</a>{% elif d.paper_only %}<span class="note">{{ _('Paper in the personnel file') }}</span>{% else %}<span class="note">{{ _('Scan on file') }}</span>{% endif %}</td>
+      {% if user.has('hr','hr_manager') %}<td>{% if user.has('hr_manager') %}<form method="post" action="/people/docs/{{ d.id }}/remove" onsubmit="return confirm('{{ _('Remove this document and its scan?') }}')"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small">{{ _('Remove') }}</button></form>{% endif %}</td>{% endif %}
+    </tr>{% else %}<tr><td colspan="6" class="note">{{ _('No documents yet') }}</td></tr>{% endfor %}</table></div>
+    {% if user.has('hr','hr_manager') %}
+    <details style="margin-top:12px"><summary><b>{{ _('Add a document') }}</b></summary>
+    <form method="post" action="/people/{{ emp.employee_id }}/docs" enctype="multipart/form-data" class="form" style="margin-top:10px"><input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label>{{ _('Type') }}<select name="doc_type">{% for k, v in doc_types.items() %}<option value="{{ k }}" {% if miss and k == miss[0] %}selected{% endif %}>{{ _(v[0]) }}</option>{% endfor %}</select></label>
+      <label>{{ _('Name (for licences and certificates)') }}<input name="title" maxlength="160"></label>
+      <label>{{ _('Number (only the last 4 characters are kept)') }}<input name="number" autocomplete="off"></label>
+      <label>{{ _('Issued') }}<input type="date" name="issued_on"></label>
+      <label>{{ _('Expires') }}<input type="date" name="expires_on"></label>
+      <label>{{ _('Scan (PDF or photo)') }}<input type="file" name="file" accept="application/pdf,image/*"></label>
+      <label class="wide"><span><input type="checkbox" name="paper_only" value="1"> {{ _('Paper only: the original stays in the personnel file, no scan') }}</span></label>
+      <div class="bar wide"><button class="primary">{{ _('Add') }}</button></div>
+    </form></details>
+    {% endif %}
+  </section>
+  {% endif %}
   {% if user.has('hr','hr_manager') %}
   <section class="panel c12">
     <div class="phead"><h2>{{ _('Restricted data') }}</h2><span class="tag bad">{{ _('HR only, every view is logged') }}</span>

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import hbar %}
+{% block content %}
+{% include "dash/_tabs.html" %}
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Active people') }}</span><span class="v">{{ m.total }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Average age') }}</span><span class="v">{{ m.avg_age or '-' }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Average years of service') }}</span><span class="v">{{ m.avg_tenure or '-' }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Women / men') }}</span><span class="v">{{ m.gender.get('F', 0) }} / {{ m.gender.get('M', 0) }}</span></div>
+</div>
+<div class="grid">
+<section class="panel c12"><h2>{{ _('Group and nationality') }}</h2>
+  <div class="scroll"><table class="nocards"><tr><th></th>{% for n in m.nats %}<th class="n">{{ _(n) }}</th>{% endfor %}<th class="n">{{ _('Total') }}</th></tr>
+  {% for g in m.groups %}<tr><td>{{ _(g) }}</td>{% set t = namespace(v=0) %}{% for n in m.nats %}{% set v = m.grid[(g, n)] %}{% set t.v = t.v + v %}<td class="n">{{ v or '' }}</td>{% endfor %}<td class="n"><b>{{ t.v }}</b></td></tr>{% endfor %}</table></div></section>
+<section class="panel c6"><h2>{{ _('Age') }}</h2>{% set m_age = [] %}{% for l, n in m.age %}{% set _x = m_age.append((_(l), n)) %}{% endfor %}{{ hbar(m_age, '', 'var(--s1)') }}</section>
+<section class="panel c6"><h2>{{ _('Years of service') }}</h2>{% set m_tenure = [] %}{% for l, n in m.tenure %}{% set _x = m_tenure.append((_(l), n)) %}{% endfor %}{{ hbar(m_tenure, '', 'var(--s3)') }}
+  <p class="note">{{ _('Many people in the first year means onboarding and training load; many over 5 years means know-how to pass on before retirement.') }}</p></section>
+</div>
+{% endblock %}

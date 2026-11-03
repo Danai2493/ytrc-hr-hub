@@ -19,6 +19,7 @@ from .competency import (
     GrowthPath,
 )
 from .develop import (
+    TrainingPlanItem,
     Course,
     EmployeeSkill,
     JobSkill,
@@ -30,11 +31,12 @@ from .develop import (
 )
 from .hrdev import ExitCase, LeaveRequest, LeaveType
 from .perform import Appraisal, Goal, KpiDefinition, PerformanceCycle
-from .recruit import Application, Candidate, Interview, Requisition
+from .recruit import Application, Candidate, InternalInterest, Interview, Requisition
 from .talent import TalentReview
 from .relations import ErCase
 from .grading import JobEvaluation
 from .plan import StayTalk, SuccessionPlan, Successor
+from .docs import EmployeeDocument, Policy, PolicyAck
 from .pulse import PulseInvite, PulseResponse, PulseSurvey
 from .system import (
     ApprovalRequest,
@@ -108,6 +110,7 @@ __all__ = [
     "PulseResponse",
     "PulseSurvey",
     "ProbationReview",
+    "InternalInterest",
     "Requisition",
     "ScanImport",
     "ScanPunch",
@@ -116,10 +119,14 @@ __all__ = [
     "Shift",
     "Skill",
     "StayTalk",
+    "EmployeeDocument",
+    "Policy",
+    "PolicyAck",
     "SuccessionPlan",
     "Successor",
     "TalentReview",
     "TrainingNeed",
+    "TrainingPlanItem",
     "TrainingRecord",
     "User",
     "UserScope",

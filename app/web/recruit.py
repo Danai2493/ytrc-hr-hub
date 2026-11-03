@@ -139,8 +139,14 @@ def req_page(request: Request, rid: int, db: Session = Depends(get_db), user=Dep
 
     checks = [rule_text(lang_of(request), c) for c in (appr.payload or {}).get("checks", [])] if appr else []
     summaries = {a.id: R.interview_summary(a) for a in req.applications}
+    from ..models.recruit import INTEREST_STATUSES
+    from ..services import mobility
+
+    interests = mobility.interests_for(db, req) if user.has(*HR) else []
+    db.commit()
     return render(request, "recruit/req.html", {**CTX, "req": req, "appr": appr, "board": board, "pool": pool, "is_hr": user.has(*HR),
-                                                "checks": checks, "summaries": summaries, "criteria": R.criteria(db, req)})
+                                                "checks": checks, "summaries": summaries, "criteria": R.criteria(db, req),
+                                                "interests": interests, "interest_statuses": INTEREST_STATUSES})
 
 
 @router.post("/req/{rid}/ad", dependencies=[Depends(check_csrf)])
@@ -154,6 +160,10 @@ async def req_ad(request: Request, rid: int, db: Session = Depends(get_db), user
     else:
         req.ad_th, req.ad_en = (f.get("ad_th") or "")[:4000] or None, (f.get("ad_en") or "")[:4000] or None
         req.channels = [c for c in f.getlist("channels") if c in SOURCES]
+        try:
+            req.hire_cost = max(0.0, float(f["hire_cost"])) if (f.get("hire_cost") or "").strip() else None
+        except ValueError:
+            flash(request, "Hiring cost must be a number", "bad")
         db.commit()
         flash(request, "Ad saved")
     return redirect(f"/recruit/req/{rid}#ad")

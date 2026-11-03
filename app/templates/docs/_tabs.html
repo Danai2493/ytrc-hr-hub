@@ -1,0 +1,5 @@
+<div class="phead"><h1>{{ _('Policies & documents') }}</h1>{% if is_hr and tab == 'policies' %}<span class="end"><a class="btn primary" href="/docs/policy/new">{{ _('New policy') }}</a></span>{% endif %}</div>
+{% if is_hr %}<nav class="tabs" aria-label="{{ _('Policies & documents') }}">
+  <a href="/docs" {% if tab == 'policies' %}class="on" aria-current="page"{% endif %}>{{ _('Policies') }}</a>
+  <a href="/docs/watch" {% if tab == 'watch' %}class="on" aria-current="page"{% endif %}>{{ _('Personnel documents') }}</a>
+</nav>{% endif %}

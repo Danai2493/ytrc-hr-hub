@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "partials/charts.html" import findings %}
 {% block content %}
 {% set d = data or {} %}
 <div class="phead"><h1>{{ _(etype.replace('_',' ').title()) }} · <span class="mono">{{ emp.employee_id }}</span> {{ emp.full_name_en }}</h1></div>
@@ -6,14 +7,15 @@
 {% if error %}<div class="flash bad">{{ error }}</div>{% endif %}
 <form method="post" class="panel">
   <input type="hidden" name="_csrf" value="{{ csrf }}">
+  {% if d.interest_id %}<input type="hidden" name="interest_id" value="{{ d.interest_id }}"><p class="note">{{ _('This move comes from the internal job board: the application closes when the approval ends.') }}</p>{% endif %}
   <div class="form">
-    <label>{{ _('Event') }}<select name="event_type" onchange="location='?type='+this.value">{% for t in steps %}<option value="{{ t }}" {% if t == etype %}selected{% endif %}>{{ _(t.replace('_',' ').title()) }}</option>{% endfor %}</select></label>
+    <label>{{ _('Event') }}<select name="event_type" onchange="location='?type='+this.value{% if d.interest_id %}+'&interest={{ d.interest_id }}'{% endif %}">{% for t in steps %}<option value="{{ t }}" {% if t == etype %}selected{% endif %}>{{ _(t.replace('_',' ').title()) }}</option>{% endfor %}</select></label>
     <label>{{ _('Effective date') }}<input type="date" name="effective_date" value="{{ d.effective_date or '' }}" required></label>
     {% if etype in ('transfer','promotion','demotion','grade_change','group_change') %}
     <label>{{ _('To Org Unit') }}<select name="to_org_unit"><option value="">{{ _('same') }} ({{ emp.org_unit_code }})</option>{% for u in units %}<option value="{{ u.code }}" {% if u.code == d.to_org_unit %}selected{% endif %}>{{ u.code }} · {{ u.name_en }}</option>{% endfor %}</select></label>
     <label>{{ _('To Position') }}<select name="to_position"><option value=""></option>{% for p in positions %}<option value="{{ p.position_id }}" {% if p.position_id == d.to_position %}selected{% endif %}>{{ p.position_id }} · {{ p.title }} ({{ p.org_unit_code }}, {{ p.filled }}/{{ p.seats }} {{ p.status }})</option>{% endfor %}</select></label>
-    <label>{{ _('To Job') }}<select name="to_job"><option value="">{{ _('same') }}</option>{% for j in jobs %}<option value="{{ j.code }}">{{ j.title_en }}</option>{% endfor %}</select></label>
-    <label>{{ _('To Grade') }}<select name="to_grade"><option value="">{{ _('same') }} ({{ emp.grade_code or '-' }})</option>{% for g in grades %}<option value="{{ g.code }}">{{ g.code }}</option>{% endfor %}</select></label>
+    <label>{{ _('To Job') }}<select name="to_job"><option value="">{{ _('same') }}</option>{% for j in jobs %}<option value="{{ j.code }}" {% if j.code == d.to_job %}selected{% endif %}>{{ j.title_en }}</option>{% endfor %}</select></label>
+    <label>{{ _('To Grade') }}<select name="to_grade"><option value="">{{ _('same') }} ({{ emp.grade_code or '-' }})</option>{% for g in grades %}<option value="{{ g.code }}" {% if g.code == d.to_grade %}selected{% endif %}>{{ g.code }}</option>{% endfor %}</select></label>
     {% endif %}
     {% if etype == 'group_change' %}<label>{{ _('To Group') }}<select name="to_group">{% for g in GROUPS %}<option>{{ g }}</option>{% endfor %}</select></label>{% endif %}
     {% if etype == 'exit' %}
@@ -21,6 +23,11 @@
     {% endif %}
     <label class="wide">{{ _('Note / source document') }}<textarea name="note">{{ d.note or '' }}</textarea></label>
   </div>
-  <div class="bar"><button class="primary">{{ _('Send for approval') }}</button><a class="btn" href="/people/{{ emp.employee_id }}">{{ _('Cancel') }}</a></div>
+  {% if checks is defined and checks is not none %}
+  <h3>{{ _('Move criteria') }}</h3>
+  {% if checks %}{{ findings(checks, rt) }}{% else %}<p class="note">{{ _('Pick a target position to see the criteria.') }}</p>{% endif %}
+  <p class="note">{{ _('These are facts for the approvers, not a gate. Pay is agreed outside the app and keyed into Bplus.') }}</p>
+  {% endif %}
+  <div class="bar"><button class="primary">{{ _('Send for approval') }}</button>{% if etype in ('transfer','promotion','demotion','grade_change') %}<button name="do" value="check" formnovalidate>{{ _('Check the criteria') }}</button>{% endif %}<a class="btn" href="/people/{{ emp.employee_id }}">{{ _('Cancel') }}</a></div>
 </form>
 {% endblock %}

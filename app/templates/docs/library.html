@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "docs/_tabs.html" %}
+<p class="lead">{{ _('Company policies and work rules in force. Read each one that applies to you and confirm you understood it. Questions go to HR.') }}</p>
+{% if todo %}<div class="callout"><strong>{{ _('To read and acknowledge') }}:</strong> {% for p in todo %}<a href="/docs/policy/{{ p.id }}">{{ p.title_th if lang == 'th' and p.title_th else p.title_en }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+<section class="panel"><h2>{{ _('Policy library') }}</h2>
+{% if not rows %}<p class="note">{{ _('No policies yet.') }}</p>{% else %}
+<div class="scroll"><table><tr><th>{{ _('Code') }}</th><th>{{ _('Policy') }}</th><th>{{ _('For') }}</th><th>{{ _('In force from') }}</th>{% if prog %}<th>{{ _('Acknowledged') }}</th>{% endif %}<th>{{ _('You') }}</th><th></th></tr>
+{% for p in rows %}<tr>
+  <td><span class="mono">{{ p.code }}</span> <span class="note">v{{ p.version }}</span></td>
+  <td>{{ p.title_th if lang == 'th' and p.title_th else p.title_en }}{% if p.status == 'draft' %} <span class="tag warn">{{ _('Draft') }}</span>{% endif %}</td>
+  <td>{{ _(applies[p.applies_to]) }}</td>
+  <td>{{ fmt_date(p.effective_on) }}</td>
+  {% if prog %}<td>{% if p.id in prog %}{% set g = prog[p.id] %}<span class="tag {{ 'ok' if g.pct == 100 else 'warn' if g.pct >= 80 else 'bad' }}">{{ g.done }} / {{ g.people }} · {{ g.pct }}%</span>{% endif %}</td>{% endif %}
+  <td>{% if p.status == 'published' and p.ack_required %}{% if p.id in mine %}<span class="tag ok">{{ _('Done') }}</span>{% elif me and (p.applies_to == 'all' or p.applies_to == me.employee_group) %}<span class="tag warn">{{ _('To read') }}</span>{% endif %}{% endif %}</td>
+  <td><a class="btn small {% if p in todo %}primary{% endif %}" href="/docs/policy/{{ p.id }}">{{ _('Open') }}</a></td>
+</tr>{% endfor %}</table></div>{% endif %}
+</section>
+{% endblock %}

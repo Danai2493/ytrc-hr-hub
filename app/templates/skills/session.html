@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<div class="phead"><h2><span class="mono">{{ ref }}</span> · {{ c.code }} {{ _(c.name_en) }}</h2><span class="end"><a class="btn" href="/skills/training">{{ _('All classes') }}</a></span></div>
+<div class="grid">
+<section class="panel c8"><h2>{{ _('People') }} <span class="note">{{ recs|length }} · {{ fmt_date(recs[0].on_date) }}{% if recs[0].trainer %} · {{ recs[0].trainer }}{% endif %}</span></h2>
+<div class="scroll"><table><tr><th>{{ _('Employee') }}</th><th>{{ _('Result') }}</th>{% if c.skill_code %}<th>{{ _('Level before') }}</th>{% endif %}<th>{{ _('Used on the job') }}</th></tr>
+{% for r in recs %}<tr><td><span class="mono">{{ r.employee_id }}</span> {{ r.employee.full_name_en }}</td>
+  <td>{{ status_tag(r.result) }}</td>
+  {% if c.skill_code %}<td>{{ letter(r.level_before) if r.level_before is not none else '' }}</td>{% endif %}
+  <td>{% if r.l3_result %}<span class="tag {{ {'applied': 'ok', 'partly': 'warn', 'not_yet': 'bad'}[r.l3_result] }}">{{ _(l3[r.l3_result]) }}</span>{% if r.l3_note %}<br><span class="note">{{ r.l3_note }}</span>{% endif %}{% else %}<span class="note">{{ _('Supervisor answers 1-3 months after') }}</span>{% endif %}</td></tr>{% endfor %}</table></div>
+</section>
+<section class="panel c4"><h2>{{ _('Class results') }}</h2>
+{% if is_hr %}<form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}">
+  <label class="wide">{{ _('Feedback score, average 1-5 (from the class feedback sheet)') }}<input name="l1" inputmode="decimal" value="{{ recs[0].l1_score or '' }}"></label>
+  <label class="wide">{{ _('Total cost of the class (THB): fee, trainer, materials') }}<input name="cost" inputmode="decimal" value="{{ (recs|sum(attribute='cost') if recs[0].cost is not none else '') }}"></label>
+  <div class="bar wide"><button class="primary">{{ _('Save') }}</button></div></form>
+{% else %}<dl class="kv"><dt>{{ _('Feedback score') }}</dt><dd>{{ recs[0].l1_score or '-' }}</dd></dl>{% endif %}
+<p class="note">{{ _('Cost is shared equally per person. It is training cost only, never pay.') }}</p>
+</section>
+</div>
+{% endblock %}

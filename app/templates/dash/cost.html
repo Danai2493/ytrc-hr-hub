@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import columns %}
+{% block content %}
+{% include "dash/_tabs.html" %}
+<p class="lead">{{ _('From the totals Bplus sends back each month per unit. The app never holds anyone\'s salary. HR, the HR Manager and the GM only.') }}</p>
+{% if not c.has %}<p class="callout">{{ _('No pay totals yet. Import the monthly totals file from Bplus under Pay input.') }}</p>{% else %}
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('People cost, 12 months') }}</span><span class="v">{{ '{:,.0f}'.format(c.year_cost / 1000000) }}M</span><span class="d">{{ _('THB') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('OT cost, 12 months') }}</span><span class="v">{{ '{:,.1f}'.format(c.year_ot / 1000000) }}M</span><span class="d">{{ (100 * c.year_ot / c.year_cost)|round(1) }}% {{ _('of people cost') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Cost per head') }} {{ c.labels[-1] }}</span><span class="v">{{ '{:,.0f}'.format(c.per_head[-1]) }}</span><span class="d">{{ _('THB a month') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('OT share') }} {{ c.labels[-1] }}</span><span class="v">{{ c.ot_share[-1] }}%</span><span class="d">{{ _('a year ago') }} {{ c.ot_share[0] }}%</span></div>
+</div>
+<section class="panel"><h2>{{ _('People cost by month (thousand THB)') }}</h2>
+  {{ columns(c.labels, [(_('Pay without OT'), 'var(--s1)', c.base_k), (_('OT'), 'var(--s2)', c.ot_k)]) }}</section>
+<section class="panel"><h2>{{ _('By department') }} · {{ c.last.strftime('%m/%Y') }}</h2>
+  <div class="scroll"><table class="nocards"><tr><th>{{ _('Department') }}</th><th class="n">{{ _('People cost') }}</th><th class="n">{{ _('OT cost') }}</th><th class="n">{{ _('People paid') }}</th><th class="n">{{ _('Per head') }}</th><th class="n">{{ _('OT share') }}</th></tr>
+  {% for d, cst, ot, h, ph, sh in c.depts %}<tr><td>{{ d }}</td><td class="n">{{ '{:,.0f}'.format(cst) }}</td><td class="n">{{ '{:,.0f}'.format(ot) }}</td><td class="n">{{ h }}</td><td class="n">{{ '{:,.0f}'.format(ph) if ph else '' }}</td><td class="n {{ 'neg' if sh and sh >= 15 else '' }}">{{ sh }}%</td></tr>{% endfor %}</table></div>
+  <p class="note">{{ _('An OT share above 15% usually means a staffing gap: compare with the headcount plan.') }}</p></section>
+{% endif %}
+{% endblock %}

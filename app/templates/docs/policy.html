@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "docs/_tabs.html" %}
+{% if p %}
+<div class="phead"><h2><span class="mono">{{ p.code }}</span> v{{ p.version }} · {{ p.title_th if lang == 'th' and p.title_th else p.title_en }}</h2>
+  <span class="tag {{ {'draft': 'warn', 'published': 'ok', 'retired': 'info'}[p.status] }}">{{ _({'draft': 'Draft', 'published': 'In force', 'retired': 'Replaced'}[p.status]) }}</span>
+  <span class="end"><a class="btn" href="/docs">{{ _('All policies') }}</a></span></div>
+{% endif %}
+<div class="grid">
+<section class="panel {{ 'c7' if p else 'c12' }}">
+{% if p and p.status != 'draft' or (p and not is_hr) %}
+  <dl class="kv">
+    <dt>{{ _('For') }}</dt><dd>{{ _(applies[p.applies_to]) }}</dd>
+    <dt>{{ _('In force from') }}</dt><dd>{{ fmt_date(p.effective_on) }}{% if p.published_by %} · {{ _('published by') }} {{ p.published_by }}{% endif %}</dd>
+    {% if due %}<dt>{{ _('Acknowledge by') }}</dt><dd>{{ fmt_date(due) }}</dd>{% endif %}
+  </dl>
+  <h2 style="margin-top:16px">{{ _('Key points') }}</h2>
+  <div style="white-space:pre-line">{{ p.summary or '-' }}</div>
+  {% if p.changes %}<h2 style="margin-top:16px">{{ _('What changed in this version') }}</h2><div style="white-space:pre-line">{{ p.changes }}</div>{% endif %}
+  <div class="bar" style="margin-top:16px">{% if p.file_path %}<a class="btn" href="/docs/policy/{{ p.id }}/file" target="_blank">{{ _('Open the full policy') }}</a>{% endif %}
+  {% if is_hr and p.status == 'published' %}<form method="post"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="version"><button>{{ _('Start a new version') }}</button></form>{% endif %}</div>
+  {% if can_ack and p.ack_required %}
+    {% if acked %}<p class="callout" style="margin-top:16px">{{ _('You acknowledged this policy on') }} {{ fmt_date(acked.on) }}.</p>
+    {% else %}<form method="post" class="callout" style="margin-top:16px"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="ack">
+      <p>{{ _('I have read this policy, I understand it, and I will follow it. If anything is unclear I will ask HR.') }}</p>
+      <button class="primary">{{ _('I have read and understood') }}</button></form>{% endif %}
+  {% endif %}
+{% else %}
+  <h2>{{ _('New policy') if not p else _('Edit the draft') }}</h2>
+  <form method="post" {% if not p %}action="/docs/policy/new"{% endif %} enctype="multipart/form-data" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="save">
+    <label>{{ _('Code') }}<input name="code" required value="{{ p.code if p else '' }}" {% if p %}readonly{% endif %} placeholder="POL-HR-01"></label>
+    <label>{{ _('For') }}<select name="applies_to">{% for k, v in applies.items() %}<option value="{{ k }}" {% if p and p.applies_to == k %}selected{% endif %}>{{ _(v) }}</option>{% endfor %}</select></label>
+    <label class="wide">{{ _('Title (English)') }}<input name="title_en" required value="{{ p.title_en if p else '' }}"></label>
+    <label class="wide">{{ _('Title (Thai)') }}<input name="title_th" value="{{ p.title_th or '' if p else '' }}"></label>
+    <label class="wide">{{ _('Key points in plain words (what people must know and do)') }}<textarea name="summary" rows="6">{{ p.summary or '' if p else '' }}</textarea></label>
+    {% if p and p.version > 1 %}<label class="wide">{{ _('What changed from the last version') }}<textarea name="changes" rows="3">{{ p.changes or '' }}</textarea></label>{% endif %}
+    <label>{{ _('In force from') }}<input type="date" name="effective_on" value="{{ p.effective_on if p else today }}"></label>
+    <label>{{ _('Days to acknowledge') }}<input type="number" name="ack_days" min="1" max="90" value="{{ p.ack_days if p else 14 }}"></label>
+    <label class="wide"><span><input type="checkbox" name="ack_required" value="1" {% if not p or p.ack_required %}checked{% endif %}> {{ _('Everyone it applies to must acknowledge it') }}</span></label>
+    <label class="wide">{{ _('Policy file (PDF or photo)') }}{% if p and p.file_path %} <a href="/docs/policy/{{ p.id }}/file" target="_blank">{{ _('current file') }}</a>{% endif %}<input type="file" name="file" accept="application/pdf,image/*"></label>
+    <div class="bar wide"><button class="primary">{{ _('Save draft') }}</button></div>
+  </form>
+  {% if p and user.has('hr_manager') %}<form method="post" style="margin-top:12px"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="publish"><button class="primary">{{ _('Publish') }}</button> <span class="note">{{ _('The version in force now is replaced, and everyone it applies to is asked to acknowledge again.') }}</span></form>{% endif %}
+{% endif %}
+</section>
+{% if p %}
+<section class="panel c5">
+  {% if prog %}
+  <h2>{{ _('Acknowledged') }} <span class="note">{{ prog.done }} / {{ prog.people }} · {{ prog.pct }}%</span></h2>
+  <div class="bar-meter" role="img" aria-label="{{ prog.pct }}%"><i style="width:{{ prog.pct }}%"></i></div>
+  {% if prog.missing %}
+  {% if is_hr %}
+  <h3 style="margin-top:14px">{{ _('Record a briefing for people without a login') }}</h3>
+  <form method="post" class="form"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="briefing">
+    <label>{{ _('Date') }}<input type="date" name="on" value="{{ today }}" max="{{ today }}"></label>
+    <label>{{ _('How') }}<select name="method">{% for k, v in methods.items() if k != 'web' %}<option value="{{ k }}">{{ _(v) }}</option>{% endfor %}</select></label>
+    <fieldset class="wide checklist"><legend>{{ _('Tick who signed the sheet') }}</legend>
+      {% for e in prog.missing %}<label class="chip"><input type="checkbox" name="emp" value="{{ e.employee_id }}"> <span class="mono">{{ e.employee_id }}</span> {{ e.full_name_en }}</label>{% endfor %}</fieldset>
+    <div class="bar wide"><button>{{ _('Record') }}</button></div>
+  </form>
+  {% else %}
+  <p class="note">{{ _('Not yet') }}: {{ prog.missing|length }}</p>
+  {% endif %}
+  {% endif %}
+  {% endif %}
+  {% if history %}<h3 style="margin-top:14px">{{ _('Other versions') }}</h3><ul class="timeline">{% for h in history %}<li><a href="/docs/policy/{{ h.id }}">v{{ h.version }}</a> · {{ fmt_date(h.effective_on) }} · {{ _({'draft': 'Draft', 'published': 'In force', 'retired': 'Replaced'}[h.status]) }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+</div>
+{% endblock %}

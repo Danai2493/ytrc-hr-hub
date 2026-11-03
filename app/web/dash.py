@@ -57,7 +57,26 @@ def ot_dash(request: Request, d0: str = "", d1: str = "", db: Session = Depends(
 def att_dash(request: Request, d0: str = "", d1: str = "", db: Session = Depends(get_db), user=Depends(require(*VIEW))):
     scope = user_scope(db, user)
     a, b = _range(d0, d1, 30)
-    return render(request, "dash/attendance.html", {"tab": "attendance", "d0": a, "d1": b, "ab": A.absence(db, scope, a, b)})
+    return render(request, "dash/attendance.html", {"tab": "attendance", "d0": a, "d1": b, "ab": A.absence(db, scope, a, b),
+                                                    "pat": A.absence_patterns(db, scope, a, b)})
+
+
+@router.get("/retention")
+def retention_dash(request: Request, db: Session = Depends(get_db), user=Depends(require(*VIEW))):
+    scope = user_scope(db, user)
+    return render(request, "dash/retention.html", {"tab": "retention", "r": A.retention(db, scope)})
+
+
+@router.get("/cost")
+def cost_dash(request: Request, db: Session = Depends(get_db), user=Depends(require("hr", "hr_manager", "gm"))):
+    scope = user_scope(db, user)
+    return render(request, "dash/cost.html", {"tab": "cost", "c": A.people_cost(db, scope, 12)})
+
+
+@router.get("/mix")
+def mix_dash(request: Request, db: Session = Depends(get_db), user=Depends(require(*VIEW))):
+    scope = user_scope(db, user)
+    return render(request, "dash/mix.html", {"tab": "mix", "m": A.workforce_mix(db, scope)})
 
 
 @router.get("/kpi")

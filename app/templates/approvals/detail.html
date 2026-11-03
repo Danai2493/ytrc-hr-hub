@@ -20,7 +20,9 @@
         <dl class="kv">{% for k, v in p.data.items() if v %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
         {% if p.restricted and p.restricted.values() | select | list %}<p class="note">{{ _('Restricted fields are included and hidden here.') }}</p>{% endif %}
       {% elif p.action == 'event' %}
-        <dl class="kv">{% for k, v in p.items() if v and k != 'action' %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+        <dl class="kv">{% for k, v in p.items() if v and k not in ('action', 'checks', 'interest_id') %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+        {% if p.checks %}<h3>{{ _('Move criteria') }}</h3>{{ findings(p.checks, rt) }}<p class="note">{{ _('Checked when the request was sent. These are facts for the approvers, not a gate.') }}</p>{% endif %}
+        {% if p.interest_id %}<p class="note">{{ _('From the internal job board: the employee raised their hand for this job.') }}</p>{% endif %}
       {% endif %}
     {% endif %}
     {% if emp %}<p class="note">{{ _('About') }} <a href="/people/{{ emp.employee_id }}">{{ emp.employee_id }} {{ emp.full_name_en }}</a> · {{ emp.org_unit.name_en }}</p>{% endif %}

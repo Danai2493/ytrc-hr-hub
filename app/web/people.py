@@ -31,7 +31,9 @@ from ..models.core import (
     TEAMS,
     TITLES,
 )
+from ..models.docs import DOC_TYPES
 from ..security import check_csrf, client_ip, current_user, require
+from ..services import mobility as J
 from ..services import people as P
 from ..services.common import audit, next_free_employee_id, user_scope
 from .templating import flash, redirect, render
@@ -141,7 +143,12 @@ def detail(request: Request, emp_id: str, db: Session = Depends(get_db), user=De
     if show_restricted:
         audit(db, user, "view_restricted", "employee", emp_id, "Viewed restricted data", ip=client_ip(request))
         db.commit()
-    return render(request, "people/detail.html", {"emp": emp, "ot": ot, "issues": issues, "reqs": reqs, "show_restricted": show_restricted, "soft": P.soft_checks(db, emp), "unit_on": P.org_unit_on, **_lists(db)})
+    from ..services import docs as D
+
+    docs = D.documents(db, emp_id) if D.can_see_docs(user, emp) else None
+    return render(request, "people/detail.html", {"docs": docs, "doc_state": D.state, "doc_days": D.alert_days(db), "today": date.today(),
+                                                  "doc_types": DOC_TYPES,
+                                                  "doc_needed": D.needed_types(emp), "emp": emp, "ot": ot, "issues": issues, "reqs": reqs, "show_restricted": show_restricted, "soft": P.soft_checks(db, emp), "unit_on": P.org_unit_on, **_lists(db)})
 
 
 @router.get("/{emp_id}/edit")
@@ -171,7 +178,14 @@ def event_form(request: Request, emp_id: str, type: str = "transfer", db: Sessio
     emp = db.get(Employee, emp_id) or _404()
     if not _visible(db, user, emp):
         _404()
-    return render(request, "people/event.html", {"emp": emp, "etype": type, "steps": P.EVENT_STEPS, **_lists(db)})
+    qp = request.query_params
+    data = {k: qp.get(k) for k in ("to_org_unit", "to_position", "to_job", "to_grade", "note") if qp.get(k)}
+    if qp.get("interest", "").isdigit():
+        data["interest_id"] = qp["interest"]
+    checks = None
+    if type in J.MOVE_TYPES and data.get("to_position"):
+        checks = J.move_checks(db, emp, data.get("to_position"), data.get("to_job"), data.get("to_grade"), type)
+    return render(request, "people/event.html", {"emp": emp, "etype": type, "steps": P.EVENT_STEPS, "data": data, "checks": checks, **_lists(db)})
 
 
 @router.post("/{emp_id}/event", dependencies=[Depends(check_csrf)])
@@ -182,11 +196,24 @@ async def event_submit(request: Request, emp_id: str, db: Session = Depends(get_
     form = dict(await request.form())
     etype = form.get("event_type", "")
     data = {k: form.get(k) or None for k in ("effective_date", "to_org_unit", "to_position", "to_job", "to_grade", "to_group", "reason_code", "note")}
+    iid = int(form["interest_id"]) if (form.get("interest_id") or "").isdigit() else None
+    if form.get("do") == "check":
+        checks = J.move_checks(db, emp, data.get("to_position"), data.get("to_job"), data.get("to_grade"), etype) if etype in J.MOVE_TYPES else []
+        return render(request, "people/event.html", {"emp": emp, "etype": etype, "data": {**data, "interest_id": iid}, "checks": checks,
+                                                     "steps": P.EVENT_STEPS, **_lists(db)})
     try:
-        appr = P.request_event(db, user, emp, etype, data)
+        appr = P.request_event(db, user, emp, etype, data, interest_id=iid)
+        if iid:
+            from ..models.recruit import InternalInterest
+
+            ii = db.get(InternalInterest, iid)
+            if ii is None or ii.employee_id != emp.employee_id:
+                raise P.PeopleError("Internal application not found for this employee")
+            J.link_move(db, ii, appr.id)
     except P.PeopleError as e:
         db.rollback()
-        return render(request, "people/event.html", {"emp": emp, "etype": etype, "error": str(e), "data": data, "steps": P.EVENT_STEPS, **_lists(db)}, 400)
+        return render(request, "people/event.html", {"emp": emp, "etype": etype, "error": str(e), "data": {**data, "interest_id": iid},
+                                                     "steps": P.EVENT_STEPS, **_lists(db)}, 400)
     db.commit()
     flash(request, f"{etype.replace('_', ' ').title()} sent for approval (request #{appr.id})")
     return redirect(f"/approvals/{appr.id}")

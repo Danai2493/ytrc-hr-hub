@@ -55,6 +55,10 @@ RULES = {
     "GOALS_LATE": ("flag", "dept_head", "Yearly goals not agreed by the due date"),
     "REVIEW_LATE": ("flag", "dept_head", "Appraisal not finished by the due date"),
     "NO_REVIEWER": ("block", "hr", "Appraisal has no supervisor to review it"),
+    "DOC_EXPIRY": ("flag", "hr", "Personnel document expired or expiring"),
+    "DOC_MISSING": ("info", "hr", "Required personnel document not on file"),
+    "POLICY_ACK": ("flag", "hr", "Policy not acknowledged by the due date"),
+    "TRAINING_FOLLOWUP": ("flag", "dept_head", "Training not followed up on the job after 3 months"),
 }
 
 
@@ -232,6 +236,43 @@ def _develop(db: Session, today: date) -> Iterator[Hit]:
                       r.employee.org_unit_code, today)
 
 
+def _docs(db: Session, today: date) -> Iterator[Hit]:
+    from ..models.docs import DOC_TYPES
+    from . import docs as D
+
+    for r in D.watchlist(db, today):
+        h = dict(employee_id=r.employee.employee_id, org_unit=r.employee.org_unit_code)
+        label = DOC_TYPES[r.doc_type][0]
+        if r.problem == "missing":
+            yield Hit("DOC_MISSING", "employee_document", f"{r.employee.employee_id}:{r.doc_type}", f"{label} not on file", due=today + timedelta(days=30), **h)
+        elif r.doc_type not in ("work_permit",):  # work permits have their own legal rule
+            when = r.doc.expires_on
+            yield Hit("DOC_EXPIRY", "employee_document", str(r.doc.id), f"{label} {'expired' if r.problem == 'expired' else 'expires'} {when}",
+                      due=max(today, when - timedelta(days=14)), **h)
+    for p in D.published(db):
+        if not p.ack_required or D.ack_due(p) >= today:
+            continue
+        pr = D.progress(db, p)
+        if pr["missing"]:
+            yield Hit("POLICY_ACK", "policy", f"{p.code}-v{p.version}", f"{p.code} v{p.version}: {len(pr['missing'])} of {pr['people']} people have not acknowledged",
+                      due=today + timedelta(days=7))
+
+
+def _training(db: Session, today: date) -> Iterator[Hit]:
+    from ..models import TrainingRecord
+    from .trainplan import L3_LATE_DAYS
+
+    late: dict[str, list] = {}
+    for r in db.scalars(select(TrainingRecord).where(TrainingRecord.l3_result.is_(None), TrainingRecord.result != "failed",
+                                                     TrainingRecord.on_date < today - timedelta(days=L3_LATE_DAYS),
+                                                     TrainingRecord.on_date >= today - timedelta(days=270))):
+        if r.employee.status == "Active" and r.session_ref:
+            late.setdefault(r.session_ref, []).append(r)
+    for ref, rs in late.items():
+        yield Hit("TRAINING_FOLLOWUP", "training_session", ref, f"{ref} {rs[0].course_code}: {len(rs)} people not followed up since {rs[0].on_date}",
+                  org_unit=rs[0].employee.org_unit_code, due=today + timedelta(days=14))
+
+
 def run(db: Session, today: Optional[date] = None) -> dict:
     today = today or date.today()
     from .newstaff import sync_reviews
@@ -240,7 +281,7 @@ def run(db: Session, today: Optional[date] = None) -> dict:
     sync_reviews(db, today)
     generate_needs(db, today)
     hits: dict[tuple[str, str, str], Hit] = {}
-    for gen in (_employees, _org, _time, _hrdev, _develop, _recruit, _perform):
+    for gen in (_employees, _org, _time, _hrdev, _develop, _recruit, _perform, _docs, _training):
         for h in gen(db, today):
             hits[(h.rule, h.entity, h.entity_id)] = h
     open_issues = {

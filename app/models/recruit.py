@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Float, JSON, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db import Base, Timestamps
@@ -79,11 +79,15 @@ class Requisition(Timestamps, Base):
     ad_ai: Mapped[bool] = mapped_column(Boolean, default=False)
     channels: Mapped[list] = mapped_column(JSON, default=list)  # where the ad is posted
     hired: Mapped[int] = mapped_column(Integer, default=0)
+    hire_cost: Mapped[Optional[float]] = mapped_column(Float)  # THB spent to fill it: ads, agency, travel for interviews
+    internal: Mapped[bool] = mapped_column(Boolean, default=False)  # shown on the internal job board
+    internal_until: Mapped[Optional[date]] = mapped_column(Date)  # employees can raise their hand until this day
 
     org_unit: Mapped[OrgUnit] = relationship()
     position: Mapped[Optional[Position]] = relationship()
     job: Mapped[Job] = relationship()
     applications: Mapped[list["Application"]] = relationship(back_populates="requisition", order_by="Application.id")
+    interests: Mapped[list["InternalInterest"]] = relationship(back_populates="requisition", order_by="InternalInterest.id")
 
     @property
     def open_seats(self) -> int:
@@ -185,3 +189,36 @@ class Interview(Timestamps, Base):
 
     application: Mapped[Application] = relationship(back_populates="interviews")
     interviewer_employee: Mapped[Optional[Employee]] = relationship()
+
+
+INTEREST_STATUSES = {
+    "interested": "Raised hand",
+    "talking": "HR is talking with them",
+    "moving": "Move sent for approval",
+    "moved": "Moved",
+    "not_now": "Not this time",
+    "withdrawn": "Withdrew",
+}
+OPEN_INTEREST = ("interested", "talking", "moving")
+
+
+class InternalInterest(Timestamps, Base):
+    """An employee raises their hand for an internal job. HR talks with them
+    first, then informs the current supervisor: people should not fear asking."""
+
+    __tablename__ = "internal_interest"
+    __table_args__ = (UniqueConstraint("requisition_id", "employee_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    requisition_id: Mapped[int] = mapped_column(ForeignKey("requisition.id"), index=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employee.employee_id"), index=True)
+    note: Mapped[Optional[str]] = mapped_column(Text)  # why I want this job
+    status: Mapped[str] = mapped_column(String(10), default="interested", index=True)
+    checks: Mapped[list] = mapped_column(JSON, default=list)  # move criteria when the hand was raised
+    supervisor_told_on: Mapped[Optional[date]] = mapped_column(Date)
+    hr_note: Mapped[Optional[str]] = mapped_column(String(300))
+    decided_by: Mapped[Optional[str]] = mapped_column(String(160))
+    approval_id: Mapped[Optional[int]] = mapped_column(Integer)
+
+    requisition: Mapped[Requisition] = relationship(back_populates="interests")
+    employee: Mapped[Employee] = relationship()

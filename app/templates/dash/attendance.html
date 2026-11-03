@@ -19,5 +19,10 @@
     {% if kinds %}{{ hbar(kinds | sort(attribute=1, reverse=True), ' d') }}{% else %}<p class="note">{{ _('None') }}</p>{% endif %}</section>
   <section class="panel c6"><h2>{{ _('Most absent days') }}</h2>
     <table>{% for eid, n in ab.frequent %}<tr><td><a class="mono" href="/people/{{ eid }}">{{ eid }}</a></td><td class="n">{{ n }}</td></tr>{% else %}<tr><td class="note">{{ _('None') }}</td></tr>{% endfor %}</table></section>
+  <section class="panel c6"><h2>{{ _('Short, repeated absences') }}</h2>
+    <p class="note">{{ _('Bradford score = spells x spells x days. Five one-day absences (125) disrupt the line more than one five-day sickness (5). Use it to start a return-to-work talk, never as a penalty on its own.') }}</p>
+    <div class="scroll"><table class="nocards"><tr><th>{{ _('Employee') }}</th><th class="n">{{ _('Spells') }}</th><th class="n">{{ _('Days') }}</th><th class="n">{{ _('Score') }}</th></tr>
+    {% for e, sp, d, bf in pat.bradford %}<tr><td><a class="mono" href="/people/{{ e.employee_id }}">{{ e.employee_id }}</a> {{ e.full_name_en }}</td><td class="n">{{ sp }}</td><td class="n">{{ d }}</td><td class="n {{ 'neg' if bf >= 50 else '' }}">{{ bf }}</td></tr>{% else %}<tr><td class="note" colspan="4">{{ _('None') }}</td></tr>{% endfor %}</table></div>
+    {% if pat.near_rest_pct is not none %}<p class="note">{{ pat.near_rest_pct }}% {{ _('of absent days are right before or after a rest day or holiday') }} ({{ pat.near_rest }} / {{ pat.absent }}).</p>{% endif %}</section>
 </div>
 {% endblock %}

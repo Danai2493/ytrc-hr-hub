@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import hbar %}
+{% block content %}
+{% include "dash/_tabs.html" %}
+<p class="lead">{{ _('The last 12 months. Retirements and transfers to a new ID are not counted as turnover.') }}</p>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Turnover, 12 months') }}</span><span class="v">{{ r.turnover }}%</span><span class="d">{{ r.leavers }} {{ _('leavers') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Resigned by choice') }}</span><span class="v">{{ r.vol_turnover }}%</span><span class="d">{{ r.voluntary }} {{ _('people') }} · {{ _('other') }} {{ r.involuntary }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Stability') }}</span><span class="v">{{ r.stability if r.stability is not none else '-' }}%</span><span class="d">{{ _('of people here a year ago are still here') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('New hires kept one year') }}</span><span class="v">{{ (r.cohort_pct ~ '%') if r.cohort_pct is not none else '-' }}</span><span class="d">{{ r.cohort_kept }} / {{ r.cohort }} {{ _('hired 12-24 months ago') }}</span></div>
+</div>
+<div class="grid">
+<section class="panel c6"><h2>{{ _('How long leavers stayed') }}</h2>
+  {% set r_tenure = [] %}{% for l, n in r.tenure %}{% set _x = r_tenure.append((_(l), n)) %}{% endfor %}{{ hbar(r_tenure, '', 'var(--s2)') }}
+  {% if r.first_year_pct is not none %}<p class="note">{{ r.first_year_pct }}% {{ _('of leavers went in their first year: look at hiring, onboarding and the first supervisor.') }}</p>{% endif %}</section>
+<section class="panel c6"><h2>{{ _('By group') }}</h2>
+  <table class="nocards"><tr><th>{{ _('Group') }}</th><th class="n">{{ _('Headcount') }}</th><th class="n">{{ _('Leavers') }}</th><th class="n">%</th></tr>
+  {% for g, hc, n, pct in r.by_group %}<tr><td>{{ _(g) }}</td><td class="n">{{ hc }}</td><td class="n">{{ n }}</td><td class="n">{{ pct if pct is not none else '-' }}</td></tr>{% endfor %}</table></section>
+<section class="panel c12"><h2>{{ _('By department') }}</h2>
+  <div class="scroll"><table class="nocards"><tr><th>{{ _('Department') }}</th><th class="n">{{ _('Headcount') }}</th><th class="n">{{ _('Leavers') }}</th><th class="n">{{ _('Turnover %') }}</th></tr>
+  {% for d, hc, n, pct in r.by_dept %}<tr><td>{{ d }}</td><td class="n">{{ hc }}</td><td class="n">{{ n }}</td><td class="n {{ 'neg' if pct and pct >= 20 and hc >= 5 else '' }}">{{ pct if pct is not none else '-' }}{% if hc < 5 and n %} <span class="note">*</span>{% endif %}</td></tr>{% endfor %}</table></div>
+  <p class="note">* {{ _('Fewer than 5 people: one leaver moves the % a lot, so read it as a count.') }}</p>
+  <p class="note">{{ _('Exit reasons and exit interview scores are on the People & turnover tab. People who might leave are under Plan ahead.') }}</p></section>
+</div>
+{% endblock %}

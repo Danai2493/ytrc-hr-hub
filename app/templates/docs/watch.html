@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+{% include "docs/_tabs.html" %}
+<p class="lead">{{ _('Copies of contracts, ID cards, passports, visas, licences and medical checks. Expiring documents show here') }} {{ days }} {{ _('days ahead. Scans are HR-only; every time a scan is opened it is logged.') }}</p>
+<div class="kpis">
+  <a class="kpi" href="?problem=expired"><span class="k">{{ _('Expired') }}</span><span class="v">{{ counts.expired }}</span></a>
+  <a class="kpi" href="?problem=soon"><span class="k">{{ _('Expiring soon') }}</span><span class="v">{{ counts.soon }}</span></a>
+  <a class="kpi" href="?problem=missing"><span class="k">{{ _('Not on file') }}</span><span class="v">{{ counts.missing }}</span><span class="d">{{ _('contract for everyone, ID card for Thai staff, passport, visa and permit for foreign workers') }}</span></a>
+</div>
+<section class="panel"><h2>{{ _('Needs action') }} <span class="note">{{ rows|length }}</span>{% if problem %} · <a href="/docs/watch">{{ _('Show all') }}</a>{% endif %}</h2>
+{% if not rows %}<p class="note">{{ _('Nothing to do.') }}</p>{% else %}
+<div class="scroll"><table><tr><th>{{ _('Employee') }}</th><th>{{ _('Unit') }}</th><th>{{ _('Document') }}</th><th>{{ _('Problem') }}</th><th></th></tr>
+{% for r in rows[:300] %}<tr>
+  <td><span class="mono">{{ r.employee.employee_id }}</span> {{ r.employee.full_name_en }}</td>
+  <td>{{ units[r.employee.org_unit_code].name_en if r.employee.org_unit_code in units else r.employee.org_unit_code }}</td>
+  <td>{{ _(doc_types[r.doc_type][0]) }}{% if r.doc and r.doc.title %} · {{ r.doc.title }}{% endif %}</td>
+  <td>{% if r.problem == 'missing' %}<span class="tag info">{{ _('Not on file') }}</span>{% elif r.problem == 'expired' %}<span class="tag bad">{{ _('Expired') }} {{ fmt_date(r.doc.expires_on) }}</span>{% else %}<span class="tag warn">{{ _('Expires') }} {{ fmt_date(r.doc.expires_on) }}</span>{% endif %}</td>
+  <td><a class="btn small" href="/people/{{ r.employee.employee_id }}#docs">{{ _('Open') }}</a></td>
+</tr>{% endfor %}</table></div>{% if rows|length > 300 %}<p class="note">{{ _('First 300 shown.') }}</p>{% endif %}{% endif %}
+</section>
+{% endblock %}

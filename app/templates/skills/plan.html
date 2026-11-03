@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import columns %}
+{% block content %}
+{% include "skills/_tabs.html" %}
+<form class="filters"><label>{{ _('Year') }}<select name="year" onchange="this.form.submit()">{% for x in [today.year - 1, today.year, today.year + 1] %}<option value="{{ x }}" {% if x == y %}selected{% endif %}>{{ x }}</option>{% endfor %}</select></label>
+{% if is_hr %}<span class="end"></span>{% endif %}</form>
+{% if is_hr %}<form method="post" class="bar" style="margin-bottom:12px"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="do" value="draft"><input type="hidden" name="year" value="{{ y }}">
+  <button class="primary">{{ _('Draft the plan from training needs') }}</button><span class="note">{{ _('Adds courses that are not in the plan yet: open training needs, licences that lapse this year, and development plans. Move months and numbers after.') }}</span></form>{% endif %}
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('Planned places') }} {{ y }}</span><span class="v">{{ tot.planned }}</span><span class="d">{{ _('budget') }} {{ '{:,.0f}'.format(tot.budget) }} {{ _('THB') }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Trained so far') }}</span><span class="v">{{ tot.done }}</span><span class="d">{% if tot.planned %}{{ (100 * tot.done / tot.planned)|round|int }}% {{ _('of plan') }}{% endif %}</span></div>
+  <div class="kpi"><span class="k">{{ _('Training hours') }}</span><span class="v">{{ tot.hours|round|int }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Cost so far') }}</span><span class="v">{{ '{:,.0f}'.format(tot.cost) }}</span><span class="d">{{ _('THB') }}{% if tot.budget %} · {{ (100 * tot.cost / tot.budget)|round|int }}% {{ _('of budget') }}{% endif %}</span></div>
+</div>
+<section class="panel"><h2>{{ _('Places by month') }}</h2>
+  {{ columns(['1','2','3','4','5','6','7','8','9','10','11','12'], [(_('Trained'), 'var(--s3)', tot.by_month|map(attribute='done')|list)], line=tot.by_month|map(attribute='planned')|list, line_label=_('Planned')) }}
+</section>
+<section class="panel"><h2>{{ _('Plan and actual by course') }}</h2>
+{% if not rows %}<p class="note">{{ _('No plan yet.') }}</p>{% else %}
+<div class="scroll"><table><tr><th>{{ _('Course') }}</th><th>{{ _('Month') }}</th><th>{{ _('Why') }}</th><th class="n">{{ _('Planned') }}</th><th class="n">{{ _('Done') }}</th><th class="n">{{ _('Budget') }}</th><th class="n">{{ _('Cost') }}</th>{% if is_hr %}<th></th>{% endif %}</tr>
+{% for r in rows %}<tr>
+  <td>{{ r.course.code }} {{ _(r.course.name_en) }}{% if r.course.legal %} <span class="tag warn">{{ _('legal') }}</span>{% endif %}{% if not r.items %} <span class="tag info">{{ _('Not in plan') }}</span>{% endif %}</td>
+  <td>{{ r.months|join(', ') }}</td>
+  <td>{% for src in r.items|map(attribute='source')|unique %}{{ _(sources[src]) }}{% if not loop.last %}, {% endif %}{% endfor %}</td>
+  <td class="n">{{ r.planned_people or '' }}</td>
+  <td class="n {{ 'pos' if r.planned_people and r.done_people >= r.planned_people else '' }}">{{ r.done_people or '' }}</td>
+  <td class="n">{{ '{:,.0f}'.format(r.budget) if r.budget else '' }}</td><td class="n">{{ '{:,.0f}'.format(r.cost) if r.cost else '' }}</td>
+  {% if is_hr %}<td>{% for i in r.items %}<details><summary class="note">{{ _('Edit month') }} {{ i.month }}</summary>
+    <form method="post" class="form" style="min-width:260px"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="year" value="{{ y }}"><input type="hidden" name="item" value="{{ i.id }}">
+      <label>{{ _('Month') }}<input type="number" name="month" min="1" max="12" value="{{ i.month }}"></label>
+      <label>{{ _('People') }}<input type="number" name="people" min="1" value="{{ i.people }}"></label>
+      <label>{{ _('Budget') }}<input name="budget" value="{{ i.budget or '' }}" inputmode="decimal"></label>
+      <label>{{ _('Status') }}<select name="status">{% for k in ['planned', 'done', 'cancelled'] %}<option value="{{ k }}" {% if i.status == k %}selected{% endif %}>{{ _(k|capitalize) }}</option>{% endfor %}</select></label>
+      <div class="bar wide"><button class="small">{{ _('Save') }}</button></div></form></details>{% endfor %}</td>{% endif %}
+</tr>{% endfor %}</table></div>{% endif %}
+{% if is_hr %}
+<details style="margin-top:12px"><summary><b>{{ _('Add a course to the plan') }}</b></summary>
+<form method="post" class="form" style="margin-top:10px"><input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="year" value="{{ y }}">
+  <label>{{ _('Course') }}<select name="course">{% for c in courses %}<option value="{{ c.code }}">{{ c.code }} {{ _(c.name_en) }}</option>{% endfor %}</select></label>
+  <label>{{ _('Month') }}<input type="number" name="month" min="1" max="12" value="{{ today.month if y == today.year else 1 }}"></label>
+  <label>{{ _('People') }}<input type="number" name="people" min="1" value="10"></label>
+  <label>{{ _('Budget (empty = course fee x people)') }}<input name="budget" inputmode="decimal"></label>
+  <label>{{ _('Unit') }}<select name="unit"><option value="">{{ _('All units') }}</option>{% for u in units %}<option value="{{ u.code }}">{{ u.name_en }}</option>{% endfor %}</select></label>
+  <div class="bar wide"><button class="primary">{{ _('Add') }}</button></div>
+</form></details>{% endif %}
+</section>
+{% endblock %}

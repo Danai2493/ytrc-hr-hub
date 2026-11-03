@@ -228,7 +228,7 @@ def request_update(db: Session, user: User, emp: Employee, data: dict, note: str
     )
 
 
-def request_event(db: Session, user: User, emp: Employee, event_type: str, data: dict) -> ApprovalRequest:
+def request_event(db: Session, user: User, emp: Employee, event_type: str, data: dict, interest_id: Optional[int] = None) -> ApprovalRequest:
     if event_type not in EVENT_STEPS:
         raise PeopleError("Unknown event type")
     data = clean(data)
@@ -263,6 +263,15 @@ def request_event(db: Session, user: User, emp: Employee, event_type: str, data:
         elif s == "gm":
             steps.append(StepSpec("gm", role="gm"))
     payload = {"action": "event", "event_type": event_type, **_json(data), "effective_date": eff.isoformat()}
+    from . import mobility
+
+    if event_type in mobility.MOVE_TYPES:
+        checks = mobility.move_checks(db, emp, data.get("to_position"), data.get("to_job"), data.get("to_grade"), event_type)
+        if any(c["level"] == "block" for c in checks):
+            raise PeopleError("The target position is frozen: unfreeze it in Org & positions first")
+        payload["checks"] = checks
+    if interest_id:
+        payload["interest_id"] = interest_id
     return approvals.submit(
         db,
         request_type="EVENT",
@@ -344,9 +353,13 @@ def _apply_change(db: Session, appr: ApprovalRequest, outcome: str, user: User) 
 
 @approvals.on_close("EVENT")
 def _apply_event(db: Session, appr: ApprovalRequest, outcome: str, user: User) -> None:
+    p = appr.payload or {}
+    if p.get("interest_id"):
+        from . import mobility
+
+        mobility.on_move_closed(db, p["interest_id"], outcome)
     if outcome != "approved":
         return
-    p = appr.payload or {}
     emp = db.get(Employee, appr.entity_id)
     ev = EmploymentEvent(
         employee_id=emp.employee_id,

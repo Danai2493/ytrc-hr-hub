@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/charts.html" import status_tag %}
+{% from "partials/charts.html" import status_tag, findings %}
 {% block content %}
 {% include "recruit/_tabs.html" %}
 <div class="phead"><h2><span class="mono">{{ req.ref }}</span> · {{ req.headcount }} × {{ req.job.title_th if lang == 'th' and req.job.title_th else req.job.title_en }}</h2>{{ status_tag(req.status) }}
@@ -41,11 +41,45 @@
       <label class="half">{{ _('Thai') }}<textarea name="ad_th" rows="9">{{ req.ad_th or '' }}</textarea></label>
       <label class="half">{{ _('English') }}<textarea name="ad_en" rows="9">{{ req.ad_en or '' }}</textarea></label>
       <label class="wide">{{ _('Posted on') }}<span>{% for k, v in sources.items() if k not in ('walk_in', 'referral', 'rehire', 'other') %}<label style="display:inline;min-width:auto"><input type="checkbox" name="channels" value="{{ k }}" {% if k in (req.channels or []) %}checked{% endif %}> {{ _(v) }}</label> {% endfor %}</span></label>
+      <label>{{ _('Hiring cost so far (THB): ads, agency, travel') }}<input name="hire_cost" inputmode="decimal" value="{{ req.hire_cost or '' }}"></label>
       <div class="bar wide"><button class="primary">{{ _('Save ad') }}</button><button name="do" value="ai" data-confirm="{{ _('Replace the ad with a new AI draft?') }}">{{ _('New AI draft from the JD') }}</button></div>
     </form>
     <p class="note">{{ _('The ad never shows pay. It must not ask for age, gender, religion or marital status unless the job legally needs it.') }}</p>
     {% else %}<div class="grid"><pre class="c6 wrap">{{ req.ad_th or '' }}</pre><pre class="c6 wrap">{{ req.ad_en or '' }}</pre></div>{% endif %}
   </section>
+  {% if is_hr %}
+  <section class="panel c12" id="internal">
+    <h2>{{ _('Internal job board') }}{% if req.internal %} <span class="tag ok">{{ _('shown to employees') }}</span>{% endif %}</h2>
+    <form method="post" action="/jobs/req/{{ req.id }}" class="bar">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label style="display:inline;min-width:auto"><input type="checkbox" name="internal" value="1" {% if req.internal %}checked{% endif %}> {{ _('Show this job to employees first') }}</label>
+      <label>{{ _('Employees can apply until') }} <input type="date" name="internal_until" value="{{ req.internal_until or '' }}"></label>
+      <button class="small">{{ _('Save') }}</button>
+    </form>
+    <p class="note">{{ _('Employees see the Thai or English ad above, never pay. HR talks with each person first, then tells their supervisor.') }}</p>
+    {% if interests %}
+    <div class="scroll"><table class="cards">
+      <tr><th>{{ _('Employee') }}</th><th>{{ _('Now') }}</th><th>{{ _('Why they want it') }}</th><th>{{ _('Move criteria') }}</th><th>{{ _('Status') }}</th><th></th></tr>
+      {% for ii in interests %}
+      <tr>
+        <td data-l="{{ _('Employee') }}"><a href="/people/{{ ii.employee_id }}">{{ ii.employee_id }}</a> {{ ii.employee.full_name_en }}</td>
+        <td data-l="{{ _('Now') }}">{{ ii.employee.org_unit_code }} · {{ ii.employee.grade_code or '-' }}</td>
+        <td data-l="{{ _('Why they want it') }}">{{ ii.note or '' }}</td>
+        <td data-l="{{ _('Move criteria') }}">{{ findings(ii.checks or [], rt) }}</td>
+        <td data-l="{{ _('Status') }}">{{ _(interest_statuses[ii.status]) }}{% if ii.supervisor_told_on %}<div class="note">{{ _('Supervisor told') }} {{ fmt_date(ii.supervisor_told_on) }}</div>{% endif %}{% if ii.hr_note %}<div class="note">{{ ii.hr_note }}</div>{% endif %}{% if ii.approval_id %}<div><a href="/approvals/{{ ii.approval_id }}">#{{ ii.approval_id }}</a></div>{% endif %}</td>
+        <td>{% if ii.status in ('interested', 'talking') %}
+          <form method="post" action="/jobs/interest/{{ ii.id }}" class="rowform"><input type="hidden" name="_csrf" value="{{ csrf }}">
+            <select name="status">{% for k in ('interested', 'talking', 'not_now') %}<option value="{{ k }}" {% if k == ii.status %}selected{% endif %}>{{ _(interest_statuses[k]) }}</option>{% endfor %}</select>
+            <input name="note" placeholder="{{ _('Note for the employee') }}" value="{{ ii.hr_note or '' }}">
+            <label style="display:inline;min-width:auto"><input type="checkbox" name="told" value="1" {% if ii.supervisor_told_on %}checked disabled{% endif %}> {{ _('Supervisor told') }}</label>
+            <button class="small">{{ _('Save') }}</button></form>
+          {% if ii.status == 'talking' %}<a class="btn small primary" href="/jobs/interest/{{ ii.id }}/move">{{ _('Start the move') }}</a>{% endif %}
+        {% endif %}</td>
+      </tr>{% endfor %}
+    </table></div>
+    {% elif req.internal %}<p class="note">{{ _('Nobody has raised their hand yet.') }}</p>{% endif %}
+  </section>
+  {% endif %}
   <section class="panel c12 scroll">
     <h2>{{ _('Candidates') }}</h2>
     <div class="board">

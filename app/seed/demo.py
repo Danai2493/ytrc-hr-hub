@@ -162,6 +162,10 @@ def seed_demo(db: Session, today: date | None = None) -> dict:
     _demo_pulse(db, rnd, today, users)
     _demo_grading(db, users)
     _demo_plan(db, today, users)
+    _demo_docs(db, today, users)
+    _demo_training_eval(db, today, users)
+    _demo_cost(db, today)
+    _demo_jobs(db, today, users)
     health.run(db, today)
     audit(db, admin, "seed", "demo", None, "SAMPLE demo data loaded")
     db.flush()
@@ -900,4 +904,210 @@ def _demo_plan(db: Session, today: date, users: dict) -> None:
     db.add(StayTalk(employee_id="YTOP964", on=today - timedelta(days=12), by=hrm.label,
                     note="SAMPLE. Feels stuck after 3 years; wants to lead a shift. Agreed: acting shift leader on night shift from next month, review in 3 months.",
                     follow_up_on=today + timedelta(days=78)))
+    db.flush()
+
+
+def _sample_pdf(lines: list[str]) -> bytes:
+    """A one-page PDF with plain ASCII text, so the demo has real files to open."""
+    text = "BT /F1 12 Tf 60 780 Td 16 TL " + " ".join("(" + ln.replace("\\", "").replace("(", "[").replace(")", "]") + ") '" for ln in lines) + " ET"
+    objs = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+            f"<< /Length {len(text)} >>\nstream\n{text}\nendstream", "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    out, offs = b"%PDF-1.4\n", []
+    for i, o in enumerate(objs, 1):
+        offs.append(len(out))
+        out += f"{i} 0 obj\n{o}\nendobj\n".encode()
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode() + "".join(f"{o:010d} 00000 n \n" for o in offs).encode()
+    out += f"trailer << /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return out
+
+
+def _demo_docs(db: Session, today: date, users: dict) -> None:
+    """Personnel documents (mostly paper copies, a few expiring) and four SAMPLE policies with acknowledgements."""
+    from ..models import EmployeeDocument, EmployeeRestricted, Policy, PolicyAck
+    from ..services import docs as D
+
+    hr, hrm = users["hr.officer"], users["hr.manager"]
+    rnd = random.Random(7)
+    active = list(db.scalars(select(Employee).where(Employee.status == "Active").order_by(Employee.employee_id)))
+    for n, e in enumerate(active):
+        db.add(EmployeeDocument(employee_id=e.employee_id, doc_type="contract", issued_on=e.join_date, paper_only=True, uploaded_by=hr.label))
+        if e.nationality == "Thai":
+            if n % 11 == 5:
+                continue  # a few ID card copies missing, for the demo
+            exp = date(today.year + rnd.randint(1, 6), rnd.randint(1, 12), 15)
+            if n % 13 == 2:
+                exp = today + timedelta(days=25)
+            elif n % 13 == 7:
+                exp = today - timedelta(days=10)
+            db.add(EmployeeDocument(employee_id=e.employee_id, doc_type="id_card", number_tail=f"{rnd.randint(0, 9999):04d}", issued_on=exp.replace(year=exp.year - 8),
+                                    expires_on=exp, paper_only=True, uploaded_by=hr.label))
+        elif e.is_foreign_worker:
+            r = db.get(EmployeeRestricted, e.employee_id)
+            wp = r.work_permit_expiry if r and r.work_permit_expiry else None
+            pp = date(today.year + 3, (n % 12) + 1, 10) if n % 9 else today + timedelta(days=40)
+            db.add(EmployeeDocument(employee_id=e.employee_id, doc_type="passport", number_tail=f"{rnd.randint(0, 9999):04d}", expires_on=pp, paper_only=True, uploaded_by=hr.label))
+            if wp:
+                db.add(EmployeeDocument(employee_id=e.employee_id, doc_type="work_permit", expires_on=wp, paper_only=True, uploaded_by=hr.label))
+                db.add(EmployeeDocument(employee_id=e.employee_id, doc_type="visa", expires_on=wp, paper_only=True, uploaded_by=hr.label))
+    for eid, title, exp in (("YTR815", "Electrical work licence (SAMPLE)", today + timedelta(days=45)), ("YTOP979", "Forklift licence (SAMPLE)", today + timedelta(days=300)),
+                            ("YTR816", "Safety officer (jor-por-wor) certificate (SAMPLE)", None)):
+        db.add(EmployeeDocument(employee_id=eid, doc_type="certificate", title=title, expires_on=exp, paper_only=True, uploaded_by=hr.label))
+    db.flush()
+
+    def pdf(code: str, title: str, points: list[str]) -> str:
+        rel, _ = D.store(_sample_pdf([f"{code}  {title}", "SAMPLE policy for the demo. Not a real YTRC document.", ""] + points), "application/pdf", "policies")
+        return rel
+
+    pol = [
+        ("POL-HR-01", "Work rules (summary)", "ข้อบังคับเกี่ยวกับการทำงาน (สรุป)", "all", 2,
+         "1. Working days, hours and breaks follow your shift.\n2. Scan your face when you come in and when you leave.\n3. Tell your supervisor before the shift if you cannot come.\n4. Warnings stay in force for one year.",
+         "Version 2: clearer steps for reporting absence; face scan replaces the time card."),
+        ("POL-HR-02", "Overtime and working hours", "การทำงานล่วงเวลาและเวลาทำงาน", "all", 1,
+         "1. OT is voluntary and must be asked for before it starts.\n2. No more than 36 hours of OT and holiday work a week.\n3. Workers under 18: no OT, no holiday work, no night work.", None),
+        ("POL-HR-03", "Privacy notice for employees (PDPA)", "ประกาศความเป็นส่วนตัวสำหรับพนักงาน (PDPA)", "all", 1,
+         "1. HR keeps only the data needed to employ and pay you.\n2. Salaries and bank data stay in the payroll system.\n3. You may ask HR to see or correct your data.", None),
+        ("POL-SAF-01", "Safety rules on the production floor", "กฎความปลอดภัยในพื้นที่ผลิต", "Operator", 1,
+         "1. Wear safety shoes, cap and mask in production areas.\n2. Lock out machines before cleaning.\n3. Report every near miss to your supervisor.", None),
+    ]
+    for code, en, th, who, ver, summary, changes in pol:
+        if ver == 2:
+            old = Policy(code=code, version=1, title_en=en, title_th=th, summary="SAMPLE. Earlier version.", applies_to=who, effective_on=today - timedelta(days=700),
+                         status="retired", file_path=pdf(code, en + " v1", ["Earlier version."]), file_mime="application/pdf", published_by=hrm.label,
+                         published_at=datetime.combine(today - timedelta(days=700), time(9)))
+            db.add(old)
+        p = Policy(code=code, version=ver, title_en=en, title_th=th, summary="SAMPLE. " + summary, changes=changes, applies_to=who,
+                   effective_on=today - timedelta(days=60 if code != "POL-HR-03" else 5), ack_days=14, status="published", file_path=pdf(code, en, summary.split("\n")),
+                   file_mime="application/pdf", published_by=hrm.label, published_at=datetime.combine(today - timedelta(days=60 if code != "POL-HR-03" else 5), time(9)))
+        db.add(p)
+        db.flush()
+        for n, e in enumerate(D.audience(db, p)):
+            if code == "POL-HR-03" and (n % 3 == 0 or e.employee_id in ("YTR801", "YTR806")):
+                continue  # new privacy notice: about a third still to read, incl. two demo logins
+            if code != "POL-HR-03" and n % 17 == 4:
+                continue
+            web = e.employee_group != "Operator"
+            db.add(PolicyAck(policy_id=p.id, employee_id=e.employee_id, on=p.effective_on + timedelta(days=rnd.randint(0, 9)),
+                             method="web" if web else "briefing", recorded_by=(e.full_name_en if web else hr.label)))
+    db.flush()
+
+
+def _demo_training_eval(db: Session, today: date, users: dict) -> None:
+    """Course fees, class feedback and cost, supervisor follow-ups, and this year's training plan."""
+    from ..models import Course, EmployeeSkill, TrainingRecord
+    from ..services import trainplan as TP
+
+    rnd = random.Random(11)
+    for c in db.scalars(select(Course)):
+        if c.kind == "external":
+            c.cost_per_person = float(rnd.choice([1500, 2500, 3500, 4500]))
+        elif c.legal:
+            c.cost_per_person = 800.0
+    db.flush()
+    from ..services import skills as SK
+
+    hr = users["hr.officer"]
+    for code, unit, days, trainer in (("CR-SAF-02", "PRD-DRY", 55, "Safety officer (SAMPLE)"), ("CR-SAF-03", "PRD-PCL", 100, "Fire brigade trainer (SAMPLE)"),
+                                      ("CR-DRY-01", "PRD-DRY", 160, "Dao Sample (SAMPLE)")):
+        c = db.get(Course, code)
+        ids = [e.employee_id for e in db.scalars(select(Employee).where(Employee.status == "Active", Employee.org_unit_code == unit,
+                                                                         Employee.employee_group == "Operator").order_by(Employee.employee_id))][:6]
+        SK.record_session(db, hr, c, today - timedelta(days=days), ids, {}, trainer, None, "SAMPLE class")
+    db.flush()
+    sessions: dict[str, list] = {}
+    for r in db.scalars(select(TrainingRecord).order_by(TrainingRecord.on_date)):
+        sessions.setdefault(r.session_ref or f"#{r.id}", []).append(r)
+    notes = {"partly": "Needs more practice on the night shift (SAMPLE)", "not_yet": "No chance to use it yet: machine not installed (SAMPLE)"}
+    for ref, rs in sessions.items():
+        c = rs[0].course
+        l1 = round(rnd.uniform(3.4, 4.7), 1)
+        fee = (c.cost_per_person or 0) * len(rs)
+        for r in rs:
+            r.l1_score = l1
+            r.cost = round(fee / len(rs), 2) if fee else None
+            if c.skill_code and r.level_before is None:
+                es = db.scalar(select(EmployeeSkill).where(EmployeeSkill.employee_id == r.employee_id, EmployeeSkill.skill_code == c.skill_code))
+                hist = [h for h in ((es.history or []) if es else []) if h.get("on", "") < r.on_date.isoformat()]
+                r.level_before = hist[-1]["level"] if hist else max(0, (es.level if es else 1) - 1)
+            age = (today - r.on_date).days
+            if r.result != "failed" and 120 <= age <= 270 and rnd.random() < 0.85:
+                res = rnd.choices(["applied", "partly", "not_yet"], [7, 2, 1])[0]
+                r.l3_result, r.l3_on, r.l3_by = res, r.on_date + timedelta(days=rnd.randint(35, 80)), users["sup.dry"].label
+                r.l3_note = notes.get(res)
+    db.flush()
+    # the plan HR made at the start of the year (classes already held were in it), then the draft adds what is still needed
+    from ..models import TrainingPlanItem
+
+    planned = {}
+    for ref, rs in sessions.items():
+        if rs[0].on_date.year == today.year and rs[0].session_ref:
+            key = (rs[0].course_code, rs[0].on_date.month)
+            planned[key] = planned.get(key, 0) + len(rs)
+    for (code, m), n in planned.items():
+        c = db.get(Course, code)
+        db.add(TrainingPlanItem(year=today.year, month=m, course_code=code, people=max(1, n - (n % 3 == 0)) if code != "CR-IND-01" else n + 2,
+                                budget=(c.cost_per_person or 0) * n or None, source="legal" if c.legal else "needs", status="done", created_by=users["hr.manager"].label))
+    for code, m, n in (("CR-LDR-01", 3, 4), ("CR-PCL-01", 6, 5), ("CR-RRC-01", 8, 4)):
+        db.add(TrainingPlanItem(year=today.year, month=m, course_code=code, people=n, source="needs", created_by=users["hr.manager"].label,
+                                note="SAMPLE: not held yet"))
+    db.flush()
+    TP.draft(db, users["hr.officer"], today.year, today)
+    TP.draft(db, users["hr.officer"], today.year + 1, today)
+    db.flush()
+
+
+def _demo_cost(db: Session, today: date) -> None:
+    """SAMPLE monthly pay totals per unit, as Bplus would send them back (totals only), and hiring costs."""
+    from ..models import PayTotal, Requisition
+
+    rnd = random.Random(5)
+    avg = {"Operator": 12500, "Staff": 26000, "Manager": 62000, "Japanese Management": 150000}
+    first = today.replace(day=1)
+    for k in range(12, 0, -1):
+        m = date(first.year + (first.month - 1 - k) // 12, (first.month - 1 - k) % 12 + 1, 1)
+        m_end = date(m.year + m.month // 12, m.month % 12 + 1, 1) - timedelta(days=1)
+        by_unit: dict[str, list] = {}
+        for e in db.scalars(select(Employee)):
+            if e.is_active_on(m_end):
+                by_unit.setdefault(e.org_unit_code, []).append(e)
+        season = 1.35 if m.month in (1, 2, 3, 11, 12) else 1.0  # rubber season: more OT
+        for unit, es in by_unit.items():
+            base = sum(avg.get(e.employee_group, 20000) for e in es) * rnd.uniform(0.97, 1.03)
+            ops = sum(1 for e in es if e.employee_group == "Operator")
+            ot = ops * 2200 * season * rnd.uniform(0.6, 1.4) + (len(es) - ops) * 900 * rnd.uniform(0.3, 1.2)
+            db.add(PayTotal(month=m, org_unit_code=unit, total_pay_cost=round(base + ot, 2), ot_cost=round(ot, 2), headcount_paid=len(es)))
+    for r in db.scalars(select(Requisition)):
+        if r.status in ("open", "filled"):
+            r.hire_cost = float(rnd.choice([1500, 3000, 4500, 8000]))
+    db.flush()
+
+
+def _demo_jobs(db: Session, today: date, users: dict) -> None:
+    """SAMPLE internal job board: open requests shown to employees first, and a few raised hands."""
+    from ..models import Requisition
+    from ..models.recruit import InternalInterest
+    from ..services import mobility as jobs
+
+    reqs = [r for r in db.scalars(select(Requisition).where(Requisition.status == "open").order_by(Requisition.id)) if r.open_seats > 0][:3]
+    for i, r in enumerate(reqs):
+        r.internal = True
+        r.internal_until = today + timedelta(days=10 + 7 * i)
+    plan = [("interested", "I worked 2 years in packing and want to learn the dryer line. (SAMPLE)", None, False),
+            ("talking", "I hold the forklift licence and covered this job during leave. (SAMPLE)", "Met on Monday; skills test next week", True),
+            ("not_now", "I would like to try a QA job. (SAMPLE)", "Needs the QA basics course first; apply again next round", True),
+            ("interested", None, None, False)]
+    k = 0
+    for r in reqs:
+        cands = [e for e in db.scalars(select(Employee).where(Employee.status == "Active").order_by(Employee.employee_id))
+                 if e.org_unit_code != r.org_unit_code and (today - e.join_date).days > 200 and e.employee_group == r.employee_group]
+        for e in cands[1:3]:
+            if k >= len(plan):
+                break
+            st, note, hr_note, told = plan[k]
+            k += 1
+            db.add(InternalInterest(requisition_id=r.id, employee_id=e.employee_id, status=st, note=note, hr_note=hr_note,
+                                    decided_by="hr.officer" if hr_note else None,
+                                    supervisor_told_on=today - timedelta(days=2) if told else None,
+                                    checks=jobs.move_checks(db, e, r.position_id, r.job_code, r.grade_code, jobs._event_type(db, e, r), today)))
     db.flush()

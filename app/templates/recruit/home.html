@@ -8,6 +8,7 @@
   <div class="kpi"><span class="k">{{ _('Candidates in progress') }}</span><span class="v">{{ st.active_apps }}</span></div>
   <div class="kpi"><span class="k">{{ _('Hired, last 12 months') }}</span><span class="v">{{ st.hires }}</span><span class="d">{% if st.avg_days_to_fill is not none %}{{ st.avg_days_to_fill }} {{ _('days to fill on average') }}{% endif %}</span></div>
   <div class="kpi"><span class="k">{{ _('Offers accepted') }}</span><span class="v">{{ st.offer_accept if st.offer_accept is not none else '-' }}{% if st.offer_accept is not none %}%{% endif %}</span></div>
+  <div class="kpi"><span class="k">{{ _('Cost per hire') }}</span><span class="v">{{ '{:,.0f}'.format(st.cost_per_hire) if st.cost_per_hire else '-' }}</span><span class="d">{{ _('THB, from hiring costs on each request') }}</span></div>
 </div>
 {% if my_interviews %}
 <section class="panel"><h2>{{ _('My interviews') }}</h2>

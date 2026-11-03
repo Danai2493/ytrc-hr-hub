@@ -155,7 +155,11 @@ def record_session(db: Session, user: User, course: Course, on: date, emp_ids: l
         if res not in ("attended", "passed", "failed"):
             res = "attended"
         valid = add_months(on, course.valid_months) if course.valid_months and res == "passed" else None
-        r = TrainingRecord(employee_id=eid, course_code=course.code, session_ref=ref, on_date=on, hours=hours if hours is not None else course.hours,
+        before = None
+        if course.skill_code:
+            es0 = db.scalar(select(EmployeeSkill).where(EmployeeSkill.employee_id == eid, EmployeeSkill.skill_code == course.skill_code))
+            before = es0.level if es0 else 0
+        r = TrainingRecord(level_before=before, employee_id=eid, course_code=course.code, session_ref=ref, on_date=on, hours=hours if hours is not None else course.hours,
                            result=res, trainer=trainer[:120] or None, valid_until=valid, note=note[:300] or None, source=source,
                            capture_id=capture_id, recorded_by=user.label)
         r.employee, r.course = emp, course

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "partials/charts.html" import status_tag %}
+{% block content %}
+<div class="phead"><h1>{{ _('Jobs inside YTRC') }}</h1></div>
+<p class="lead">{{ _('Open jobs that the company wants to fill from inside first. Raise your hand: HR talks with you first, before your supervisor is told. Pay is never shown here; HR explains it in person.') }}</p>
+{% if is_hr %}<p class="note">{{ _('HR: choose which open manpower requests appear here on the request page, section Internal job board.') }} <a href="/recruit">{{ _('Recruitment') }}</a></p>{% endif %}
+<div class="grid">
+{% for r in posts %}{% set ii = mine.get(r.id) %}
+  <section class="panel c6">
+    <h2>{{ r.job.title_th if lang == 'th' and r.job.title_th else r.job.title_en }}</h2>
+    <p class="note">{{ r.org_unit.name_th if lang == 'th' and r.org_unit.name_th else r.org_unit.name_en }}{% if r.grade_code %} · {{ _('Grade') }} {{ r.grade_code }}{% endif %} · {{ r.open_seats }} {{ _('seat(s)') }}{% if r.internal_until %} · {{ _('Apply by') }} {{ fmt_date(r.internal_until) }}{% endif %}</p>
+    {% set ad = (r.ad_th if lang == 'th' else r.ad_en) or r.ad_en or r.ad_th %}
+    {% if ad %}<details><summary>{{ _('Read the job') }}</summary><pre class="wrap">{{ ad }}</pre></details>{% endif %}
+    {% if ii and ii.status in ('interested', 'talking', 'moving') %}
+      <p>{{ status_tag('open') }} {{ _(statuses[ii.status]) }}{% if ii.hr_note %} · {{ ii.hr_note }}{% endif %}</p>
+      {% if ii.status in ('interested', 'talking') %}
+      <form method="post" action="/jobs/interest/{{ ii.id }}/withdraw" class="bar"><input type="hidden" name="_csrf" value="{{ csrf }}"><button class="small" data-confirm="{{ _('Withdraw your interest?') }}">{{ _('Withdraw') }}</button></form>
+      {% endif %}
+    {% elif why[r.id] %}
+      <p class="note">{{ _(why[r.id]) }}</p>
+    {% else %}
+      {% if ii %}<p class="note">{{ _('Last time') }}: {{ _(statuses[ii.status]) }}{% if ii.hr_note %} · {{ ii.hr_note }}{% endif %}</p>{% endif %}
+      <form method="post" action="/jobs/{{ r.id }}" class="form">
+        <input type="hidden" name="_csrf" value="{{ csrf }}">
+        <label class="wide">{{ _('Why do you want this job? What have you done that fits? (optional)') }}<textarea name="note" rows="3"></textarea></label>
+        <div class="bar wide"><button class="primary">{{ _('I am interested') }}</button></div>
+      </form>
+    {% endif %}
+  </section>
+{% else %}
+  <section class="panel c12"><p class="note">{{ _('No internal jobs are open right now. Check again later.') }}</p></section>
+{% endfor %}
+{% if history %}
+  <section class="panel c12">
+    <h2>{{ _('Your earlier applications') }}</h2>
+    <table class="cards"><tr><th>{{ _('Job') }}</th><th>{{ _('Status') }}</th><th>{{ _('Note') }}</th></tr>
+    {% for ii in history %}<tr><td data-l="{{ _('Job') }}">{{ ii.requisition.job.title_en }} · {{ ii.requisition.org_unit_code }}</td><td data-l="{{ _('Status') }}">{{ _(statuses[ii.status]) }}</td><td data-l="{{ _('Note') }}">{{ ii.hr_note or '' }}</td></tr>{% endfor %}
+    </table>
+  </section>
+{% endif %}
+</div>
+{% endblock %}

@@ -7,11 +7,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Course, Employee, EmployeeSkill, Job, JobSkill, OrgUnit, Skill, TrainingNeed, TrainingRecord
-from ..models.develop import LEVELS, NEED_REASONS, SKILL_CATEGORIES
+from ..models import Course, Employee, EmployeeSkill, Job, JobSkill, OrgUnit, Skill, TrainingNeed, TrainingPlanItem, TrainingRecord
+from ..models.develop import L3_RESULTS, LEVELS, NEED_REASONS, PLAN_SOURCES, SKILL_CATEGORIES
 from ..security import check_csrf, require
 from ..services import jobs as J
 from ..services import skills as S
+from ..services import trainplan as TP
 from ..services.common import normalize_employee_id, user_scope
 from .ot import _d, team_for
 from .templating import flash, redirect, render
@@ -175,6 +176,88 @@ async def training_save(request: Request, db: Session = Depends(get_db), user=De
     for u in unknown:
         flash(request, f"{u}: not in the employee master", "bad")
     return redirect(f"/skills/training?course={c.code}")
+
+
+# ---------- training plan and effectiveness ----------
+
+@router.get("/plan")
+def plan(request: Request, year: int = 0, db: Session = Depends(get_db), user=Depends(require(*WHO))):
+    y = year or date.today().year
+    rows, tot = TP.plan_vs_actual(db, y)
+    courses = list(db.scalars(select(Course).where(Course.active.is_(True)).order_by(Course.code)))
+    return render(request, "skills/plan.html", {"tab": "plan", "rows": rows, "tot": tot, "y": y, "courses": courses, "sources": PLAN_SOURCES,
+                                                "is_hr": user.has(*HR), "today": date.today(),
+                                                "units": list(db.scalars(select(OrgUnit).where(OrgUnit.active.is_(True)).order_by(OrgUnit.sort_order)))})
+
+
+@router.post("/plan", dependencies=[Depends(check_csrf)])
+async def plan_save(request: Request, db: Session = Depends(get_db), user=Depends(require(*HR))):
+    f = await request.form()
+    y = int(f.get("year") or date.today().year)
+    try:
+        if f.get("do") == "draft":
+            n = TP.draft(db, user, y)
+            msg = f"{n} plan lines added from training needs and licence renewals."
+        else:
+            item = db.get(TrainingPlanItem, int(f["item"])) if f.get("item") else None
+            TP.save_item(db, user, y, f, item)
+            msg = "Saved."
+        db.commit()
+        flash(request, msg)
+    except (TP.PlanError, ValueError) as ex:
+        db.rollback()
+        flash(request, str(ex), "bad")
+    return redirect(f"/skills/plan?year={y}")
+
+
+@router.get("/training/session/{ref}")
+def session_page(request: Request, ref: str, db: Session = Depends(get_db), user=Depends(require(*WHO))):
+    team = {e.employee_id for e in team_for(db, user)}
+    recs = [r for r in TP.session(db, ref) if r.employee_id in team]
+    if not recs:
+        raise HTTPException(404)
+    return render(request, "skills/session.html", {"tab": "records", "recs": recs, "ref": ref, "c": recs[0].course, "is_hr": user.has(*HR),
+                                                   "l3": L3_RESULTS, "letter": S.letter})
+
+
+@router.post("/training/session/{ref}", dependencies=[Depends(check_csrf)])
+async def session_save(request: Request, ref: str, db: Session = Depends(get_db), user=Depends(require(*HR))):
+    f = await request.form()
+    try:
+        TP.save_session_eval(db, user, ref, f)
+        db.commit()
+        flash(request, "Saved.")
+    except TP.PlanError as ex:
+        db.rollback()
+        flash(request, str(ex), "bad")
+    return redirect(f"/skills/training/session/{ref}")
+
+
+@router.get("/followup")
+def followup(request: Request, d0: str = "", d1: str = "", db: Session = Depends(get_db), user=Depends(require(*WHO))):
+    team = {e.employee_id for e in team_for(db, user) if e.employee_id != user.employee_id}
+    start = _d(d0) or date(date.today().year, 1, 1)
+    end = _d(d1) or date.today()
+    eff = TP.effectiveness(db, start, end, None if user.has(*HR, "gm") else team)
+    return render(request, "skills/followup.html", {"tab": "followup", "todo": TP.followups(db, team), "eff": eff, "l3": L3_RESULTS,
+                                                    "d0": start, "d1": end, "is_hr": user.has(*HR)})
+
+
+@router.post("/followup/{rid}", dependencies=[Depends(check_csrf)])
+async def followup_save(request: Request, rid: int, db: Session = Depends(get_db), user=Depends(require(*WHO))):
+    f = await request.form()
+    r = db.get(TrainingRecord, rid)
+    team = {e.employee_id for e in team_for(db, user)}
+    if r is None or r.employee_id not in team:
+        raise HTTPException(404)
+    try:
+        TP.save_followup(db, user, r, f.get("result") or "", f.get("note") or "")
+        db.commit()
+        flash(request, "Saved.")
+    except TP.PlanError as ex:
+        db.rollback()
+        flash(request, str(ex), "bad")
+    return redirect("/skills/followup")
 
 
 # ---------- jobs and job descriptions ----------

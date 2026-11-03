@@ -865,6 +865,7 @@ class Stats:
     not_selected: list[tuple[str, int]]
     withdrew: list[tuple[str, int]]
     by_month: list[tuple[str, int]]
+    cost_per_hire: Optional[float] = None
 
 
 def stats(db: Session, reqs: list[Requisition], today: Optional[date] = None, since: Optional[date] = None) -> Stats:
@@ -909,7 +910,15 @@ def stats(db: Session, reqs: list[Requisition], today: Optional[date] = None, si
         not_selected=Counter(a.close_reason for a in apps if a.stage == "rejected").most_common(),
         withdrew=Counter(a.close_reason for a in apps if a.stage == "withdrawn").most_common(),
         by_month=[(k, months.get(k, 0)) for k in keys],
+        cost_per_hire=_cost_per_hire(reqs, since),
     )
+
+
+def _cost_per_hire(reqs: list[Requisition], since: date) -> Optional[float]:
+    """Spend on requisitions closed or still open in the period, divided by people hired on them."""
+    done = [r for r in reqs if r.hire_cost and r.hired and (r.closed_on is None or r.closed_on >= since)]
+    n = sum(r.hired for r in done)
+    return round(sum(r.hire_cost for r in done) / n) if n else None
 
 
 def rule_en(f: dict) -> str:

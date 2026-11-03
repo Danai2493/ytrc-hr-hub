@@ -53,4 +53,7 @@ def home(request: Request, db: Session = Depends(get_db), user=Depends(current_u
         ).all()
     from ..services.pulse import my_open
     ctx["pulse"] = my_open(db, user)
+    from ..services.docs import my_todo
+
+    ctx["policies"] = my_todo(db, user)
     return render(request, "home.html", ctx)

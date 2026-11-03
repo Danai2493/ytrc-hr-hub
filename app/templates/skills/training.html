@@ -16,7 +16,7 @@
 <div class="panel scroll">
 <table>
   <tr><th>{{ _('Ref') }}</th><th>{{ _('Date') }}</th><th>{{ _('Course') }}</th><th>{{ _('Trainer') }}</th><th class="n">{{ _('People') }}</th><th class="n">{{ _('Passed') }}</th><th class="n">{{ _('Hours') }}</th></tr>
-  {% for s in sessions %}<tr><td class="mono">{{ s.ref or '' }}</td><td>{{ fmt_date(s.on) }}</td><td>{{ s.course.code }} {{ _(s.course.name_en) }}{% if s.course.legal %} <span class="tag warn">{{ _('legal') }}</span>{% endif %}</td><td>{{ s.trainer or '' }}</td><td class="n">{{ s.people }}</td><td class="n">{{ s.passed }}</td><td class="n">{{ s.hours|round(1) }}</td></tr>
+  {% for s in sessions %}<tr><td class="mono">{% if s.ref %}<a href="/skills/training/session/{{ s.ref }}">{{ s.ref }}</a>{% endif %}</td><td>{{ fmt_date(s.on) }}</td><td>{{ s.course.code }} {{ _(s.course.name_en) }}{% if s.course.legal %} <span class="tag warn">{{ _('legal') }}</span>{% endif %}</td><td>{{ s.trainer or '' }}</td><td class="n">{{ s.people }}</td><td class="n">{{ s.passed }}</td><td class="n">{{ s.hours|round(1) }}</td></tr>
   {% else %}<tr><td colspan="7" class="note">{{ _('No classes in this range') }}</td></tr>{% endfor %}
 </table>
 </div>

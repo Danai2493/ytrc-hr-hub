@@ -29,6 +29,8 @@ NAV = [
     ("/recruit", "Recruitment", ("hr", "hr_manager", "gm", "dept_head", "supervisor"), "user-plus", "People"),
     ("/newstaff", "New employees", ("hr", "hr_manager", "dept_head", "supervisor", "admin"), "clipboard", "People"),
     ("/exit", "Exit", ("hr", "hr_manager", "dept_head", "admin"), "log-out", "People"),
+    ("/docs", "Policies & documents", None, "file", "People"),
+    ("/jobs", "Jobs inside YTRC", None, "briefcase", "People"),
     ("/er", "Employee relations", ("hr", "hr_manager", "gm", "dept_head", "supervisor"), "alert", "People"),
     ("/ot", "OT", None, "clock", "Time and pay"),
     ("/leave", "Leave", None, "calendar", "Time and pay"),
