@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="phead"><h1>{{ _('Leave balances') }} {{ year }}</h1>
-  <form method="get" class="end inline"><input type="number" name="year" value="{{ year }}" class="w-num"><button class="small">{{ _('Show') }}</button></form></div>
+  <form method="get" class="end inline"><input type="number" name="year" value="{{ year }}" class="w-year" aria-label="{{ _('Year') }}"><button class="small">{{ _('Show') }}</button></form></div>
 <p class="note">{{ _('Days left (used + pending taken off). A dash means no yearly limit; the number is then the days used.') }}</p>
 <div class="panel scroll">
 <table>

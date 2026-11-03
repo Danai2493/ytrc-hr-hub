@@ -7,7 +7,7 @@
 <p class="lead">{{ _('Rules that replace manual checking. Each issue has an owner and a due date, closes itself once the data is fixed, and the monthly HR pack shows how many are open.') }}</p>
 <div class="kpis">
   {% for code, (sev, owner, label) in rules.items() if counts.get(code) %}
-  <a class="kpi" href="?rule={{ code }}"><span class="k">{{ _(label) }}</span><span class="v {{ 'bad-t' if sev == 'block' else '' }}">{{ counts[code] }}</span><span class="d">{{ code }} · {{ _(owner) }}</span></a>
+  <a class="kpi" href="?rule={{ code }}"><span class="k">{{ _(label) }}</span><span class="v {{ 'bad-t' if sev == 'block' else '' }}">{{ counts[code] }}</span><span class="d">{{ _('Owner') }}: {{ _(owner) }}</span></a>
   {% endfor %}
 </div>
 <form class="filters panel" method="get">

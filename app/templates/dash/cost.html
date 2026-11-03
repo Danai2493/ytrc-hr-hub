@@ -2,7 +2,7 @@
 {% from "partials/charts.html" import columns %}
 {% block content %}
 {% include "dash/_tabs.html" %}
-<p class="lead">{{ _('From the totals Bplus sends back each month per unit. The app never holds anyone\'s salary. HR, the HR Manager and the GM only.') }}</p>
+<p class="lead">{{ _("From the totals Bplus sends back each month per unit. The app never holds anyone's salary. HR, the HR Manager and the GM only.") }}</p>
 {% if not c.has %}<p class="callout">{{ _('No pay totals yet. Import the monthly totals file from Bplus under Pay input.') }}</p>{% else %}
 <div class="kpis">
   <div class="kpi"><span class="k">{{ _('People cost, 12 months') }}</span><span class="v">{{ '{:,.0f}'.format(c.year_cost / 1000000) }}M</span><span class="d">{{ _('THB') }}</span></div>

@@ -33,6 +33,6 @@
     {% for k, n, h in st.sources %}<tr><td>{{ _(sources.get(k, k)) }}</td><td class="n">{{ n }}</td><td class="n">{{ h }}</td><td class="n">{{ (h / n * 100)|round|int if n else 0 }}</td></tr>{% endfor %}</table>
   </section>
   <section class="panel c6"><h2>{{ _('Why candidates were not selected') }}</h2>{{ hbar(notsel_rows, color='var(--s3)') }}</section>
-  <section class="panel c6"><h2>{{ _('Why candidates withdrew') }}</h2>{{ hbar(withdrew_rows, color='var(--s4)') }}<p class="note">{{ _('Pay is the most common reason in most factories. Look at shift and travel too: they can be changed.') }}</p></section>
+  <section class="panel c6"><h2>{{ _('Why candidates withdrew') }}</h2>{{ hbar(withdrew_rows, color='var(--s1)') }}<p class="note">{{ _('Pay is the most common reason in most factories. Look at shift and travel too: they can be changed.') }}</p></section>
 </div>
 {% endblock %}

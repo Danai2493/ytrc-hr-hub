@@ -1,20 +1,17 @@
 {# Server-drawn SVG charts: no chart library, works offline on the intranet. #}
 
 {% macro hbar(rows, unit='', color='var(--s1)', width=560, label_w=170) -%}
-{# rows: list of (label, value[, href]) #}
+{# rows: list of (label, value[, href]). HTML bars, so labels stay readable on a phone. #}
 {% set maxv = (rows | map(attribute=1) | max) if rows else 0 %}
-{% set h = 24 %}
-<div class="chart">
-<svg viewBox="0 0 {{ width }} {{ rows|length * h + 6 }}" role="img">
+<div class="hbars" role="list">
   {% for r in rows %}
-  {% set w = ((r[1] / maxv) * (width - label_w - 60)) if maxv else 0 %}
-  <g transform="translate(0,{{ loop.index0 * h }})">
-    <text x="{{ label_w - 6 }}" y="16" text-anchor="end">{{ r[0] | truncate(26, True, '…') }}</text>
-    <rect x="{{ label_w }}" y="4" width="{{ [w, 1] | max }}" height="15" rx="2" fill="{{ color }}"><title>{{ r[0] }}: {{ r[1] }} {{ unit }}</title></rect>
-    <text x="{{ label_w + w + 5 }}" y="16">{{ '%g' % (r[1] | round(1)) }}{{ unit }}</text>
-  </g>
+  {% set pct = ((r[1] / maxv) * 100) if maxv else 0 %}
+  <div class="hb" role="listitem">
+    <span class="hb-l" title="{{ r[0] }}">{% if r|length > 2 and r[2] %}<a href="{{ r[2] }}">{{ r[0] }}</a>{% else %}{{ r[0] }}{% endif %}</span>
+    <span class="hb-t"><span class="hb-b" style="width:{{ '%.1f' % ([pct, 0.6] | max) }}%;background:{{ color }}"></span></span>
+    <span class="hb-v">{{ '%g' % (r[1] | round(1)) }}{{ unit }}</span>
+  </div>
   {% endfor %}
-</svg>
 </div>
 {%- endmacro %}
 
@@ -30,7 +27,7 @@
 {% set pad_l = 40 %}{% set pad_b = 26 %}{% set plot_h = height - pad_b - 8 %}
 {% set bw = ((width - pad_l) / (n if n else 1)) %}
 <div class="chart">
-<svg viewBox="0 0 {{ width }} {{ height }}" role="img">
+<svg viewBox="0 0 {{ width }} {{ height }}" style="--w:{{ width }}px" role="img">
   <g class="grid">
     {% for k in range(5) %}{% set y = 8 + plot_h * k / 4 %}
     <line x1="{{ pad_l }}" x2="{{ width }}" y1="{{ y }}" y2="{{ y }}"/>

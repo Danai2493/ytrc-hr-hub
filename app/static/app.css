@@ -208,7 +208,10 @@ input,select,textarea{font:400 15px var(--f-body);color:var(--ink);background:va
 input:hover,select:hover,textarea:hover{border-color:var(--ink-3)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-2) 25%,transparent)}
 input[type=checkbox],input[type=radio]{width:18px;height:18px;min-height:0;accent-color:var(--accent)}
-input[type=file]{padding:6px}
+input[type=file]{padding:6px;font-size:14px;color:var(--ink-2);cursor:pointer}
+input[type=file]::file-selector-button{font:inherit;font-weight:600;color:var(--ink);background:var(--panel-2);border:1px solid var(--line);border-radius:calc(var(--r) - 2px);padding:6px 12px;margin-right:10px;cursor:pointer;transition:background .15s}
+input[type=file]:hover::file-selector-button{background:var(--panel)}
+input.w-year{width:6.5em;min-width:6.5em}
 textarea{min-height:80px;line-height:1.5}
 @media (max-width:640px){input,select,textarea{font-size:16px}}
 .btn,button{font:600 14px var(--f-body);display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:8px 15px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--panel);color:var(--ink);cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .15s var(--ease),border-color .15s var(--ease),color .15s var(--ease)}
@@ -245,7 +248,15 @@ input.w-num{width:4em;min-width:4em}
 
 /* ---------- charts ---------- */
 .chart svg{width:100%;height:auto;display:block}
-.chart text{fill:var(--ink-3);font-size:11px;font-family:var(--f-body)}
+.chart text{fill:var(--ink-3);font-size:12px;font-family:var(--f-body)}
+@media (max-width:640px){.chart{overflow-x:auto;scrollbar-width:thin}.chart svg[style]{width:var(--w);max-width:none}}
+.hbars{display:grid;gap:6px}
+.hb{display:grid;grid-template-columns:minmax(90px,34%) minmax(0,1fr) auto;align-items:center;gap:10px;font-size:13px}
+.hb-l{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.hb-t{height:14px;background:var(--panel-2);border-radius:3px;overflow:hidden}
+.hb-b{display:block;height:100%;border-radius:3px}
+.hb-v{font-variant-numeric:tabular-nums;color:var(--ink);min-width:3ch;text-align:right;font-weight:500}
+@media (max-width:640px){.hb{grid-template-columns:minmax(80px,40%) minmax(0,1fr) auto;font-size:12.5px}}
 .chart .grid line{stroke:var(--line)}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
@@ -351,12 +362,14 @@ fieldset.qblock{border:0;border-bottom:1px solid var(--line);margin:0;padding:12
 label.chip.lvl{flex-direction:column;align-items:flex-start;border-radius:var(--r-sm);padding:8px 10px;font-size:12.5px;line-height:1.35;gap:4px}
 label.chip.lvl b{font-size:15px}
 @media (max-width:900px){.levels{grid-template-columns:1fr}label.chip.lvl{flex-direction:row;align-items:center}}
-.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0 0 16px}
-.tabs a{padding:8px 14px;border-radius:8px 8px 0 0;color:var(--ink-3);text-decoration:none;font-weight:600;border:1px solid transparent;border-bottom:0;margin-bottom:-1px;min-height:40px;display:inline-flex;align-items:center}
-.tabs a.on{color:var(--accent);background:var(--panel);border-color:var(--line)}
+.tabs{display:flex;width:fit-content;gap:2px;flex-wrap:nowrap;max-width:100%;overflow-x:auto;scrollbar-width:none;background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r);padding:3px;margin:0 0 16px}
+.tabs a{padding:6px 14px;border-radius:calc(var(--r) - 3px);color:var(--ink-2);text-decoration:none;font-weight:500;min-height:36px;display:inline-flex;align-items:center;white-space:nowrap;transition:background .15s,color .15s}
+.tabs a:hover{background:var(--panel);color:var(--ink)}
+.tabs a.on{color:var(--accent);background:var(--panel);font-weight:600;box-shadow:var(--shadow)}
 .sig{margin:0;padding-left:18px}.sig li{margin:2px 0}.sig b{font-variant-numeric:tabular-nums;color:var(--ink-3);font-weight:600}
 td.neg{color:var(--bad);font-weight:600}td.pos{color:var(--ok)}
 .bar-meter{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:6px 0 4px}.bar-meter i{display:block;height:100%;background:var(--ok)}
 fieldset.checklist{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-wrap:wrap;gap:6px;max-height:320px;overflow:auto}
 fieldset.checklist legend{font-weight:600;padding:0 4px}
 .rowform{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.rowform select{width:auto;flex:0 0 auto}.rowform input{flex:1 1 140px;min-width:120px;width:auto}.rowform button{flex:0 0 auto}
+@media (pointer:coarse){.tabs a,.phead > .end.no-print > a.btn{min-height:44px}input[type=file]::file-selector-button{min-height:36px}}
