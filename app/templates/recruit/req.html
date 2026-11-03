@@ -41,7 +41,7 @@
       <label class="half">{{ _('Thai') }}<textarea name="ad_th" rows="9">{{ req.ad_th or '' }}</textarea></label>
       <label class="half">{{ _('English') }}<textarea name="ad_en" rows="9">{{ req.ad_en or '' }}</textarea></label>
       <label class="wide">{{ _('Posted on') }}<span>{% for k, v in sources.items() if k not in ('walk_in', 'referral', 'rehire', 'other') %}<label style="display:inline;min-width:auto"><input type="checkbox" name="channels" value="{{ k }}" {% if k in (req.channels or []) %}checked{% endif %}> {{ _(v) }}</label> {% endfor %}</span></label>
-      <label>{{ _('Hiring cost so far (THB): ads, agency, travel') }}<input name="hire_cost" inputmode="decimal" value="{{ req.hire_cost or '' }}"></label>
+      <label>{{ _('Hiring cost so far (THB): ads, agency, travel') }}<input name="hire_cost" inputmode="decimal" value="{{ '%g' % req.hire_cost if req.hire_cost is not none else '' }}"></label>
       <div class="bar wide"><button class="primary">{{ _('Save ad') }}</button><button name="do" value="ai" data-confirm="{{ _('Replace the ad with a new AI draft?') }}">{{ _('New AI draft from the JD') }}</button></div>
     </form>
     <p class="note">{{ _('The ad never shows pay. It must not ask for age, gender, religion or marital status unless the job legally needs it.') }}</p>

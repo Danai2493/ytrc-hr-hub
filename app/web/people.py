@@ -180,6 +180,10 @@ def event_form(request: Request, emp_id: str, type: str = "transfer", db: Sessio
         _404()
     qp = request.query_params
     data = {k: qp.get(k) for k in ("to_org_unit", "to_position", "to_job", "to_grade", "note") if qp.get(k)}
+    if data.get("to_position") and not data.get("to_org_unit"):
+        pos = db.get(Position, data["to_position"])
+        if pos is not None and pos.org_unit_code != emp.org_unit_code:
+            data["to_org_unit"] = pos.org_unit_code
     if qp.get("interest", "").isdigit():
         data["interest_id"] = qp["interest"]
     checks = None
