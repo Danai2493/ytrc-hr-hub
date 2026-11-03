@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Employee Master') }}: {{ _('check before loading') }}</h1></div>
+<p class="note">{{ filename }}</p>
+<div class="kpis">
+  <div class="kpi"><span class="k">{{ _('New') }}</span><span class="v">{{ counts['new'] }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Update') }}</span><span class="v">{{ counts['update'] }}</span></div>
+  <div class="kpi"><span class="k">{{ _('No change') }}</span><span class="v">{{ counts.same }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Errors') }}</span><span class="v{% if counts.error %} warn-t{% endif %}">{{ counts.error }}</span></div>
+  <div class="kpi"><span class="k">{{ _('Rows with notes') }}</span><span class="v">{{ counts.warnings }}</span></div>
+</div>
+<form method="post" action="/admin/golive/master/apply" class="bar">
+  <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="token" value="{{ token }}">
+  {% if token and is_hrm %}<button class="primary" data-confirm="{{ _('Load the new and updated rows now?') }}">{{ _('Load') }} {{ counts['new'] + counts['update'] }} {{ _('rows') }}</button>{% endif %}
+  <a class="btn" href="/admin/golive">{{ _('Cancel') }}</a>
+  <span class="note">{{ _('Rows with errors are skipped. Fix them in the workbook and upload again: rows already loaded show as No change.') }}</span>
+</form>
+<section class="panel scroll">
+  <table class="cards">
+    <tr><th>{{ _('Row') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Result') }}</th><th>{{ _('Details') }}</th></tr>
+    {% for r in plan.rows if r.action != 'same' %}
+    <tr>
+      <td data-l="{{ _('Row') }}" class="num">{{ r.row }}</td>
+      <td data-l="{{ _('Employee') }}"><span class="mono">{{ r.employee_id }}</span> {{ r.name }}{% if r.status != 'Active' %} <span class="tag">{{ _('left') }}</span>{% endif %}</td>
+      <td data-l="{{ _('Result') }}"><span class="tag {{ {'new':'ok','update':'warn','error':'bad'}[r.action] }}">{{ _({'new':'New','update':'Update','error':'Error'}[r.action]) }}</span></td>
+      <td data-l="{{ _('Details') }}">
+        {% if r.errors or r.warnings %}<ul class="find">{% for e in r.errors %}{% set p_ = e.split(' | ', 1) %}<li class="block">{{ _(p_[0]) }}{% if p_|length > 1 %}: {{ p_[1] }}{% endif %}</li>{% endfor %}{% for w in r.warnings %}{% set p_ = w.split(' | ', 1) %}<li class="flag">{{ _(p_[0]) }}{% if p_|length > 1 %}: {{ p_[1] }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+        {% for k, v in r.changes.items() %}<div class="note">{{ k }}: {{ v[0] if v[0] is not none else '' }} → <strong>{{ v[1] }}</strong></div>{% endfor %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

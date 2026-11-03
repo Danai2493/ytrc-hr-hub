@@ -39,6 +39,7 @@ DEFAULT_SETTINGS: dict[str, tuple[Any, str]] = {
                          "Benefits the job ad may mention (no pay figures)"),
     "recruit_apply_how": ("Walk in Monday to Saturday 08:00-16:00 at the HR office, or send name and phone by LINE",
                           "How to apply, printed on every job ad"),
+    "company_name_th": (None, "Company name in Thai as it appears on letters (warning letters, certificates)"),
     "promo_min_months": (12, "Months in the current grade before a promotion is normally considered"),
     "internal_min_months": (12, "Months in the current job before an employee normally moves to an internal job"),
     "doc_alert_days": (60, "Flag personnel documents (ID card, passport, visa, licences) expiring within this many days"),

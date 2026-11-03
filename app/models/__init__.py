@@ -29,7 +29,7 @@ from .develop import (
     TrainingNeed,
     TrainingRecord,
 )
-from .hrdev import ExitCase, LeaveRequest, LeaveType
+from .hrdev import ExitCase, LeaveOpening, LeaveRequest, LeaveType
 from .perform import Appraisal, Goal, KpiDefinition, PerformanceCycle
 from .recruit import Application, Candidate, InternalInterest, Interview, Requisition
 from .talent import TalentReview
@@ -95,6 +95,7 @@ __all__ = [
     "JobEvaluation",
     "JobSkill",
     "KpiDefinition",
+    "LeaveOpening",
     "LeaveRequest",
     "LeaveType",
     "OTBudget",

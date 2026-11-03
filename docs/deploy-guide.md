@@ -1,4 +1,9 @@
-# Deploy guide for IT
+# Install guide for IT
+
+**สรุปสำหรับฝ่าย IT (ภาษาไทย):** ระบบนี้คือ Docker image หนึ่งตัวกับฐานข้อมูล PostgreSQL หนึ่งตัว
+ติดตั้งบนเซิร์ฟเวอร์ของบริษัทหรือคลาวด์ใดก็ได้ ต้องมี HTTPS (เช่น hr.ytrc.co.th ผ่าน Cloudflare หรือ nginx),
+Google OAuth client ของ Google Workspace บริษัท, และสำรองข้อมูลทุกวัน ขั้นตอนครบอยู่ในข้อ 1-8,
+ตัวอย่าง reverse proxy ในข้อ 10 และลำดับงานวันเปิดใช้ระบบในข้อ 11 ข้อมูลเงินเดือนและบัญชีธนาคารไม่อยู่ในระบบนี้ (อยู่ใน Bplus เท่านั้น)
 
 The app is one Docker image plus one SQL database. It runs on a company
 server, a virtual machine or any cloud that runs containers. Nothing ties it
@@ -89,7 +94,102 @@ Database changes run by themselves on start (Alembic migrations in
 
 `GET /healthz` returns `ok`. Use it for the load balancer and monitoring.
 
-## 9. Open questions for IT
+## 9. Settings that matter on day one
+
+| Variable | Why |
+|---|---|
+| `APP_ENV=production` | Turns on secure cookies and refuses the default `SECRET_KEY` |
+| `BASE_URL` | Used in Google sign-in and links; must be the HTTPS address people open |
+| `DEMO_MODE=false` | Never load SAMPLE people on the company server |
+| `STORAGE_DIR` | Scans of personnel documents, policies, CVs and form photos. Mount a volume and back it up with the database. Only the app user reads it. |
+| `AI_PROVIDER` | `none` until the company has agreed a provider (see `ai.md`). Everything works without AI; only the photo reading is switched off. |
+| `LOCAL_LOGIN_ENABLED` | `true` while operators and supervisors use app-only logins |
+
+## 10. HTTPS in front of the app
+
+The container listens on port 8000 (plain HTTP). Put it behind a proxy that
+holds the certificate and passes the original host and scheme.
+
+**Caddy** (gets a certificate by itself):
+
+```
+hr.ytrc.co.th {
+    reverse_proxy 127.0.0.1:8000
+    request_body {
+        max_size 20MB
+    }
+}
+```
+
+**nginx**:
+
+```
+server {
+    listen 443 ssl http2;
+    server_name hr.ytrc.co.th;
+    ssl_certificate     /etc/ssl/hr.crt;
+    ssl_certificate_key /etc/ssl/hr.key;
+    client_max_body_size 20m;          # photos of forms, PDF policies, Excel imports
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
+```
+
+**Cloudflare** (the company website already uses it): add a DNS record for the
+HR address pointing at the server, proxied, SSL mode *Full (strict)* with an
+origin certificate on the server. Do not cache anything under this address
+(add a Cache Rule "bypass" for the hostname): every page is personal.
+
+Change `ports: "8000:8000"` in `docker-compose.yml` to `"127.0.0.1:8000:8000"`
+so the app is reachable only through the proxy.
+
+## 11. Go-live day, in order
+
+Each step takes minutes; the whole day is mostly HR checking data.
+
+1. **IT**: install as in section 3 with `DEMO_MODE=false`. Create the first admin
+   with `create-admin`, sign in, change the temporary password.
+2. **IT**: Admin > Users: create the HR Manager (role `hr_manager`) and HR
+   officers (`hr`). Link each user to their Employee ID after step 4.
+3. **HR Manager**: Admin > Holidays: upload the company calendar workbook for
+   this year (and next year in December).
+4. **HR Manager**: Admin > Go-live loading > Employee Master: upload the
+   `Employee_Master_v1` workbook. The app shows every row as New, Update,
+   No change or Error without saving. Fix errors in the workbook, upload
+   again, then press Load. Department, job, grade and group differences for
+   people already in the app are listed, not changed.
+5. **HR Manager**: Org & positions: set the Department Head of each
+   department, check the budgeted positions and seats, put each active person
+   on a position (the go-live checklist counts who is missing).
+6. **HR**: Admin > Go-live loading > Opening leave balances: download the sheet
+   (one row per active person and leave type), fill in the days already taken
+   this year on paper and the vacation days carried in, upload, check, load.
+7. **IT**: Admin > Users: create logins for Department Heads, supervisors and
+   anyone else (Google sign-in for people with a company account, app-only
+   logins for the others), with their roles and Employee ID.
+8. **HR Manager**: Admin > Settings: company name for letters
+   (`company_name_th`), and review the rule settings.
+9. **Everyone**: the go-live checklist on Admin > Go-live loading should be all
+   OK. Then announce the address.
+
+From that day on, the Excel master is no longer edited: changes go through the
+app (data change with a second HR check, job events with approvals).
+
+If something goes wrong on the day, restore the database backup taken before
+step 4 and start again from step 4; nothing outside the app has changed.
+
+## 12. Monitoring
+
+- `GET /healthz` from the monitoring tool every minute.
+- `docker compose logs app --since 24h` for errors.
+- Disk space on the `files` and `dbdata` volumes (about 1 GB a year for 300 people with scans).
+- The nightly `run-jobs` output (number of events applied, data health counts).
+
+## 13. Open questions for IT
 
 - Where it will run (company server or which cloud) and who looks after it.
 - The HTTPS address.

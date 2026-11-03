@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Opening leave balances') }}: {{ _('check before loading') }}</h1></div>
+<p class="note">{{ filename }} · {{ ok }} {{ _('lines ready') }}{% if bad %} · <strong>{{ bad }} {{ _('with errors (skipped)') }}</strong>{% endif %}</p>
+<form method="post" action="/admin/golive/opening/apply" class="bar">
+  <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="token" value="{{ token }}">
+  {% if token %}<button class="primary">{{ _('Load') }} {{ ok }} {{ _('lines') }}</button>{% endif %}
+  <a class="btn" href="/admin/golive">{{ _('Cancel') }}</a>
+  <span class="note">{{ _('Loading again replaces the numbers for the same person, type and year.') }}</span>
+</form>
+<section class="panel scroll">
+  <table class="cards">
+    <tr><th>{{ _('Row') }}</th><th>{{ _('Employee') }}</th><th>{{ _('Type') }}</th><th>{{ _('Year') }}</th><th class="num">{{ _('Used before go-live') }}</th><th class="num">{{ _('Vacation carried in') }}</th><th>{{ _('Problem') }}</th></tr>
+    {% for r in rows %}
+    <tr><td class="num" data-l="{{ _('Row') }}">{{ r.row }}</td><td data-l="{{ _('Employee') }}"><span class="mono">{{ r.employee_id }}</span> {{ r.name or '' }}</td><td data-l="{{ _('Type') }}">{{ r.leave_type }}</td><td data-l="{{ _('Year') }}">{{ r.year }}</td>
+      <td class="num" data-l="{{ _('Used before go-live') }}">{{ r.used_before if r.used_before is not none else '' }}</td><td class="num" data-l="{{ _('Vacation carried in') }}">{{ r.carry_in if r.carry_in is not none else '' }}</td>
+      <td data-l="{{ _('Problem') }}">{% for e in r.errors %}<span class="tag bad">{{ _(e) }}</span> {% endfor %}</td></tr>
+    {% endfor %}
+  </table>
+</section>
+{% endblock %}

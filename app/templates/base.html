@@ -57,7 +57,7 @@
 </header>
 {% endif %}
 <main id="main" class="content">
-  {% if flashes %}<div class="toasts" role="status" aria-live="polite">{% for f in flashes %}<div class="flash {{ f.kind }}">{{ icon('ok' if f.kind == 'ok' else 'alert') }}<span>{{ _(f.msg) }}</span><button class="icon-btn" data-dismiss aria-label="{{ _('Close') }}">{{ icon('x') }}</button></div>{% endfor %}</div>{% endif %}
+  {% if flashes %}<div class="toasts" role="status" aria-live="polite">{% for f in flashes %}<div class="flash {{ f.kind }}">{{ icon('ok' if f.kind == 'ok' else 'alert') }}{% set m_ = f.msg.split(' | ', 1) %}<span>{{ _(m_[0]) }}{% if m_|length > 1 %}: {{ m_[1] }}{% endif %}</span><button class="icon-btn" data-dismiss aria-label="{{ _('Close') }}">{{ icon('x') }}</button></div>{% endfor %}</div>{% endif %}
   {% block content %}{% endblock %}
 </main>
 {% if user %}

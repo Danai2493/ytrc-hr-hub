@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db import Base, Timestamps
@@ -102,3 +102,19 @@ class ExitCase(Timestamps, Base):
     @property
     def open_items(self) -> list[dict]:
         return [i for i in (self.items or []) if not i.get("done")]
+
+
+class LeaveOpening(Timestamps, Base):
+    """Leave taken on paper before go-live, and vacation days carried in, per person, type and year."""
+
+    __tablename__ = "leave_opening"
+    __table_args__ = (UniqueConstraint("employee_id", "year", "leave_type"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    employee_id: Mapped[str] = mapped_column(ForeignKey("employee.employee_id"), index=True)
+    year: Mapped[int] = mapped_column(Integer, index=True)
+    leave_type: Mapped[str] = mapped_column(ForeignKey("leave_type.code"))
+    used_before: Mapped[float] = mapped_column(Float, default=0)
+    carry_in: Mapped[Optional[float]] = mapped_column(Float)  # VAC only; None = the app works it out
+    note: Mapped[Optional[str]] = mapped_column(String(200))
+    loaded_by: Mapped[Optional[str]] = mapped_column(String(160))

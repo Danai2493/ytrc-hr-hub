@@ -15,7 +15,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import ApprovalRequest, DailyAttendance, Employee, LeaveRequest, LeaveType, OTRequest, User
+from ..models import ApprovalRequest, DailyAttendance, Employee, LeaveOpening, LeaveRequest, LeaveType, OTRequest, User
 from . import approvals
 from .approvals import StepSpec
 from .common import audit, get_setting, next_ref
@@ -73,6 +73,9 @@ def vacation_carry(db: Session, emp: Employee, year: int, _depth: int = 0) -> fl
     first = int(get_setting(db, "vacation_carry_from_year") or 2027)
     if year < first or year <= emp.join_date.year or _depth > 40:
         return 0.0
+    o = _opening(db, emp.employee_id, "VAC", year)
+    if o is not None and o.carry_in is not None:
+        return float(o.carry_in)  # loaded at go-live from the paper records
     cap = float(get_setting(db, "vacation_carry_max") or 3)
     prev = year - 1
     left = _vac_own(db, emp, prev) + vacation_carry(db, emp, prev, _depth + 1) - used_days(db, emp.employee_id, "VAC", prev)
@@ -114,7 +117,12 @@ def used_days(db: Session, emp_id: str, code: str, year: int, exclude_id: Option
         LeaveRequest.employee_id == emp_id, LeaveRequest.leave_type == code, LeaveRequest.status.in_(ACTIVE),
         LeaveRequest.start_date <= date(year, 12, 31), LeaveRequest.end_date >= date(year, 1, 1),
     )
-    return sum(r.days for r in db.scalars(q) if r.id != exclude_id)
+    o = _opening(db, emp_id, code, year)
+    return sum(r.days for r in db.scalars(q) if r.id != exclude_id) + (o.used_before if o else 0.0)
+
+
+def _opening(db: Session, emp_id: str, code: str, year: int) -> Optional[LeaveOpening]:
+    return db.scalar(select(LeaveOpening).where(LeaveOpening.employee_id == emp_id, LeaveOpening.leave_type == code, LeaveOpening.year == year))
 
 
 @dataclass
@@ -139,8 +147,9 @@ def balances(db: Session, emp: Employee, year: int) -> list[Balance]:
         if lt.gender and emp.gender and lt.gender != emp.gender:
             continue
         mine = [r for r in rows if r.leave_type == lt.code]
+        o = _opening(db, emp.employee_id, lt.code, year)
         out.append(Balance(lt, entitlement(db, emp, lt, year),
-                           sum(r.days for r in mine if r.status == "approved"),
+                           sum(r.days for r in mine if r.status == "approved") + (o.used_before if o else 0.0),
                            sum(r.days for r in mine if r.status == "pending")))
     return out
 

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="phead"><h1>{{ _('Go-live loading') }}</h1><div class="end"><a class="btn" href="/admin">{{ _('Admin') }}</a></div></div>
+<p class="lead">{{ _('Load the real Employee Master and the leave already taken this year, then check the list below. Each upload first shows what will happen; nothing is saved until you press Load.') }}</p>
+<div class="grid">
+  <section class="panel c6">
+    <h2>{{ _('1. Employee Master') }}</h2>
+    <p class="note">{{ _('Upload the Employee_Master_v1 workbook (sheets Master and Restricted). New IDs are created, existing people get their personal details updated. Department, job, grade and group differences are listed, not changed: after go-live they change through a job event.') }}</p>
+    <form method="post" action="/admin/golive/master" enctype="multipart/form-data" class="form">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label class="wide">{{ _('Workbook (.xlsx)') }}<input type="file" name="file" accept=".xlsx" required></label>
+      <div class="bar wide"><button class="primary">{{ _('Check the file') }}</button></div>
+    </form>
+    {% if not is_hrm %}<p class="note">{{ _('HR can check the file; the HR Manager loads it.') }}</p>{% endif %}
+  </section>
+  <section class="panel c6">
+    <h2>{{ _('2. Opening leave balances') }}</h2>
+    <p class="note">{{ _('Leave taken on paper before the app started counts against this year. Download the sheet (one row per active person and leave type), fill in the days, upload it.') }}</p>
+    <div class="bar"><a class="btn" href="/admin/golive/opening-template?year={{ year }}">{{ _('Download the sheet for') }} {{ year }}</a></div>
+    <form method="post" action="/admin/golive/opening" enctype="multipart/form-data" class="form">
+      <input type="hidden" name="_csrf" value="{{ csrf }}">
+      <label class="wide">{{ _('Filled sheet (.xlsx)') }}<input type="file" name="file" accept=".xlsx" required></label>
+      <div class="bar wide"><button class="primary">{{ _('Check the file') }}</button></div>
+    </form>
+  </section>
+  <section class="panel c12">
+    <h2>{{ _('Ready to go live?') }}</h2>
+    <table class="cards"><tr><th></th><th>{{ _('Check') }}</th><th class="num">{{ _('Now') }}</th></tr>
+    {% for r in ready %}<tr><td>{% if r.ok %}<span class="tag ok">{{ _('OK') }}</span>{% else %}<span class="tag warn">{{ _('To do') }}</span>{% endif %}</td><td data-l="{{ _('Check') }}">{{ _(r.text) }}</td><td class="num" data-l="{{ _('Now') }}">{{ r.value }}</td></tr>{% endfor %}
+    </table>
+    <p class="note">{{ _('The SAMPLE people are demo data. On the company server the app starts empty; load the master there, never on a demo.') }}</p>
+  </section>
+</div>
+{% endblock %}
